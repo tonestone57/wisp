@@ -2,6 +2,7 @@
 #include "qjs_css.h"
 
 #include <stdlib.h>
+#include <openssl/rand.h>
 
 static JSValue wisp_qjs_noop(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
     return JS_UNDEFINED;
@@ -10,8 +11,8 @@ static JSValue wisp_qjs_noop(JSContext *ctx, JSValueConst this_val, int argc, JS
 /* 1. crypto.randomUUID implementation */
 static JSValue js_crypto_randomUUID(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
     uint8_t bytes[16];
-    for (int i = 0; i < 16; i++) {
-        bytes[i] = (uint8_t)(rand() & 0xFF);
+    if (RAND_bytes(bytes, 16) != 1) {
+        return JS_ThrowInternalError(ctx, "RAND_bytes failed");
     }
     // Set UUID version 4 and variant bits
     bytes[6] = (bytes[6] & 0x0F) | 0x40;
