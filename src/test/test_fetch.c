@@ -5,6 +5,7 @@
 
 #include "content/fetch.h"
 #include "content/fetchers.h"
+#include "content/fetchers/curl.h"
 #include "content/urldb.h"
 #include "utils/log.h"
 #include "utils/nsurl.h"
@@ -356,6 +357,47 @@ START_TEST(test_fetch_multipart_data_destroy_chain)
 }
 END_TEST
 
+START_TEST(test_fetch_curl_dns_prefetch_null)
+{
+    /* Passing NULL host when network_thread_pool is NULL should return immediately safely */
+    fetch_curl_dns_prefetch(NULL);
+    fetch_curl_dns_prefetch("localhost");
+}
+END_TEST
+
+START_TEST(test_fetch_curl_dns_prefetch_execution)
+{
+    /* Register curl fetcher to initialize network_thread_pool */
+    nserror err = fetch_curl_register();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Enqueue DNS prefetch requests for IP address and hostname */
+    fetch_curl_dns_prefetch(NULL);
+    fetch_curl_dns_prefetch("127.0.0.1");
+    fetch_curl_dns_prefetch("localhost");
+
+    /* Give thread pool workers time to process enqueued tasks */
+    struct timespec ts = { .tv_sec = 0, .tv_nsec = 100000000 }; /* 100ms */
+    nanosleep(&ts, NULL);
+}
+END_TEST
+
+START_TEST(test_fetch_curl_preconnect_execution)
+{
+    /* Register curl fetcher to initialize network_thread_pool */
+    nserror err = fetch_curl_register();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Enqueue preconnect requests with NULL and valid URL */
+    fetch_curl_preconnect(NULL);
+    fetch_curl_preconnect("http://127.0.0.1:1/");
+
+    /* Give thread pool workers time to process preconnect task */
+    struct timespec ts = { .tv_sec = 0, .tv_nsec = 100000000 }; /* 100ms */
+    nanosleep(&ts, NULL);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -379,6 +421,12 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_file);
     tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_chain);
     suite_add_tcase(s, tc_multipart);
+
+    TCase *tc_curl_prefetch = tcase_create("CurlPrefetch");
+    tcase_add_test(tc_curl_prefetch, test_fetch_curl_dns_prefetch_null);
+    tcase_add_test(tc_curl_prefetch, test_fetch_curl_dns_prefetch_execution);
+    tcase_add_test(tc_curl_prefetch, test_fetch_curl_preconnect_execution);
+    suite_add_tcase(s, tc_curl_prefetch);
 
     return s;
 }
