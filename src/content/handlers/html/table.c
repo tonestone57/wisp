@@ -178,6 +178,31 @@ static bool table_border_is_more_eyecatching(
 
 
 /**
+ * Get the next row in table order, crossing row group boundaries if necessary.
+ *
+ * \param row Current row box
+ * \return Next row box, or NULL if at the end of the table
+ */
+static struct box *table_next_row(struct box *row)
+{
+    if (row == NULL)
+        return NULL;
+
+    if (row->next != NULL)
+        return row->next;
+
+    struct box *group = row->parent;
+    while (group != NULL && group->type == BOX_TABLE_ROW_GROUP) {
+        group = group->next;
+        if (group != NULL && group->children != NULL)
+            return group->children;
+    }
+
+    return NULL;
+}
+
+
+/**
  * Process a table
  *
  * \param unit_len_ctx  Length conversion context
@@ -442,10 +467,8 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
                 a_src = b_src;
             }
 
-            row = row->next;
+            row = table_next_row(row);
         }
-
-        /** \todo can cells span row groups? */
 
         /* Row group -- consider its left border */
         b.style = css_computed_border_left_style(group->style);
@@ -616,10 +639,8 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
                 a_src = b_src;
             }
 
-            row = row->next;
+            row = table_next_row(row);
         }
-
-        /** \todo can cells span row groups? */
 
         /* Row group -- consider its right border */
         b.style = css_computed_border_right_style(group->style);
@@ -666,6 +687,7 @@ static void table_used_bottom_border_for_cell(const css_unit_ctx *unit_len_ctx, 
     struct border a, b;
     box_type a_src, b_src;
     struct box *row = cell->parent;
+    struct box *last_row = cell->parent;
     unsigned int rows = cell->rows;
 
     /* Initialise to computed bottom border for cell */
@@ -676,10 +698,11 @@ static void table_used_bottom_border_for_cell(const css_unit_ctx *unit_len_ctx, 
     a.unit = CSS_UNIT_PX;
     a_src = BOX_TABLE_CELL;
 
-    while (rows-- > 0 && row != NULL)
-        row = row->next;
-
-    /** \todo Can cells span row groups? */
+    while (rows > 0 && row != NULL) {
+        last_row = row;
+        row = table_next_row(row);
+        rows--;
+    }
 
     if (row != NULL) {
         /* Cell is not at bottom edge of table -- no bottom border */
@@ -688,15 +711,14 @@ static void table_used_bottom_border_for_cell(const css_unit_ctx *unit_len_ctx, 
         a.unit = CSS_UNIT_PX;
     } else {
         /* Cell at bottom of table, so consider row and row group */
-        struct box *row = cell->parent;
-        struct box *group = row->parent;
-        struct box *table = group->parent;
+        struct box *group = last_row->parent;
+        struct box *table = (group->type == BOX_TABLE_ROW_GROUP) ? group->parent : group;
 
         /* Bottom border of row */
-        b.style = css_computed_border_bottom_style(row->style);
-        b.color = css_computed_border_bottom_color(row->style, &b.c);
-        css_computed_border_bottom_width(row->style, &b.width, &b.unit);
-        b.width = css_unit_len2device_px(row->style, unit_len_ctx, b.width, b.unit);
+        b.style = css_computed_border_bottom_style(last_row->style);
+        b.color = css_computed_border_bottom_color(last_row->style, &b.c);
+        css_computed_border_bottom_width(last_row->style, &b.width, &b.unit);
+        b.width = css_unit_len2device_px(last_row->style, unit_len_ctx, b.width, b.unit);
         b.unit = CSS_UNIT_PX;
         b_src = BOX_TABLE_ROW;
 
@@ -705,17 +727,19 @@ static void table_used_bottom_border_for_cell(const css_unit_ctx *unit_len_ctx, 
             a_src = b_src;
         }
 
-        /* Row group -- consider its bottom border */
-        b.style = css_computed_border_bottom_style(group->style);
-        b.color = css_computed_border_bottom_color(group->style, &b.c);
-        css_computed_border_bottom_width(group->style, &b.width, &b.unit);
-        b.width = css_unit_len2device_px(group->style, unit_len_ctx, b.width, b.unit);
-        b.unit = CSS_UNIT_PX;
-        b_src = BOX_TABLE_ROW_GROUP;
+        if (group->type == BOX_TABLE_ROW_GROUP) {
+            /* Row group -- consider its bottom border */
+            b.style = css_computed_border_bottom_style(group->style);
+            b.color = css_computed_border_bottom_color(group->style, &b.c);
+            css_computed_border_bottom_width(group->style, &b.width, &b.unit);
+            b.width = css_unit_len2device_px(group->style, unit_len_ctx, b.width, b.unit);
+            b.unit = CSS_UNIT_PX;
+            b_src = BOX_TABLE_ROW_GROUP;
 
-        if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
-            a = b;
-            a_src = b_src;
+            if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
+                a = b;
+                a_src = b_src;
+            }
         }
 
         /* The table itself -- consider its bottom border */
