@@ -6296,7 +6296,7 @@ static void layout_get_box_bbox(
 		w = 0;
 	}
 	int h = box->height;
-	if (h < 0) {
+	if (h == UNKNOWN_HEIGHT || h == AUTO || h < 0) {
 		h = 0;
 	}
 
@@ -6447,8 +6447,8 @@ static void layout_calculate_descendant_bboxes(const css_unit_ctx *unit_len_ctx,
 			box->width = 0;
 		}
 	}
-	if (box->height == AUTO) {
-		NSLOG(wisp, WARNING, "box %p has AUTO height in layout_calculate_descendant_bboxes. Fallback to 0.", (void *)box);
+	if (box->height == AUTO || box->height == UNKNOWN_HEIGHT) {
+		NSLOG(wisp, WARNING, "box %p has AUTO or UNKNOWN_HEIGHT in layout_calculate_descendant_bboxes. Fallback to 0.", (void *)box);
 		box->height = 0;
 	}
 	/* assert((box->width >= 0) && (box->height >= 0)); */

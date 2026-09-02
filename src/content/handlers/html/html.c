@@ -1223,6 +1223,14 @@ bool html_can_begin_conversion(html_content *htmlc)
 			NSLOG(wisp, INFO, "Conversion gate blocked on modified stylesheet index %u", i);
 			return false;
 		}
+		/* Cannot begin conversion if a stylesheet is still downloading */
+		if (htmlc->stylesheets[i].sheet != NULL && !bypass_active_gate) {
+			content_status status = content_get_status(htmlc->stylesheets[i].sheet);
+			if (status == CONTENT_STATUS_LOADING) {
+				NSLOG(wisp, INFO, "Conversion gate blocked on loading stylesheet index %u", i);
+				return false;
+			}
+		}
 	}
 
 	/* All is good, begin */
