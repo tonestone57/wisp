@@ -458,14 +458,14 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
                 }
             }
 
-            if (row->next != NULL) {
+            if (row->next != NULL && row->next->type == BOX_TABLE_ROW) {
                 row = row->next;
             } else if (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) {
                 struct box *rg = row->parent;
                 row = NULL;
                 while (rg->next != NULL && rg->next->type == BOX_TABLE_ROW_GROUP) {
                     rg = rg->next;
-                    if (rg->children != NULL) {
+                    if (rg->children != NULL && rg->children->type == BOX_TABLE_ROW) {
                         row = rg->children;
                         break;
                     }
@@ -569,15 +569,16 @@ static void table_used_top_border_for_cell(const css_unit_ctx *unit_len_ctx, str
             if (row->parent != NULL && row->parent->type == BOX_TABLE) {
                 table_cell_top_process_table(unit_len_ctx, row->parent, &a, &a_src);
             }
-        } else if (group->prev == NULL) {
+        } else if (group->prev == NULL || group->prev->type != BOX_TABLE_ROW_GROUP) {
             /* Top border of table */
             if (group->parent != NULL) {
                 table_cell_top_process_table(unit_len_ctx, group->parent, &a, &a_src);
             }
         } else {
             /* Process previous group(s) */
-            while (table_cell_top_process_group(unit_len_ctx, cell, group->prev, &a, &a_src) == false) {
-                if (group->prev->prev == NULL) {
+            while (group->prev != NULL && group->prev->type == BOX_TABLE_ROW_GROUP &&
+                   table_cell_top_process_group(unit_len_ctx, cell, group->prev, &a, &a_src) == false) {
+                if (group->prev->prev == NULL || group->prev->prev->type != BOX_TABLE_ROW_GROUP) {
                     /* Top border of table */
                     if (group->parent != NULL) {
                         table_cell_top_process_table(unit_len_ctx, group->parent, &a, &a_src);
@@ -726,14 +727,14 @@ static void table_used_bottom_border_for_cell(const css_unit_ctx *unit_len_ctx, 
     a_src = BOX_TABLE_CELL;
 
     while (rows-- > 0 && row != NULL) {
-        if (row->next != NULL) {
+        if (row->next != NULL && row->next->type == BOX_TABLE_ROW) {
             row = row->next;
         } else if (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) {
             struct box *rg = row->parent;
             row = NULL;
             while (rg->next != NULL && rg->next->type == BOX_TABLE_ROW_GROUP) {
                 rg = rg->next;
-                if (rg->children != NULL) {
+                if (rg->children != NULL && rg->children->type == BOX_TABLE_ROW) {
                     row = rg->children;
                     break;
                 }
