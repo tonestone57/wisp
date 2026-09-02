@@ -288,6 +288,52 @@ START_TEST(test_wisp_utf32_to_ascii)
     ck_assert_int_eq(sentinel_buf[5], 't');
     ck_assert_int_eq((unsigned char)sentinel_buf[6], 0xAA);
     ck_assert_int_eq((unsigned char)sentinel_buf[7], 0xAA);
+
+    /* 7. Negative int32_t values & sign-extension truncation checks */
+    const int32_t negative_utf32[] = {
+        (int32_t)0xFFFFFF41, /* 'A' when masked with 0xFF */
+        (int32_t)0xFFFFFF42, /* 'B' */
+        -1,                 /* 0xFF */
+        -128                /* 0x80 */
+    };
+    char negative_dst[8] = {0};
+    wisp_utf32_to_ascii(negative_utf32, negative_dst, 4);
+    ck_assert_int_eq(negative_dst[0], 'A');
+    ck_assert_int_eq(negative_dst[1], 'B');
+    ck_assert_int_eq((unsigned char)negative_dst[2], 0xFF);
+    ck_assert_int_eq((unsigned char)negative_dst[3], 0x80);
+
+    /* 8. Large buffer multi-chunk SIMD test (64 elements = 8 x 8 SIMD blocks) */
+    int32_t large_utf32[64];
+    char large_dst[65];
+    for (int i = 0; i < 64; i++) {
+        large_utf32[i] = 'A' + (i % 26);
+    }
+    wisp_utf32_to_ascii(large_utf32, large_dst, 64);
+    large_dst[64] = '\0';
+    for (int i = 0; i < 64; i++) {
+        ck_assert_int_eq(large_dst[i], (char)('A' + (i % 26)));
+    }
+
+    /* 9. Tail length 15 test (SIMD 8-block + 7 scalar remainder elements) */
+    int32_t tail15_utf32[15];
+    char tail15_dst[16];
+    for (int i = 0; i < 15; i++) {
+        tail15_utf32[i] = 'a' + i;
+    }
+    wisp_utf32_to_ascii(tail15_utf32, tail15_dst, 15);
+    tail15_dst[15] = '\0';
+    ck_assert_str_eq(tail15_dst, "abcdefghijklmno");
+
+    /* 10. Embedded NUL character handling in UTF-32 stream */
+    const int32_t nul_utf32[] = {'A', '\0', 'B', '\0', 'C'};
+    char nul_dst[5] = {0};
+    wisp_utf32_to_ascii(nul_utf32, nul_dst, 5);
+    ck_assert_int_eq(nul_dst[0], 'A');
+    ck_assert_int_eq(nul_dst[1], '\0');
+    ck_assert_int_eq(nul_dst[2], 'B');
+    ck_assert_int_eq(nul_dst[3], '\0');
+    ck_assert_int_eq(nul_dst[4], 'C');
 }
 END_TEST
 
