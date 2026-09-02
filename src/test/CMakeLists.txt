@@ -197,6 +197,12 @@ add_wisp_test(test_nsoption
   ${CMAKE_SOURCE_DIR}/src/test/test_nsoption.c
 )
 
+add_wisp_test(test_searchweb
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_searchweb.c
+)
+target_link_libraries(test_searchweb PRIVATE wisp ${CHECK_LIBRARIES})
+
 add_wisp_test(http3_test
   ${CMAKE_SOURCE_DIR}/src/utils/nsoption.c
   ${CMAKE_SOURCE_DIR}/src/utils/utils.c
