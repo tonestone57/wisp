@@ -242,8 +242,9 @@ static nserror make_search_nsurl(struct search_provider *provider, const char *t
 
     eterm_len = strlen(eterm);
     searchstr = provider->searchstring;
+    const size_t searchstr_len = strlen(searchstr);
 
-    urlstr_len = strlen(searchstr) + eterm_len + 1;
+    urlstr_len = searchstr_len + eterm_len + 1;
     urlstro = urlstr = malloc(urlstr_len);
     if (urlstr == NULL) {
         free(eterm);
@@ -255,8 +256,12 @@ static nserror make_search_nsurl(struct search_provider *provider, const char *t
         *urlstro = *searchstr;
         if ((*searchstr == '%') && (searchstr[1] == 's')) {
             searchstr++; /* skip % */
-            memcpy(urlstro, eterm, eterm_len);
-            urlstro += eterm_len - 1;
+            if (eterm_len > 0) {
+                memcpy(urlstro, eterm, eterm_len);
+                urlstro += eterm_len - 1;
+            } else {
+                urlstro--;
+            }
         }
     }
     free(eterm);
