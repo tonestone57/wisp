@@ -106,6 +106,25 @@ START_TEST(test_encoding_conversions)
     wisp_utf32_to_ascii(ucs4, dest, len);
     dest[len] = '\0';
     ck_assert_str_eq(dest, src);
+
+    /* Test SIMD chunking boundaries (8, 16, 32, 64) for utf32_to_ascii */
+    static const size_t chunk_sizes[] = {8, 16, 32, 64};
+    for (size_t idx = 0; idx < NELEMS(chunk_sizes); idx++) {
+        size_t c_size = chunk_sizes[idx];
+        int32_t src_ucs4[128];
+        char dst_ascii[128];
+
+        for (size_t i = 0; i < c_size; i++) {
+            src_ucs4[i] = '0' + (i % 10);
+        }
+
+        wisp_utf32_to_ascii(src_ucs4, dst_ascii, c_size);
+        dst_ascii[c_size] = '\0';
+
+        for (size_t i = 0; i < c_size; i++) {
+            ck_assert_int_eq(dst_ascii[i], '0' + (i % 10));
+        }
+    }
 }
 END_TEST
 
