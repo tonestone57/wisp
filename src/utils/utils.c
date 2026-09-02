@@ -227,14 +227,18 @@ nserror vsnstrjoin(char **str, size_t *size, char sep, size_t nelm, va_list ap)
     /* calculate how much storage we need for the complete path
      * with all the elements.
      */
+    const char **ep = elm;
+    size_t *lp = elm_len;
     for (elm_idx = 0; elm_idx < nelm; elm_idx++) {
-        elm[elm_idx] = va_arg(ap, const char *);
+        const char *s = va_arg(ap, const char *);
         /* check the argument is not NULL */
-        if (elm[elm_idx] == NULL) {
+        if (s == NULL) {
             return NSERROR_BAD_PARAMETER;
         }
-        elm_len[elm_idx] = strlen(elm[elm_idx]);
-        fname_len += elm_len[elm_idx];
+        *ep++ = s;
+        size_t len = strlen(s);
+        *lp++ = len;
+        fname_len += len;
     }
     fname_len += nelm; /* allow for separators and terminator */
 
@@ -251,15 +255,17 @@ nserror vsnstrjoin(char **str, size_t *size, char sep, size_t nelm, va_list ap)
         }
     }
 
-    /* copy the elements in with apropriate separator */
+    /* copy the elements in with appropriate separator */
+    ep = elm;
+    lp = elm_len;
     curp = fname;
     for (elm_idx = 0; elm_idx < nelm; elm_idx++) {
-        memmove(curp, elm[elm_idx], elm_len[elm_idx]);
-        curp += elm_len[elm_idx];
-        /* ensure string are separated */
+        size_t len = *lp++;
+        memcpy(curp, *ep++, len);
+        curp += len;
+        /* ensure strings are separated */
         if (curp[-1] != sep) {
-            *curp = sep;
-            curp++;
+            *curp++ = sep;
         }
     }
     curp[-1] = 0; /* NULL terminate */
