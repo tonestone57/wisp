@@ -77,13 +77,30 @@ void test_csp() {
     csp_destroy(csp);
     csp = NULL;
 
-    // Test 9: unsafe-eval check
+    // Test 9: Comprehensive csp_check_eval tests
+    assert(csp_check_eval(NULL) == true);
+
     assert(csp_parse("script-src 'unsafe-eval'", base_url, &csp) == NSERROR_OK);
     assert(csp_check_eval(csp) == true);
     csp_destroy(csp);
     csp = NULL;
 
     assert(csp_parse("script-src 'self'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_eval(csp) == false);
+    csp_destroy(csp);
+    csp = NULL;
+
+    assert(csp_parse("script-src 'none'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_eval(csp) == false);
+    csp_destroy(csp);
+    csp = NULL;
+
+    assert(csp_parse("script-src-elem 'unsafe-eval'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_eval(csp) == true);
+    csp_destroy(csp);
+    csp = NULL;
+
+    assert(csp_parse("script-src-elem 'self'", base_url, &csp) == NSERROR_OK);
     assert(csp_check_eval(csp) == false);
     csp_destroy(csp);
     csp = NULL;
@@ -95,6 +112,24 @@ void test_csp() {
 
     assert(csp_parse("default-src 'self'", base_url, &csp) == NSERROR_OK);
     assert(csp_check_eval(csp) == false);
+    csp_destroy(csp);
+    csp = NULL;
+
+    assert(csp_parse("style-src 'unsafe-eval'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_eval(csp) == true);
+    csp_destroy(csp);
+    csp = NULL;
+
+    /* Multiple policies intersection tests */
+    assert(csp_parse("script-src 'unsafe-eval'", base_url, &csp) == NSERROR_OK);
+    assert(csp_parse("script-src 'self'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_eval(csp) == false);
+    csp_destroy(csp);
+    csp = NULL;
+
+    assert(csp_parse("script-src 'unsafe-eval'", base_url, &csp) == NSERROR_OK);
+    assert(csp_parse("default-src 'unsafe-eval'", base_url, &csp) == NSERROR_OK);
+    assert(csp_check_eval(csp) == true);
     csp_destroy(csp);
     csp = NULL;
 
