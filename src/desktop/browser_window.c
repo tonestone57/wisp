@@ -1564,8 +1564,26 @@ static nserror browser_window_callback(hlcache_handle *c, const hlcache_event *e
 
         browser_window_get_dimensions(bw, &width, &height);
 
-        *(event->data.getdims.viewport_width) = width / bw->scale;
-        *(event->data.getdims.viewport_height) = height / bw->scale;
+        if (event->data.getdims.viewport_width != NULL) {
+            *(event->data.getdims.viewport_width) = width / bw->scale;
+        }
+        if (event->data.getdims.viewport_height != NULL) {
+            *(event->data.getdims.viewport_height) = height / bw->scale;
+        }
+        if (event->data.getdims.screen_width != NULL) {
+            int sw = nsoption_int(window_screen_width);
+            if (sw <= 0) {
+                sw = 1920;
+            }
+            *(event->data.getdims.screen_width) = sw;
+        }
+        if (event->data.getdims.screen_height != NULL) {
+            int sh = nsoption_int(window_screen_height);
+            if (sh <= 0) {
+                sh = 1080;
+            }
+            *(event->data.getdims.screen_height) = sh;
+        }
         break;
     }
 

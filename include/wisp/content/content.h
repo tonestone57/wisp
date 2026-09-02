@@ -147,9 +147,10 @@ union content_msg_data {
      * CONTENT_MSG_GETDIMS - Get the viewport dimensions
      */
     struct {
-        /** \todo Consider getting screen_width, screen_height too. */
         unsigned *viewport_width;
         unsigned *viewport_height;
+        unsigned *screen_width;
+        unsigned *screen_height;
     } getdims;
 
     /**

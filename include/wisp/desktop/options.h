@@ -182,6 +182,12 @@ NSOPTION_INTEGER(window_width, 0)
 /** default height of new windows */
 NSOPTION_INTEGER(window_height, 0)
 
+/** width of screen when window options were saved */
+NSOPTION_INTEGER(window_screen_width, 0)
+
+/** height of screen when window options were saved */
+NSOPTION_INTEGER(window_screen_height, 0)
+
 /** default size of status bar vs. h scroll bar */
 NSOPTION_INTEGER(toolbar_status_size, 6667)
 
