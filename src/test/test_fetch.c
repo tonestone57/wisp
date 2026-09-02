@@ -316,6 +316,25 @@ START_TEST(test_fetch_multipart_data_destroy_single_kv)
 }
 END_TEST
 
+START_TEST(test_fetch_multipart_data_new_kv_invalid_params)
+{
+    struct fetch_multipart_data *list = NULL;
+
+    /* Verify NULL name returns NSERROR_BAD_PARAMETER */
+    nserror err = fetch_multipart_data_new_kv(&list, NULL, "value");
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
+    ck_assert_ptr_eq(list, NULL);
+
+    /* Verify NULL value returns NSERROR_BAD_PARAMETER */
+    err = fetch_multipart_data_new_kv(&list, "name", NULL);
+    ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
+    ck_assert_ptr_eq(list, NULL);
+
+    /* Safe cleanup on NULL list */
+    fetch_multipart_data_destroy(list);
+}
+END_TEST
+
 START_TEST(test_fetch_multipart_data_destroy_file)
 {
     struct fetch_multipart_data *item = calloc(1, sizeof(*item));
@@ -522,6 +541,7 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_null_fields);
     tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_cloned);
     tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_large_mixed_chain);
+    tcase_add_test(tc_multipart, test_fetch_multipart_data_new_kv_invalid_params);
     suite_add_tcase(s, tc_multipart);
 
     TCase *tc_curl = tcase_create("cURL");
