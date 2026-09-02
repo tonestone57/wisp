@@ -166,22 +166,16 @@ static void dump_css_unit(FILE *stream, css_fixed val, css_unit unit)
     }
 }
 
-/* exported interface documented in content/handlers/css/dump.h */
-void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
+/**
+ * Dump background properties to the stream.
+ */
+static void dump_css_background(FILE *stream, const css_computed_style *style)
 {
     uint8_t val;
     css_color color = 0;
     lwc_string *url = NULL;
     css_fixed len1 = 0, len2 = 0;
     css_unit unit1 = CSS_UNIT_PX, unit2 = CSS_UNIT_PX;
-    css_computed_clip_rect rect = {
-        0, 0, 0, 0, CSS_UNIT_PX, CSS_UNIT_PX, CSS_UNIT_PX, CSS_UNIT_PX, true, true, true, true};
-    const css_computed_content_item *content = NULL;
-    const css_computed_counter *counter = NULL;
-    lwc_string **string_list = NULL;
-    int32_t zindex = 0;
-
-    fprintf(stream, "{ ");
 
     /* background-attachment */
     val = css_computed_background_attachment(style);
@@ -242,6 +236,17 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
     default:
         break;
     }
+}
+
+/**
+ * Dump border properties to the stream.
+ */
+static void dump_css_border(FILE *stream, const css_computed_style *style)
+{
+    uint8_t val;
+    css_color color = 0;
+    css_fixed len1 = 0, len2 = 0;
+    css_unit unit1 = CSS_UNIT_PX, unit2 = CSS_UNIT_PX;
 
     /* border-collapse */
     val = css_computed_border_collapse(style);
@@ -253,7 +258,6 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
         fprintf(stream, "border-collapse: collapse ");
         break;
     default:
-
         break;
     }
 
@@ -538,6 +542,22 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
     default:
         break;
     }
+}
+
+/**
+ * Dump content, counter, color, cursor, and display properties to the stream.
+ */
+static void dump_css_content(FILE *stream, const css_computed_style *style)
+{
+    uint8_t val;
+    css_color color = 0;
+    css_fixed len1 = 0;
+    css_unit unit1 = CSS_UNIT_PX;
+    css_computed_clip_rect rect = {
+        0, 0, 0, 0, CSS_UNIT_PX, CSS_UNIT_PX, CSS_UNIT_PX, CSS_UNIT_PX, true, true, true, true};
+    const css_computed_content_item *content = NULL;
+    const css_computed_counter *counter = NULL;
+    lwc_string **string_list = NULL;
 
     /* bottom */
     val = css_computed_bottom(style, &len1, &unit1);
@@ -894,6 +914,17 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
     default:
         break;
     }
+}
+
+/**
+ * Dump font properties to the stream.
+ */
+static void dump_css_font(FILE *stream, const css_computed_style *style)
+{
+    uint8_t val;
+    css_fixed len1 = 0;
+    css_unit unit1 = CSS_UNIT_PX;
+    lwc_string **string_list = NULL;
 
     /* font-family */
     val = css_computed_font_family(style, &string_list);
@@ -1041,6 +1072,16 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
     default:
         break;
     }
+}
+
+/**
+ * Dump basic dimensions and spacing to the stream.
+ */
+static void dump_css_dimensions(FILE *stream, const css_computed_style *style)
+{
+    uint8_t val;
+    css_fixed len1 = 0;
+    css_unit unit1 = CSS_UNIT_PX;
 
     /* height */
     val = css_computed_height(style, &len1, &unit1);
@@ -1116,6 +1157,15 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
     default:
         break;
     }
+}
+
+/**
+ * Dump list properties to the stream.
+ */
+static void dump_css_list(FILE *stream, const css_computed_style *style)
+{
+    uint8_t val;
+    lwc_string *url = NULL;
 
     /* list-style-image */
     val = css_computed_list_style_image(style, &url);
@@ -1189,6 +1239,16 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
     default:
         break;
     }
+}
+
+/**
+ * Dump margin properties to the stream.
+ */
+static void dump_css_margin(FILE *stream, const css_computed_style *style)
+{
+    uint8_t val;
+    css_fixed len1 = 0;
+    css_unit unit1 = CSS_UNIT_PX;
 
     /* margin-top */
     val = css_computed_margin_top(style, &len1, &unit1);
@@ -1257,6 +1317,16 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
     default:
         break;
     }
+}
+
+/**
+ * Dump min/max dimensions and opacity properties to the stream.
+ */
+static void dump_css_minmax_opacity(FILE *stream, const css_computed_style *style)
+{
+    uint8_t val;
+    css_fixed len1 = 0;
+    css_unit unit1 = CSS_UNIT_PX;
 
     /* max-height */
     val = css_computed_max_height(style, &len1, &unit1);
@@ -1333,6 +1403,17 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
     default:
         break;
     }
+}
+
+/**
+ * Dump outline properties to the stream.
+ */
+static void dump_css_outline(FILE *stream, const css_computed_style *style)
+{
+    uint8_t val;
+    css_color color = 0;
+    css_fixed len1 = 0;
+    css_unit unit1 = CSS_UNIT_PX;
 
     /* outline-color */
     val = css_computed_outline_color(style, &color);
@@ -1403,8 +1484,16 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
     default:
         break;
     }
+}
 
-    /* overflow */
+/**
+ * Dump overflow properties to the stream.
+ */
+static void dump_css_overflow(FILE *stream, const css_computed_style *style)
+{
+    uint8_t val;
+
+    /* overflow-x */
     val = css_computed_overflow_x(style);
     switch (val) {
     case CSS_OVERFLOW_VISIBLE:
@@ -1423,7 +1512,7 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
         break;
     }
 
-    /* overflow */
+    /* overflow-y */
     val = css_computed_overflow_y(style);
     switch (val) {
     case CSS_OVERFLOW_VISIBLE:
@@ -1441,6 +1530,16 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
     default:
         break;
     }
+}
+
+/**
+ * Dump padding properties to the stream.
+ */
+static void dump_css_padding(FILE *stream, const css_computed_style *style)
+{
+    uint8_t val;
+    css_fixed len1 = 0;
+    css_unit unit1 = CSS_UNIT_PX;
 
     /* padding-top */
     val = css_computed_padding_top(style, &len1, &unit1);
@@ -1497,6 +1596,18 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
     default:
         break;
     }
+}
+
+/**
+ * Dump text, position, table, and miscellaneous properties to the stream.
+ */
+static void dump_css_text_misc(FILE *stream, const css_computed_style *style)
+{
+    uint8_t val;
+    css_fixed len1 = 0;
+    css_unit unit1 = CSS_UNIT_PX;
+    lwc_string **string_list = NULL;
+    int32_t zindex = 0;
 
     /* position */
     val = css_computed_position(style);
@@ -1810,6 +1921,27 @@ void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
         break;
     default:
         break;
+    }
+}
+
+/* exported interface documented in content/handlers/css/dump.h */
+void nscss_dump_computed_style(FILE *stream, const css_computed_style *style)
+{
+    fprintf(stream, "{ ");
+
+    if (style != NULL) {
+        dump_css_background(stream, style);
+        dump_css_border(stream, style);
+        dump_css_content(stream, style);
+        dump_css_font(stream, style);
+        dump_css_dimensions(stream, style);
+        dump_css_list(stream, style);
+        dump_css_margin(stream, style);
+        dump_css_minmax_opacity(stream, style);
+        dump_css_outline(stream, style);
+        dump_css_overflow(stream, style);
+        dump_css_padding(stream, style);
+        dump_css_text_misc(stream, style);
     }
 
     fprintf(stream, "}");

@@ -582,6 +582,11 @@ add_wisp_test(test_css_simd
 )
 target_link_libraries(test_css_simd PRIVATE wisp)
 
+add_wisp_test(test_css_dump
+  ${CMAKE_SOURCE_DIR}/src/test/test_css_dump.c
+)
+target_link_libraries(test_css_dump PRIVATE wisp ${CHECK_LIBRARIES})
+
 
 add_wisp_test(test_utf8
   ${CMAKE_SOURCE_DIR}/src/test/test_utf8.c
