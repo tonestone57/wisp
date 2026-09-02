@@ -409,7 +409,11 @@ static gboolean nsgtk_window_button_press_event(GtkWidget *widget, GdkEventButto
         break;
 
     case 3: /* Right button, usually. Action button, context menu. */
-        /** \todo determine if hiding the caret here is necessary */
+        /* Hiding the visual caret (`only_hide = true`) is required when opening
+         * the context menu so the caret line isn't rendered or blinking while the
+         * popup menu is active, while preserving `can_edit` and selection state
+         * for context menu actions like Cut/Copy/Paste.
+         */
         browser_window_remove_caret(g->bw, true);
         nsgtk_scaffolding_context_menu(g->scaffold, g->mouse.pressed_x, g->mouse.pressed_y);
         return TRUE;
