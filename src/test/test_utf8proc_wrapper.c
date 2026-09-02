@@ -219,6 +219,78 @@ START_TEST(test_wisp_ascii_utf32_conversion)
 }
 END_TEST
 
+/* 5b. Dedicated UTF-32 -> ASCII Direct Conversion & SIMD Boundary Tests */
+START_TEST(test_wisp_utf32_to_ascii)
+{
+    /* 1. Short scalar length (< 8) */
+    const int32_t short_utf32[] = {'H', 'e', 'l', 'l', 'o'};
+    char short_dst[10] = {0};
+    wisp_utf32_to_ascii(short_utf32, short_dst, 5);
+    short_dst[5] = '\0';
+    ck_assert_str_eq(short_dst, "Hello");
+
+    /* 2. Exact SIMD boundary length (8) */
+    const int32_t boundary8_utf32[] = {'1', '2', '3', '4', '5', '6', '7', '8'};
+    char boundary8_dst[10] = {0};
+    wisp_utf32_to_ascii(boundary8_utf32, boundary8_dst, 8);
+    boundary8_dst[8] = '\0';
+    ck_assert_str_eq(boundary8_dst, "12345678");
+
+    /* 3. SIMD boundary plus remainder tail (9 and 15) */
+    const int32_t tail9_utf32[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'};
+    char tail9_dst[12] = {0};
+    wisp_utf32_to_ascii(tail9_utf32, tail9_dst, 9);
+    tail9_dst[9] = '\0';
+    ck_assert_str_eq(tail9_dst, "ABCDEFGHI");
+
+    /* 4. Multi-SIMD chunk length (16 and 25) */
+    const int32_t chunk16_utf32[] = {
+        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h',
+        'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p'
+    };
+    char chunk16_dst[20] = {0};
+    wisp_utf32_to_ascii(chunk16_utf32, chunk16_dst, 16);
+    chunk16_dst[16] = '\0';
+    ck_assert_str_eq(chunk16_dst, "abcdefghijklmnop");
+
+    const int32_t chunk25_utf32[] = {
+        '1', '2', '3', '4', '5', '6', '7', '8',
+        '9', '0', 'A', 'B', 'C', 'D', 'E', 'F',
+        'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O'
+    };
+    char chunk25_dst[30] = {0};
+    wisp_utf32_to_ascii(chunk25_utf32, chunk25_dst, 25);
+    chunk25_dst[25] = '\0';
+    ck_assert_str_eq(chunk25_dst, "1234567890ABCDEFGHIJKLMNO");
+
+    /* 5. Masking 0xFF truncation check for values > 0xFF */
+    const int32_t masked_utf32[] = {
+        0x100 | 'W', 0x200 | 'i', 0x300 | 's', 0x400 | 'p',
+        0x100 | '1', 0x200 | '2', 0x300 | '3', 0x400 | '4',
+        0x500 | '!'
+    };
+    char masked_dst[15] = {0};
+    wisp_utf32_to_ascii(masked_utf32, masked_dst, 9);
+    masked_dst[9] = '\0';
+    ck_assert_str_eq(masked_dst, "Wisp1234!");
+
+    /* 6. Sentinel padding bounds check to ensure no out-of-bounds writes */
+    char sentinel_buf[12];
+    memset(sentinel_buf, 0xAA, sizeof(sentinel_buf));
+    const int32_t sentinel_utf32[] = {'T', 'e', 's', 't'};
+    /* Write 4 chars into sentinel_buf + 2 */
+    wisp_utf32_to_ascii(sentinel_utf32, sentinel_buf + 2, 4);
+    ck_assert_int_eq((unsigned char)sentinel_buf[0], 0xAA);
+    ck_assert_int_eq((unsigned char)sentinel_buf[1], 0xAA);
+    ck_assert_int_eq(sentinel_buf[2], 'T');
+    ck_assert_int_eq(sentinel_buf[3], 'e');
+    ck_assert_int_eq(sentinel_buf[4], 's');
+    ck_assert_int_eq(sentinel_buf[5], 't');
+    ck_assert_int_eq((unsigned char)sentinel_buf[6], 0xAA);
+    ck_assert_int_eq((unsigned char)sentinel_buf[7], 0xAA);
+}
+END_TEST
+
 /* 6. Whitespace Skipping Tests */
 START_TEST(test_wisp_skip_whitespaces)
 {
@@ -394,6 +466,7 @@ static Suite *utf8proc_wrapper_suite(void)
     tcase_add_test(tc, test_wisp_simd_strcmp_and_streq);
     tcase_add_test(tc, test_wisp_ascii_case_mapping);
     tcase_add_test(tc, test_wisp_ascii_utf32_conversion);
+    tcase_add_test(tc, test_wisp_utf32_to_ascii);
     tcase_add_test(tc, test_wisp_skip_whitespaces);
     tcase_add_test(tc, test_wisp_utf8proc_decompose);
     tcase_add_test(tc, test_wisp_utf8proc_normalize_utf32);
