@@ -201,71 +201,6 @@ static HWND nsws_window_create(HINSTANCE hInstance, struct gui_window *gw)
 
 
 /**
- * toolbar command message handler
- *
- * \todo This entire command handler appears superfluous.
- *
- * \param gw The graphical window context
- * \param notification_code The notification code of the message
- * \param identifier The identifier the command was delivered for
- * \param ctrl_window The controlling window.
- */
-static LRESULT
-nsws_window_toolbar_command(struct gui_window *gw, int notification_code, int identifier, HWND ctrl_window)
-{
-    NSLOG(wisp, DEBUG, "notification_code %d identifier %d ctrl_window %p", notification_code, identifier,
-        ctrl_window);
-
-    switch (identifier) {
-
-    case IDC_MAIN_URLBAR:
-        switch (notification_code) {
-        case EN_CHANGE:
-            NSLOG(wisp, DEBUG, "EN_CHANGE");
-            break;
-
-        case EN_ERRSPACE:
-            NSLOG(wisp, DEBUG, "EN_ERRSPACE");
-            break;
-
-        case EN_HSCROLL:
-            NSLOG(wisp, DEBUG, "EN_HSCROLL");
-            break;
-
-        case EN_KILLFOCUS:
-            NSLOG(wisp, DEBUG, "EN_KILLFOCUS");
-            break;
-
-        case EN_MAXTEXT:
-            NSLOG(wisp, DEBUG, "EN_MAXTEXT");
-            break;
-
-        case EN_SETFOCUS:
-            NSLOG(wisp, DEBUG, "EN_SETFOCUS");
-            break;
-
-        case EN_UPDATE:
-            NSLOG(wisp, DEBUG, "EN_UPDATE");
-            break;
-
-        case EN_VSCROLL:
-            NSLOG(wisp, DEBUG, "EN_VSCROLL");
-            break;
-
-        default:
-            NSLOG(wisp, DEBUG, "Unknown notification_code");
-            break;
-        }
-        break;
-
-    default:
-        return 1; /* unhandled */
-    }
-    return 0; /* control message handled */
-}
-
-
-/**
  * calculate the dimensions of the url bar relative to the parent toolbar
  *
  * \param hWndParent The parent window of the url bar
@@ -326,12 +261,6 @@ static LRESULT CALLBACK nsws_window_toolbar_callback(HWND hwnd, UINT msg, WPARAM
         if (gw->throbber != NULL) {
             MoveWindow(gw->throbber, LOWORD(lparam) - NSWS_THROBBER_WIDTH - 4, urly, NSWS_THROBBER_WIDTH,
                 NSWS_THROBBER_WIDTH, true);
-        }
-        break;
-
-    case WM_COMMAND:
-        if (nsws_window_toolbar_command(gw, HIWORD(wparam), LOWORD(wparam), (HWND)lparam) == 0) {
-            return 0;
         }
         break;
 
