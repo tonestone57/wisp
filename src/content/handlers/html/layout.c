@@ -194,6 +194,7 @@ static void
 layout_minmax_block(struct box *block, const struct gui_layout_table *font_func, const html_content *content);
 static void layout_eval_container_queries(struct box *box);
 
+#include <sched.h>
 #include <unistd.h>
 #include "content/handlers/javascript/quickjs/wisp_subsystem.h"
 
@@ -241,8 +242,8 @@ static inline void wisp_layout_wait_group_wait_and_pump(struct wisp_layout_wait_
             }
             free(task);
         } else {
-            /* Fall back to short micro-sleep if queue is empty */
-            usleep(100);
+            /* Yield execution to allow worker threads to run without introducing fixed sleep latency */
+            sched_yield();
         }
     }
 }
