@@ -524,6 +524,77 @@ START_TEST(test_table_calculate_column_types_non_cell_child)
 }
 END_TEST
 
+START_TEST(test_table_border_conflict_resolution)
+{
+    struct arena *bctx = arena_create(64 * 1024);
+    ck_assert_ptr_nonnull(bctx);
+
+    struct html_content content = {0};
+    content.bctx = bctx;
+
+    struct box *table = arena_alloc(bctx, sizeof(struct box));
+    memset(table, 0, sizeof(*table));
+    table->type = BOX_TABLE;
+    table->columns = 2;
+    table->content = &content;
+    table->style = MOCK_STYLE_BLOCK;
+
+    struct box *row_group = arena_alloc(bctx, sizeof(struct box));
+    memset(row_group, 0, sizeof(*row_group));
+    row_group->type = BOX_TABLE_ROW_GROUP;
+    row_group->style = MOCK_STYLE_BLOCK;
+
+    struct box *row1 = arena_alloc(bctx, sizeof(struct box));
+    memset(row1, 0, sizeof(*row1));
+    row1->type = BOX_TABLE_ROW;
+    row1->style = MOCK_STYLE_BLOCK;
+
+    struct box *row2 = arena_alloc(bctx, sizeof(struct box));
+    memset(row2, 0, sizeof(*row2));
+    row2->type = BOX_TABLE_ROW;
+    row2->style = MOCK_STYLE_BLOCK;
+
+    struct box *cell1 = arena_alloc(bctx, sizeof(struct box));
+    memset(cell1, 0, sizeof(*cell1));
+    cell1->type = BOX_TABLE_CELL;
+    cell1->columns = 1;
+    cell1->rows = 1;
+    cell1->start_column = 0;
+    cell1->style = MOCK_STYLE_BLOCK;
+
+    struct box *cell2 = arena_alloc(bctx, sizeof(struct box));
+    memset(cell2, 0, sizeof(*cell2));
+    cell2->type = BOX_TABLE_CELL;
+    cell2->columns = 1;
+    cell2->rows = 1;
+    cell2->start_column = 1;
+    cell2->style = MOCK_STYLE_BLOCK;
+
+    /* Build tree: table -> row_group -> row1 -> (cell1, cell2) */
+    table->children = row_group;
+    row_group->parent = table;
+    row_group->children = row1;
+    row_group->last = row1;
+    row1->parent = row_group;
+    row1->children = cell1;
+    row1->last = cell2;
+
+    cell1->parent = row1;
+    cell1->next = cell2;
+    cell2->parent = row1;
+    cell2->prev = cell1;
+
+    /* Test used border calculation */
+    table_used_border_for_cell(&content.unit_len_ctx, cell1);
+    table_used_border_for_cell(&content.unit_len_ctx, cell2);
+
+    ck_assert_int_ge(cell1->border[LEFT].width, 0);
+    ck_assert_int_ge(cell2->border[LEFT].width, 0);
+
+    arena_destroy(bctx);
+}
+END_TEST
+
 START_TEST(test_grid_construction)
 {
     /* Setup DOM Tree via File Parsing */
@@ -725,6 +796,7 @@ Suite *grid_construct_suite(void)
     tcase_add_test(tc, test_grid_construction);
     tcase_add_test(tc, test_table_calculate_column_types_blockified_cell);
     tcase_add_test(tc, test_table_calculate_column_types_non_cell_child);
+    tcase_add_test(tc, test_table_border_conflict_resolution);
     suite_add_tcase(s, tc);
     return s;
 }
