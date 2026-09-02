@@ -43,6 +43,7 @@ struct dom_string;
 struct rect;
 
 #define UNKNOWN_WIDTH INT_MAX
+#define UNKNOWN_HEIGHT INT_MAX
 #define UNKNOWN_MAX_WIDTH INT_MAX
 
 

@@ -150,7 +150,11 @@ static nserror html_convert_css_callback(hlcache_handle *css, const hlcache_even
         break;
     }
 
-    if (html_can_begin_conversion(parent)) {
+    if (parent->conversion_begun) {
+        NSLOG(wisp, INFO, "Stylesheet completion event after initial conversion - triggering conversion restart");
+        parent->conversion_begun = false;
+        guit->misc->schedule(0, html_resume_conversion_cb, parent);
+    } else if (html_can_begin_conversion(parent)) {
         html_begin_conversion(parent);
     }
 
@@ -335,6 +339,12 @@ static void html_css_process_modified_styles(void *pw)
     /* If we failed to process any sheet, schedule a retry */
     if (all_done == false) {
         guit->misc->schedule(1000, html_css_process_modified_styles, c);
+    } else if (c->conversion_begun) {
+        NSLOG(wisp, INFO, "Modified styles processed after initial conversion - triggering conversion restart");
+        c->conversion_begun = false;
+        guit->misc->schedule(0, html_resume_conversion_cb, c);
+    } else if (html_can_begin_conversion(c)) {
+        html_begin_conversion(c);
     }
 }
 
