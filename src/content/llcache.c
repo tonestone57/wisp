@@ -722,14 +722,21 @@ static inline void llcache_destroy_headers(llcache_object *object)
  * Invalidate cache control data.
  *
  * \param object The object to invalidate cache control for.
+ * \return NSERROR_OK on success, or NSERROR_BAD_PARAMETER if object is NULL.
  */
-static inline void llcache_invalidate_cache_control_data(llcache_object *object)
+static inline nserror llcache_invalidate_cache_control_data(llcache_object *object)
 {
+    if (object == NULL) {
+        return NSERROR_BAD_PARAMETER;
+    }
+
     free(object->cache.etag);
     memset(&(object->cache), 0, sizeof(llcache_cache_control));
 
     object->cache.age = INVALID_AGE;
     object->cache.max_age = INVALID_AGE;
+
+    return NSERROR_OK;
 }
 
 /**
@@ -3184,8 +3191,6 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
         }
 
         /* An error occurred while fetching */
-        long http_code = fetch_http_code(object->fetch.fetch);
-
         /* The fetch has has already been cleaned up by the fetcher */
         object->fetch.state = LLCACHE_FETCH_COMPLETE;
         object->fetch.fetch = NULL;
@@ -3196,15 +3201,15 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
             object->candidate = NULL;
         }
 
-        /* Invalidate cache control data */
-        llcache_invalidate_cache_control_data(object);
+        /* Invalidate cache control data and capture returned error code */
+        nserror invalidate_err = llcache_invalidate_cache_control_data(object);
+        if (invalidate_err != NSERROR_OK) {
+            NSLOG(llcache, WARNING, "Cache control data invalidation error: %s",
+                messages_get_errorcode(invalidate_err));
+        }
 
         event.type = LLCACHE_EVENT_ERROR;
-        if (http_code >= 400) {
-            event.data.error.code = NSERROR_BAD_CONTENT;
-        } else {
-            event.data.error.code = NSERROR_UNKNOWN;
-        }
+        event.data.error.code = NSERROR_UNKNOWN;
         event.data.error.msg = msg->data.error;
 
         NSLOG(llcache, INFO, "FETCH_ERROR received. Code: %d (%s), Msg: %s",
