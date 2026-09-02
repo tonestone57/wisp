@@ -419,8 +419,10 @@ static bool imagemap_addtolist(
             {
                 size_t commas = 0;
                 if (coords != NULL) {
-                    for (size_t i = 0; i < dom_string_byte_length(coords); i++) {
-                        if (dom_string_data(coords)[i] == ',') {
+                    size_t coords_len = dom_string_byte_length(coords);
+                    const char *coords_data = (const char *)dom_string_data(coords);
+                    for (size_t i = 0; i < coords_len; i++) {
+                        if (coords_data[i] == ',') {
                             commas++;
                         }
                     }
