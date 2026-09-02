@@ -1354,6 +1354,67 @@ START_TEST(test_grid_constraint_caching)
     printf("=== test_grid_constraint_caching PASSED ===\n");
 }
 
+START_TEST(test_subgrid_constraint_caching)
+{
+    printf("\n=== test_subgrid_constraint_caching ===\n");
+
+    struct box *parent_grid = calloc(1, sizeof(struct box));
+    parent_grid->type = BOX_GRID;
+    parent_grid->flags |= DIRTY;
+    parent_grid->x = 0;
+    parent_grid->y = 0;
+    parent_grid->width = 400;
+    parent_grid->height = AUTO;
+    parent_grid->style = (css_computed_style *)dummy_style;
+
+    struct box *subgrid = calloc(1, sizeof(struct box));
+    subgrid->type = BOX_GRID;
+    subgrid->flags |= DIRTY;
+    subgrid->parent = parent_grid;
+    subgrid->grid_col = 0;
+    subgrid->grid_col_span = 2;
+    subgrid->width = 200;
+    subgrid->height = AUTO;
+    subgrid->style = (css_computed_style *)dummy_style;
+
+    struct box *child = calloc(1, sizeof(struct box));
+    child->type = BOX_BLOCK;
+    child->flags |= DIRTY;
+    child->parent = subgrid;
+    child->style = (css_computed_style *)dummy_style;
+    child->width = AUTO;
+    child->height = 50;
+
+    subgrid->children = child;
+    parent_grid->children = subgrid;
+
+    bool ok = layout_grid(subgrid, 200, &mock_content);
+    ck_assert(ok);
+    ck_assert_int_eq(subgrid->last_available_width, 200);
+    ck_assert_int_eq(subgrid->last_min_width, subgrid->min_width.value);
+    ck_assert_int_eq(subgrid->last_max_width, subgrid->max_width);
+
+    /* Modify child position manually */
+    child->x = 888;
+
+    /* Second run with identical constraints - bypass auto placement */
+    ok = layout_grid(subgrid, 200, &mock_content);
+    ck_assert(ok);
+    ck_assert_int_eq(child->x, 888);
+
+    /* Changing available_width forces re-layout */
+    ok = layout_grid(subgrid, 250, &mock_content);
+    ck_assert(ok);
+    ck_assert_int_ne(child->x, 888);
+
+    free(child);
+    free(subgrid->computed_col_widths);
+    free(subgrid);
+    free(parent_grid);
+
+    printf("=== test_subgrid_constraint_caching PASSED ===\n");
+}
+
 Suite *grid_test_suite(void)
 {
     Suite *s = suite_create("grid_layout");
@@ -1366,6 +1427,7 @@ Suite *grid_test_suite(void)
     tcase_add_test(tc, test_complex_grid_exclusion);
     tcase_add_test(tc, test_complex_grid_floated_exclusion);
     tcase_add_test(tc, test_grid_constraint_caching);
+    tcase_add_test(tc, test_subgrid_constraint_caching);
     suite_add_tcase(s, tc);
     return s;
 }

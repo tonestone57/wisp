@@ -831,6 +831,10 @@ static void layout_grid_compute_tracks(struct box *grid, int available_width, in
 
 bool layout_grid(struct box *grid, int available_width, html_content *content)
 {
+	/* Proposal 5.2: Layout Constraint Caching for Subgrid and Grid Items / Containers.
+	 * Cache target input constraint bounds (min_width, max_width, available_width) on grid layout boxes.
+	 * If parent constraints remain identical and flags are clean, return previous layout dimensions
+	 * without re-executing Pass 2/3 auto-placement and track calculations. */
 	if (!(grid->flags & (DIRTY_INTRINSIC | CHILD_DIRTY))) {
 		if (grid->last_available_width == available_width &&
 		    grid->last_min_width == grid->min_width.value &&

@@ -944,6 +944,52 @@ START_TEST(test_row_flex_min_height_unchanged)
 }
 END_TEST
 
+START_TEST(test_flex_constraint_caching)
+{
+    struct box *flex = calloc(1, sizeof(struct box));
+    flex->type = BOX_FLEX;
+    flex->width = 300;
+    flex->height = 200;
+    flex->style = (css_computed_style *)mock_style_flex_grow_0;
+
+    struct box *child = calloc(1, sizeof(struct box));
+    child->type = BOX_BLOCK;
+    child->style = (css_computed_style *)mock_style_flex_grow_0;
+    child->width = 100;
+    child->height = 50;
+
+    flex->children = child;
+    child->parent = flex;
+    flex->last = child;
+
+    html_content content;
+    memset(&content, 0, sizeof(content));
+
+    bool ok = layout_flex(flex, 300, &content);
+    ck_assert(ok);
+    ck_assert_int_eq(flex->last_available_width, 300);
+    ck_assert_int_eq(flex->last_min_width, flex->min_width.value);
+    ck_assert_int_eq(flex->last_max_width, flex->max_width);
+
+    /* Modify child x coordinate manually to verify layout pass bypass */
+    child->x = 999;
+
+    /* Second layout run with identical constraints */
+    ok = layout_flex(flex, 300, &content);
+    ck_assert(ok);
+    /* child->x should remain 999 because layout computation was bypassed due to cached constraints */
+    ck_assert_int_eq(child->x, 999);
+
+    /* Changing available_width should force re-layout */
+    ok = layout_flex(flex, 350, &content);
+    ck_assert(ok);
+    ck_assert_int_ne(child->x, 999);
+
+    free(child);
+    free(flex);
+}
+END_TEST
+
 
 /* Test suite setup */
 Suite *layout_flex_suite(void)
@@ -979,6 +1025,7 @@ Suite *layout_flex_suite(void)
     tcase_add_test(tc_core, test_column_flex_explicit_min_height_zero);
     tcase_add_test(tc_core, test_row_flex_min_height_unchanged);
     tcase_add_test(tc_core, test_flex_null_style_child_safety);
+    tcase_add_test(tc_core, test_flex_constraint_caching);
 
     suite_add_tcase(s, tc_core);
 
