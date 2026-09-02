@@ -729,4 +729,7 @@ static inline void layout_find_dimensions(const css_unit_ctx *unit_len_ctx, int 
     }
 }
 
+int layout_box_get_outer_height(struct box *d, const struct html_content *content);
+int layout_box_get_baseline(struct box *d);
+
 #endif

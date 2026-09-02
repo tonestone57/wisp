@@ -384,6 +384,11 @@ add_wisp_test(layout_inline_grid_test
 )
 target_compile_definitions(layout_inline_grid_test PRIVATE TESTING)
 
+add_wisp_test(layout_vertical_align_test
+  ${CMAKE_SOURCE_DIR}/src/test/layout_vertical_align_test.c
+)
+target_link_libraries(layout_vertical_align_test PRIVATE wisp)
+
 add_wisp_test(grid_construct_test
   ${CMAKE_SOURCE_DIR}/src/utils/libdom.c
   ${CMAKE_SOURCE_DIR}/src/utils/talloc.c

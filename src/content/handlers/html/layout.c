@@ -145,6 +145,50 @@ static int layout_get_baseline(struct box *b)
 	return b->height;
 }
 
+static int line_height(const css_unit_ctx *unit_len_ctx, const css_computed_style *style);
+
+int layout_box_get_outer_height(struct box *d, const html_content *content)
+{
+	if (d == NULL) {
+		return 0;
+	}
+
+	if (d->type == BOX_INLINE_BLOCK || d->type == BOX_INLINE_FLEX ||
+	    d->type == BOX_INLINE_GRID || (d->type == BOX_INLINE && lh__box_is_replace(d))) {
+		return d->margin[TOP] + d->border[TOP].width + d->padding[TOP] +
+		       d->height + d->padding[BOTTOM] + d->border[BOTTOM].width +
+		       d->margin[BOTTOM];
+	}
+
+	if (d->height != AUTO && d->height != UNKNOWN_HEIGHT && d->height > 0) {
+		return d->height;
+	}
+
+	if (d->style && content) {
+		return line_height(&content->unit_len_ctx, d->style);
+	}
+
+	return 0;
+}
+
+int layout_box_get_baseline(struct box *d)
+{
+	if (d == NULL) {
+		return 0;
+	}
+
+	if (d->type == BOX_INLINE_BLOCK || d->type == BOX_INLINE_FLEX || d->type == BOX_INLINE_GRID) {
+		return d->margin[TOP] + d->border[TOP].width + d->padding[TOP] + layout_get_baseline(d);
+	} else if (d->type == BOX_INLINE && lh__box_is_replace(d)) {
+		/* Replaced elements use bottom margin edge as baseline per CSS 2.1 §10.8.1 */
+		return d->margin[TOP] + d->border[TOP].width + d->padding[TOP] +
+		       d->height + d->padding[BOTTOM] + d->border[BOTTOM].width +
+		       d->margin[BOTTOM];
+	} else {
+		return layout_get_baseline(d);
+	}
+}
+
 /* forward declaration to break cycles */
 static void
 layout_minmax_block(struct box *block, const struct gui_layout_table *font_func, const html_content *content);
@@ -3992,42 +4036,150 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 	assert(b != first || (move_y && 0 < used_height && (left || right)));
 
 	/* handle vertical-align by adjusting box y values */
-	/** \todo  proper vertical alignment handling */
+	int max_baseline = 0;
+	bool has_baseline_box = false;
+
+	/* Pass 1a: find max_baseline across baseline-aligned boxes on the line */
 	for (d = first; d != b; d = d->next) {
+		if (d->type == BOX_INLINE_BLOCK && d->style != NULL &&
+			(css_computed_position(d->style) == CSS_POSITION_ABSOLUTE ||
+				css_computed_position(d->style) == CSS_POSITION_FIXED)) {
+			continue;
+		}
+
 		if (d->type == BOX_INLINE || d->type == BOX_BR || d->type == BOX_TEXT ||
 			d->type == BOX_INLINE_END ||
 			d->type == BOX_INLINE_BLOCK || d->type == BOX_INLINE_FLEX || d->type == BOX_INLINE_GRID) {
-			int d_height = 0;
-			if (d->height != AUTO && d->height != UNKNOWN_HEIGHT) {
-				d_height = d->height;
-			} else {
-				if (d->type == BOX_INLINE && d->style) {
-					d_height = line_height(&content->unit_len_ctx, d->style);
-				} else {
-					d_height = 0;
-				}
-			}
 			css_fixed value = 0;
 			css_unit unit = CSS_UNIT_PX;
-			switch (css_computed_vertical_align(d->style, &value, &unit)) {
-			case CSS_VERTICAL_ALIGN_SUPER:
-			case CSS_VERTICAL_ALIGN_TOP:
-			case CSS_VERTICAL_ALIGN_TEXT_TOP:
-				break;
-			case CSS_VERTICAL_ALIGN_SUB:
-			case CSS_VERTICAL_ALIGN_BOTTOM:
-			case CSS_VERTICAL_ALIGN_TEXT_BOTTOM:
-				d->y += used_height - d_height;
-				break;
-			case CSS_VERTICAL_ALIGN_MIDDLE:
-				d->y += (used_height - d_height) / 2;
-				break;
-			default:
-			case CSS_VERTICAL_ALIGN_BASELINE:
-				d->y += 0.75 * (used_height - d_height);
-				break;
+			enum css_vertical_align_e va = (d->style != NULL) ?
+				css_computed_vertical_align(d->style, &value, &unit) : CSS_VERTICAL_ALIGN_BASELINE;
+
+			if (va == CSS_VERTICAL_ALIGN_BASELINE) {
+				int base = layout_box_get_baseline(d);
+				if (!has_baseline_box || base > max_baseline) {
+					max_baseline = base;
+				}
+				has_baseline_box = true;
 			}
 		}
+	}
+
+	if (!has_baseline_box && used_height > 0) {
+		max_baseline = (used_height * 4) / 5;
+	}
+
+	/* Pass 1b: update used_height using max_baseline for all baseline-aligned boxes */
+	for (d = first; d != b; d = d->next) {
+		if (d->type == BOX_INLINE_BLOCK && d->style != NULL &&
+			(css_computed_position(d->style) == CSS_POSITION_ABSOLUTE ||
+				css_computed_position(d->style) == CSS_POSITION_FIXED)) {
+			continue;
+		}
+
+		if (d->type == BOX_INLINE || d->type == BOX_BR || d->type == BOX_TEXT ||
+			d->type == BOX_INLINE_END ||
+			d->type == BOX_INLINE_BLOCK || d->type == BOX_INLINE_FLEX || d->type == BOX_INLINE_GRID) {
+			css_fixed value = 0;
+			css_unit unit = CSS_UNIT_PX;
+			enum css_vertical_align_e va = (d->style != NULL) ?
+				css_computed_vertical_align(d->style, &value, &unit) : CSS_VERTICAL_ALIGN_BASELINE;
+
+			if (va == CSS_VERTICAL_ALIGN_BASELINE) {
+				int outer_h = layout_box_get_outer_height(d, content);
+				int base = layout_box_get_baseline(d);
+				int req_h = max_baseline + (outer_h - base);
+				if (req_h > used_height) {
+					used_height = req_h;
+				}
+			}
+		}
+	}
+
+	/* Pass 2: calculate vertical offset for each box using fixed used_height and adjust y coordinate */
+	int line_bottom_reach = used_height;
+
+	for (d = first; d != b; d = d->next) {
+		if (d->type == BOX_INLINE_BLOCK && d->style != NULL &&
+			(css_computed_position(d->style) == CSS_POSITION_ABSOLUTE ||
+				css_computed_position(d->style) == CSS_POSITION_FIXED)) {
+			continue;
+		}
+
+		if (d->type == BOX_INLINE || d->type == BOX_BR || d->type == BOX_TEXT ||
+			d->type == BOX_INLINE_END ||
+			d->type == BOX_INLINE_BLOCK || d->type == BOX_INLINE_FLEX || d->type == BOX_INLINE_GRID) {
+			int outer_h = layout_box_get_outer_height(d, content);
+			int box_base = layout_box_get_baseline(d);
+			int delta_y = 0;
+
+			css_fixed value = 0;
+			css_unit unit = CSS_UNIT_PX;
+			enum css_vertical_align_e va = (d->style != NULL) ?
+				css_computed_vertical_align(d->style, &value, &unit) : CSS_VERTICAL_ALIGN_BASELINE;
+
+			int font_size_px = 0;
+			if (d->style != NULL) {
+				css_fixed fsize = 0;
+				css_unit funit = CSS_UNIT_PX;
+				css_computed_font_size(d->style, &fsize, &funit);
+				font_size_px = FIXTOINT(css_unit_len2device_px(d->style, &content->unit_len_ctx, fsize, funit));
+			}
+
+			switch (va) {
+			case CSS_VERTICAL_ALIGN_SUPER: {
+				int super_off = (font_size_px > 0) ? (font_size_px / 3) : (used_height / 3);
+				delta_y = max_baseline - super_off - box_base;
+				break;
+			}
+			case CSS_VERTICAL_ALIGN_SUB: {
+				int sub_off = (font_size_px > 0) ? (font_size_px / 5) : (used_height / 5);
+				delta_y = max_baseline + sub_off - box_base;
+				break;
+			}
+			case CSS_VERTICAL_ALIGN_TOP:
+			case CSS_VERTICAL_ALIGN_TEXT_TOP:
+				delta_y = 0;
+				break;
+			case CSS_VERTICAL_ALIGN_BOTTOM:
+			case CSS_VERTICAL_ALIGN_TEXT_BOTTOM:
+				delta_y = used_height - outer_h;
+				if (delta_y < 0) {
+					delta_y = 0;
+				}
+				break;
+			case CSS_VERTICAL_ALIGN_MIDDLE: {
+				if (font_size_px > 0) {
+					delta_y = max_baseline - (font_size_px / 4) - (outer_h / 2);
+				} else {
+					delta_y = (used_height - outer_h) / 2;
+				}
+				if (delta_y < 0) {
+					delta_y = 0;
+				}
+				break;
+			}
+			case CSS_VERTICAL_ALIGN_SET: {
+				int val_px = FIXTOINT(css_unit_len2device_px(d->style, &content->unit_len_ctx, value, unit));
+				delta_y = max_baseline - val_px - box_base;
+				break;
+			}
+			default:
+			case CSS_VERTICAL_ALIGN_BASELINE:
+				delta_y = max_baseline - box_base;
+				break;
+			}
+
+			d->y += delta_y;
+
+			if (delta_y + outer_h > line_bottom_reach) {
+				line_bottom_reach = delta_y + outer_h;
+			}
+		}
+	}
+
+	if (line_bottom_reach > used_height) {
+		used_height = line_bottom_reach;
 	}
 
 	/* handle clearance for br */
