@@ -357,6 +357,8 @@ void wisp_exit(void)
     /* Now the fetchers are done, our user-agent string can go */
     free_user_agent_string();
 
+    task_queue_execute_pending();
+
     NSLOG(wisp, INFO, "Finalising high-level cache");
     hlcache_finalise();
 
