@@ -4058,7 +4058,7 @@ static bool layout_inline_container(
 	bool has_text_children;
 	struct box *c, *next;
 	int y = 0;
-	int curwidth, maxwidth = width;
+	int curwidth, maxwidth = 0;
 
 	assert(inline_container->type == BOX_INLINE_CONTAINER);
 
