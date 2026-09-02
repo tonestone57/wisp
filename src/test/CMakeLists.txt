@@ -698,6 +698,12 @@ add_wisp_test(test_local_history
   ${CMAKE_SOURCE_DIR}/src/test/test_local_history.c
 )
 target_link_libraries(test_local_history PRIVATE wisp ${CHECK_LIBRARIES})
+
+add_wisp_test(test_searchweb
+  ${CMAKE_SOURCE_DIR}/src/test/log.c
+  ${CMAKE_SOURCE_DIR}/src/test/test_searchweb.c
+)
+target_link_libraries(test_searchweb PRIVATE wisp ${CHECK_LIBRARIES})
 add_wisp_test(test_content_type test_content_type.c)
 target_link_libraries(test_content_type PRIVATE wisp ${CHECK_LIBRARIES})
 add_wisp_test(content_disposition content_disposition.c)
