@@ -2848,15 +2848,12 @@ static gboolean about_button_clicked_cb(GtkWidget *widget, gpointer data)
  */
 static gboolean openmenu_button_clicked_cb(GtkWidget *widget, gpointer data)
 {
-    struct nsgtk_toolbar *tb = (struct nsgtk_toolbar *)data;
-    struct gui_window *gw;
     struct nsgtk_scaffolding *gs;
 
-    gw = tb->get_ctx; /** \todo stop assuming the context is a gui window */
-
-    gs = nsgtk_get_scaffold(gw);
-
-    nsgtk_scaffolding_burger_menu(gs);
+    gs = nsgtk_scaffolding_from_widget(widget);
+    if (gs != NULL) {
+        nsgtk_scaffolding_burger_menu(gs);
+    }
 
     return TRUE;
 }
@@ -3062,15 +3059,12 @@ static nserror toolbar_connect_signals(struct nsgtk_toolbar *tb)
  */
 static gboolean toolbar_popup_context_menu_cb(GtkToolbar *toolbar, gint x, gint y, gint button, gpointer data)
 {
-    struct nsgtk_toolbar *tb = (struct nsgtk_toolbar *)data;
-    struct gui_window *gw;
     struct nsgtk_scaffolding *gs;
 
-    gw = tb->get_ctx; /** \todo stop assuming the context is a gui window */
-
-    gs = nsgtk_get_scaffold(gw);
-
-    nsgtk_scaffolding_toolbar_context_menu(gs);
+    gs = nsgtk_scaffolding_from_widget(GTK_WIDGET(toolbar));
+    if (gs != NULL) {
+        nsgtk_scaffolding_toolbar_context_menu(gs);
+    }
 
     return TRUE;
 }
