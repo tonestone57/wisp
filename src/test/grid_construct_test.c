@@ -471,6 +471,141 @@ START_TEST(test_table_calculate_column_types_blockified_cell)
 }
 END_TEST
 
+START_TEST(test_table_used_border_direct_rows_without_group)
+{
+    struct arena *bctx = arena_create(64 * 1024);
+    ck_assert_ptr_nonnull(bctx);
+
+    struct html_content content = {0};
+    content.bctx = bctx;
+
+    struct box *table = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(table);
+    memset(table, 0, sizeof(*table));
+    table->type = BOX_TABLE;
+    table->columns = 1;
+    table->content = &content;
+
+    /* Rows directly attached to table (no row group) */
+    struct box *row1 = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(row1);
+    memset(row1, 0, sizeof(*row1));
+    row1->type = BOX_TABLE_ROW;
+
+    struct box *row2 = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(row2);
+    memset(row2, 0, sizeof(*row2));
+    row2->type = BOX_TABLE_ROW;
+
+    struct box *cell = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(cell);
+    memset(cell, 0, sizeof(*cell));
+    cell->type = BOX_TABLE_CELL;
+    cell->columns = 1;
+    cell->rows = 2;
+    cell->start_column = 0;
+
+    table->children = row1;
+    row1->next = row2;
+    row1->parent = table;
+    row2->parent = table;
+
+    row1->children = cell;
+    cell->parent = row1;
+
+    cell->style = MOCK_STYLE_BLOCK;
+    row1->style = MOCK_STYLE_BLOCK;
+    row2->style = MOCK_STYLE_BLOCK;
+    table->style = MOCK_STYLE_BLOCK;
+
+    table_used_border_for_cell(&content.unit_len_ctx, cell);
+
+    ck_assert_int_ge(cell->border[LEFT].width, 0);
+    ck_assert_int_ge(cell->border[RIGHT].width, 0);
+    ck_assert_int_ge(cell->border[BOTTOM].width, 0);
+
+    arena_destroy(bctx);
+}
+
+START_TEST(test_table_used_border_cell_span_row_groups)
+{
+    struct arena *bctx = arena_create(64 * 1024);
+    ck_assert_ptr_nonnull(bctx);
+
+    struct html_content content = {0};
+    content.bctx = bctx;
+
+    struct box *table = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(table);
+    memset(table, 0, sizeof(*table));
+    table->type = BOX_TABLE;
+    table->columns = 1;
+    table->content = &content;
+
+    /* Row group 1 */
+    struct box *rg1 = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(rg1);
+    memset(rg1, 0, sizeof(*rg1));
+    rg1->type = BOX_TABLE_ROW_GROUP;
+
+    struct box *row1 = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(row1);
+    memset(row1, 0, sizeof(*row1));
+    row1->type = BOX_TABLE_ROW;
+
+    /* Row group 2 */
+    struct box *rg2 = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(rg2);
+    memset(rg2, 0, sizeof(*rg2));
+    rg2->type = BOX_TABLE_ROW_GROUP;
+
+    struct box *row2 = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(row2);
+    memset(row2, 0, sizeof(*row2));
+    row2->type = BOX_TABLE_ROW;
+
+    /* Cell in row1 with rowspan=2 (spanning from rg1 into rg2) */
+    struct box *cell = arena_alloc(bctx, sizeof(struct box));
+    ck_assert_ptr_nonnull(cell);
+    memset(cell, 0, sizeof(*cell));
+    cell->type = BOX_TABLE_CELL;
+    cell->columns = 1;
+    cell->rows = 2;
+    cell->start_column = 0;
+
+    table->children = rg1;
+    rg1->next = rg2;
+    rg1->parent = table;
+    rg2->parent = table;
+
+    rg1->children = row1;
+    rg1->last = row1;
+    row1->parent = rg1;
+
+    rg2->children = row2;
+    rg2->last = row2;
+    row2->parent = rg2;
+
+    row1->children = cell;
+    cell->parent = row1;
+
+    cell->style = MOCK_STYLE_BLOCK;
+    row1->style = MOCK_STYLE_BLOCK;
+    row2->style = MOCK_STYLE_BLOCK;
+    rg1->style = MOCK_STYLE_BLOCK;
+    rg2->style = MOCK_STYLE_GRID; /* rg2 has grid style to differentiate */
+    table->style = MOCK_STYLE_BLOCK;
+
+    table_used_border_for_cell(&content.unit_len_ctx, cell);
+
+    /* Verify left/right/bottom border logic executed safely across row groups */
+    ck_assert_int_ge(cell->border[LEFT].width, 0);
+    ck_assert_int_ge(cell->border[RIGHT].width, 0);
+    ck_assert_int_ge(cell->border[BOTTOM].width, 0);
+
+    arena_destroy(bctx);
+}
+
 START_TEST(test_table_calculate_column_types_non_cell_child)
 {
     struct arena *bctx = arena_create(64 * 1024);
@@ -725,6 +860,8 @@ Suite *grid_construct_suite(void)
     tcase_add_test(tc, test_grid_construction);
     tcase_add_test(tc, test_table_calculate_column_types_blockified_cell);
     tcase_add_test(tc, test_table_calculate_column_types_non_cell_child);
+    tcase_add_test(tc, test_table_used_border_cell_span_row_groups);
+    tcase_add_test(tc, test_table_used_border_direct_rows_without_group);
     suite_add_tcase(s, tc);
     return s;
 }

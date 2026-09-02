@@ -424,8 +424,8 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
     } else {
         /* First cell in row, so consider rows and row group */
         struct box *row = cell->parent;
-        struct box *group = row->parent;
-        struct box *table = group->parent;
+        struct box *group = (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) ? row->parent : NULL;
+        struct box *table = (group != NULL) ? group->parent : row->parent;
         unsigned int rows = cell->rows;
 
         while (rows-- > 0 && row != NULL) {
@@ -442,35 +442,52 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
                 a_src = b_src;
             }
 
-            row = row->next;
-        }
+            /* Row group containing spanned row -- consider its left border */
+            if (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) {
+                struct box *rg = row->parent;
+                b.style = css_computed_border_left_style(rg->style);
+                b.color = css_computed_border_left_color(rg->style, &b.c);
+                css_computed_border_left_width(rg->style, &b.width, &b.unit);
+                b.width = css_unit_len2device_px(rg->style, unit_len_ctx, b.width, b.unit);
+                b.unit = CSS_UNIT_PX;
+                b_src = BOX_TABLE_ROW_GROUP;
 
-        /** \todo can cells span row groups? */
+                if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
+                    a = b;
+                    a_src = b_src;
+                }
+            }
 
-        /* Row group -- consider its left border */
-        b.style = css_computed_border_left_style(group->style);
-        b.color = css_computed_border_left_color(group->style, &b.c);
-        css_computed_border_left_width(group->style, &b.width, &b.unit);
-        b.width = css_unit_len2device_px(group->style, unit_len_ctx, b.width, b.unit);
-        b.unit = CSS_UNIT_PX;
-        b_src = BOX_TABLE_ROW_GROUP;
-
-        if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
-            a = b;
-            a_src = b_src;
+            if (row->next != NULL) {
+                row = row->next;
+            } else if (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) {
+                struct box *rg = row->parent;
+                row = NULL;
+                while (rg->next != NULL && rg->next->type == BOX_TABLE_ROW_GROUP) {
+                    rg = rg->next;
+                    if (rg->children != NULL) {
+                        row = rg->children;
+                        break;
+                    }
+                }
+            } else {
+                row = NULL;
+            }
         }
 
         /* The table itself -- consider its left border */
-        b.style = css_computed_border_left_style(table->style);
-        b.color = css_computed_border_left_color(table->style, &b.c);
-        css_computed_border_left_width(table->style, &b.width, &b.unit);
-        b.width = css_unit_len2device_px(table->style, unit_len_ctx, b.width, b.unit);
-        b.unit = CSS_UNIT_PX;
-        b_src = BOX_TABLE;
+        if (table != NULL) {
+            b.style = css_computed_border_left_style(table->style);
+            b.color = css_computed_border_left_color(table->style, &b.c);
+            css_computed_border_left_width(table->style, &b.width, &b.unit);
+            b.width = css_unit_len2device_px(table->style, unit_len_ctx, b.width, b.unit);
+            b.unit = CSS_UNIT_PX;
+            b_src = BOX_TABLE;
 
-        if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
-            a = b;
-            a_src = b_src;
+            if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
+                a = b;
+                a_src = b_src;
+            }
         }
     }
 
@@ -531,30 +548,40 @@ static void table_used_top_border_for_cell(const css_unit_ctx *unit_len_ctx, str
     }
 
     if (process_group) {
-        struct box *group = row->parent;
+        struct box *group = (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) ? row->parent : NULL;
 
-        /* Top border of row group */
-        b.style = css_computed_border_top_style(group->style);
-        b.color = css_computed_border_top_color(group->style, &b.c);
-        css_computed_border_top_width(group->style, &b.width, &b.unit);
-        b.width = css_unit_len2device_px(group->style, unit_len_ctx, b.width, b.unit);
-        b.unit = CSS_UNIT_PX;
-        b_src = BOX_TABLE_ROW_GROUP;
+        if (group != NULL) {
+            /* Top border of row group */
+            b.style = css_computed_border_top_style(group->style);
+            b.color = css_computed_border_top_color(group->style, &b.c);
+            css_computed_border_top_width(group->style, &b.width, &b.unit);
+            b.width = css_unit_len2device_px(group->style, unit_len_ctx, b.width, b.unit);
+            b.unit = CSS_UNIT_PX;
+            b_src = BOX_TABLE_ROW_GROUP;
 
-        if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
-            a = b;
-            a_src = b_src;
+            if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
+                a = b;
+                a_src = b_src;
+            }
         }
 
-        if (group->prev == NULL) {
+        if (group == NULL) {
+            if (row->parent != NULL && row->parent->type == BOX_TABLE) {
+                table_cell_top_process_table(unit_len_ctx, row->parent, &a, &a_src);
+            }
+        } else if (group->prev == NULL) {
             /* Top border of table */
-            table_cell_top_process_table(unit_len_ctx, group->parent, &a, &a_src);
+            if (group->parent != NULL) {
+                table_cell_top_process_table(unit_len_ctx, group->parent, &a, &a_src);
+            }
         } else {
             /* Process previous group(s) */
             while (table_cell_top_process_group(unit_len_ctx, cell, group->prev, &a, &a_src) == false) {
                 if (group->prev->prev == NULL) {
                     /* Top border of table */
-                    table_cell_top_process_table(unit_len_ctx, group->parent, &a, &a_src);
+                    if (group->parent != NULL) {
+                        table_cell_top_process_table(unit_len_ctx, group->parent, &a, &a_src);
+                    }
                     break;
                 } else {
                     group = group->prev;
@@ -590,7 +617,12 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
     a.unit = CSS_UNIT_PX;
     a_src = BOX_TABLE_CELL;
 
-    if (cell->next != NULL || cell->start_column + cell->columns != cell->parent->parent->parent->columns) {
+    struct box *cell_row = cell->parent;
+    struct box *cell_table = cell_row ? cell_row->parent : NULL;
+    if (cell_table != NULL && cell_table->type == BOX_TABLE_ROW_GROUP)
+        cell_table = cell_table->parent;
+
+    if (cell->next != NULL || (cell_table != NULL && cell->start_column + cell->columns != cell_table->columns)) {
         /* Cell is not at right edge of table -- no right border */
         a.style = CSS_BORDER_STYLE_NONE;
         a.width = 0;
@@ -598,8 +630,8 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
     } else {
         /* Last cell in row, so consider rows and row group */
         struct box *row = cell->parent;
-        struct box *group = row->parent;
-        struct box *table = group->parent;
+        struct box *group = (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) ? row->parent : NULL;
+        struct box *table = (group != NULL) ? group->parent : row->parent;
         unsigned int rows = cell->rows;
 
         while (rows-- > 0 && row != NULL) {
@@ -616,35 +648,52 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
                 a_src = b_src;
             }
 
-            row = row->next;
-        }
+            /* Row group containing spanned row -- consider its right border */
+            if (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) {
+                struct box *rg = row->parent;
+                b.style = css_computed_border_right_style(rg->style);
+                b.color = css_computed_border_right_color(rg->style, &b.c);
+                css_computed_border_right_width(rg->style, &b.width, &b.unit);
+                b.width = css_unit_len2device_px(rg->style, unit_len_ctx, b.width, b.unit);
+                b.unit = CSS_UNIT_PX;
+                b_src = BOX_TABLE_ROW_GROUP;
 
-        /** \todo can cells span row groups? */
+                if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
+                    a = b;
+                    a_src = b_src;
+                }
+            }
 
-        /* Row group -- consider its right border */
-        b.style = css_computed_border_right_style(group->style);
-        b.color = css_computed_border_right_color(group->style, &b.c);
-        css_computed_border_right_width(group->style, &b.width, &b.unit);
-        b.width = css_unit_len2device_px(group->style, unit_len_ctx, b.width, b.unit);
-        b.unit = CSS_UNIT_PX;
-        b_src = BOX_TABLE_ROW_GROUP;
-
-        if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
-            a = b;
-            a_src = b_src;
+            if (row->next != NULL) {
+                row = row->next;
+            } else if (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) {
+                struct box *rg = row->parent;
+                row = NULL;
+                while (rg->next != NULL && rg->next->type == BOX_TABLE_ROW_GROUP) {
+                    rg = rg->next;
+                    if (rg->children != NULL) {
+                        row = rg->children;
+                        break;
+                    }
+                }
+            } else {
+                row = NULL;
+            }
         }
 
         /* The table itself -- consider its right border */
-        b.style = css_computed_border_right_style(table->style);
-        b.color = css_computed_border_right_color(table->style, &b.c);
-        css_computed_border_right_width(table->style, &b.width, &b.unit);
-        b.width = css_unit_len2device_px(table->style, unit_len_ctx, b.width, b.unit);
-        b.unit = CSS_UNIT_PX;
-        b_src = BOX_TABLE;
+        if (table != NULL) {
+            b.style = css_computed_border_right_style(table->style);
+            b.color = css_computed_border_right_color(table->style, &b.c);
+            css_computed_border_right_width(table->style, &b.width, &b.unit);
+            b.width = css_unit_len2device_px(table->style, unit_len_ctx, b.width, b.unit);
+            b.unit = CSS_UNIT_PX;
+            b_src = BOX_TABLE;
 
-        if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
-            a = b;
-            a_src = b_src;
+            if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
+                a = b;
+                a_src = b_src;
+            }
         }
     }
 
@@ -676,10 +725,23 @@ static void table_used_bottom_border_for_cell(const css_unit_ctx *unit_len_ctx, 
     a.unit = CSS_UNIT_PX;
     a_src = BOX_TABLE_CELL;
 
-    while (rows-- > 0 && row != NULL)
-        row = row->next;
-
-    /** \todo Can cells span row groups? */
+    while (rows-- > 0 && row != NULL) {
+        if (row->next != NULL) {
+            row = row->next;
+        } else if (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) {
+            struct box *rg = row->parent;
+            row = NULL;
+            while (rg->next != NULL && rg->next->type == BOX_TABLE_ROW_GROUP) {
+                rg = rg->next;
+                if (rg->children != NULL) {
+                    row = rg->children;
+                    break;
+                }
+            }
+        } else {
+            row = NULL;
+        }
+    }
 
     if (row != NULL) {
         /* Cell is not at bottom edge of table -- no bottom border */
@@ -689,8 +751,8 @@ static void table_used_bottom_border_for_cell(const css_unit_ctx *unit_len_ctx, 
     } else {
         /* Cell at bottom of table, so consider row and row group */
         struct box *row = cell->parent;
-        struct box *group = row->parent;
-        struct box *table = group->parent;
+        struct box *group = (row->parent != NULL && row->parent->type == BOX_TABLE_ROW_GROUP) ? row->parent : NULL;
+        struct box *table = (group != NULL) ? group->parent : row->parent;
 
         /* Bottom border of row */
         b.style = css_computed_border_bottom_style(row->style);
@@ -705,29 +767,33 @@ static void table_used_bottom_border_for_cell(const css_unit_ctx *unit_len_ctx, 
             a_src = b_src;
         }
 
-        /* Row group -- consider its bottom border */
-        b.style = css_computed_border_bottom_style(group->style);
-        b.color = css_computed_border_bottom_color(group->style, &b.c);
-        css_computed_border_bottom_width(group->style, &b.width, &b.unit);
-        b.width = css_unit_len2device_px(group->style, unit_len_ctx, b.width, b.unit);
-        b.unit = CSS_UNIT_PX;
-        b_src = BOX_TABLE_ROW_GROUP;
+        /* Row group -- consider its bottom border if present */
+        if (group != NULL) {
+            b.style = css_computed_border_bottom_style(group->style);
+            b.color = css_computed_border_bottom_color(group->style, &b.c);
+            css_computed_border_bottom_width(group->style, &b.width, &b.unit);
+            b.width = css_unit_len2device_px(group->style, unit_len_ctx, b.width, b.unit);
+            b.unit = CSS_UNIT_PX;
+            b_src = BOX_TABLE_ROW_GROUP;
 
-        if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
-            a = b;
-            a_src = b_src;
+            if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
+                a = b;
+                a_src = b_src;
+            }
         }
 
         /* The table itself -- consider its bottom border */
-        b.style = css_computed_border_bottom_style(table->style);
-        b.color = css_computed_border_bottom_color(table->style, &b.c);
-        css_computed_border_bottom_width(table->style, &b.width, &b.unit);
-        b.width = css_unit_len2device_px(table->style, unit_len_ctx, b.width, b.unit);
-        b.unit = CSS_UNIT_PX;
-        b_src = BOX_TABLE;
+        if (table != NULL) {
+            b.style = css_computed_border_bottom_style(table->style);
+            b.color = css_computed_border_bottom_color(table->style, &b.c);
+            css_computed_border_bottom_width(table->style, &b.width, &b.unit);
+            b.width = css_unit_len2device_px(table->style, unit_len_ctx, b.width, b.unit);
+            b.unit = CSS_UNIT_PX;
+            b_src = BOX_TABLE;
 
-        if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
-            a = b;
+            if (table_border_is_more_eyecatching(unit_len_ctx, &a, a_src, &b, b_src)) {
+                a = b;
+            }
         }
     }
 
