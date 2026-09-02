@@ -796,8 +796,7 @@ static css_error snap_node_is_visited(void *pw, void *node, bool *match) {
 }
 
 static css_error snap_node_is_hover(void *pw, void *node, bool *match) {
-    *match = false;
-    return CSS_OK;
+    return node_is_hover(pw, ((style_snapshot_t *)node)->node, match);
 }
 
 static css_error snap_node_is_active(void *pw, void *node, bool *match) {

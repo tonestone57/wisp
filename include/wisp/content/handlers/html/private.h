@@ -612,6 +612,9 @@ typedef struct html_content {
     /** Current input focus target */
     union html_focus_owner focus_owner;
 
+    /** Currently hovered DOM node for :hover pseudo-class */
+    struct dom_node *hover_node;
+
     /** HTML content's own text selection object */
     struct selection *sel;
 

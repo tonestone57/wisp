@@ -879,6 +879,8 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 				if (b->space == UNKNOWN_WIDTH) {
 					if (font_func->width(&fstyle, " ", 1, &b->space) != NSERROR_OK) {
 						b->space = 0;
+					} else {
+						b->space += fstyle.word_spacing;
 					}
 				}
 				max += b->space;
@@ -949,6 +951,8 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 				if (b->space == UNKNOWN_WIDTH) {
 					if (font_func->width(&fstyle, " ", 1, &b->space) != NSERROR_OK) {
 						b->space = 0;
+					} else {
+						b->space += fstyle.word_spacing;
 					}
 				}
 				max += b->space;
@@ -3047,6 +3051,8 @@ static bool layout_text_box_split(
 		 * Calculate space width */
 		if (font_func->width(fstyle, " ", 1, &space_width) != NSERROR_OK) {
 			space_width = 0;
+		} else {
+			space_width += fstyle->word_spacing;
 		}
 	}
 
@@ -3490,6 +3496,8 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			if (b->space == UNKNOWN_WIDTH) {
 				if (font_func->width(&fstyle, " ", 1, &b->space) != NSERROR_OK) {
 					b->space = 0;
+				} else {
+					b->space += fstyle.word_spacing;
 				}
 			}
 			space_after = b->space;
@@ -3593,6 +3601,8 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			if (b->space == UNKNOWN_WIDTH) {
 				if (font_func->width(&fstyle, " ", 1, &b->space) != NSERROR_OK) {
 					b->space = 0;
+				} else {
+					b->space += fstyle.word_spacing;
 				}
 			}
 			space_after = b->space;
@@ -3771,6 +3781,8 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 					font_plot_style_from_css(&content->unit_len_ctx, b->style, &fstyle);
 					if (font_func->width(&fstyle, " ", 1, &b->space) != NSERROR_OK) {
 						b->space = 0;
+					} else {
+						b->space += fstyle.word_spacing;
 					}
 				}
 				space_after = b->space;
@@ -5435,8 +5447,15 @@ static void layout_lists(const html_content *content, struct box *box)
 				marker->width = 0;
 				marker->height = 0;
 			}
-			/* Gap between marker and content */
-			marker->x -= 4;
+			/* Position list marker based on list-style-position */
+			enum css_list_style_position_e list_pos =
+				child->style ? css_computed_list_style_position(child->style) : CSS_LIST_STYLE_POSITION_OUTSIDE;
+			if (list_pos == CSS_LIST_STYLE_POSITION_INSIDE) {
+				marker->x = 0;
+			} else {
+				/* Gap between marker and content for OUTSIDE position */
+				marker->x -= 4;
+			}
 
 			/* Log marker positioning relative to LI */
 			NSLOG(wisp, DEEPDEBUG,

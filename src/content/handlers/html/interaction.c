@@ -1205,6 +1205,15 @@ mouse_action_drag_none(html_content *html, struct browser_window *bw, browser_mo
         return res;
     }
 
+    /* Update hover node for :hover pseudo-class styling */
+    if (html->hover_node != mas.node) {
+        html->hover_node = mas.node;
+        if (html->conversion_begun) {
+            html->conversion_begun = false;
+            guit->misc->schedule(0, html_resume_conversion_cb, html);
+        }
+    }
+
     /* send status and pointer message */
     if (mas.result.action != ACTION_NOSEND) {
         msg_data.explicit_status_text = mas.result.status;

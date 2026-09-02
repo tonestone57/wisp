@@ -165,4 +165,14 @@ void font_plot_style_from_css(
     } else {
         fstyle->letter_spacing = 0;
     }
+
+    /* word-spacing */
+    css_fixed ws_length = 0;
+    css_unit ws_unit = CSS_UNIT_PX;
+    uint8_t ws_type = css_computed_word_spacing(css, &ws_length, &ws_unit);
+    if (ws_type == CSS_WORD_SPACING_SET) {
+        fstyle->word_spacing = FIXTOINT(css_unit_len2device_px(css, unit_len_ctx, ws_length, ws_unit));
+    } else {
+        fstyle->word_spacing = 0;
+    }
 }
