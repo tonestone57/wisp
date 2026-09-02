@@ -545,10 +545,8 @@ int main(int argc, char **argv) {
     while (1) {
         wisp_ipc_msg msg;
         nserror err;
-        bool had_work = false;
 
         while ((err = wisp_ipc_recv(ipc_main, &msg)) == NSERROR_OK) {
-            had_work = true;
             NSLOG(wisp, DEBUG, "WISP-NETWORK: Received message of type %d, length %d", msg.type, msg.length);
             network_process_ipc_msg(&msg);
             wisp_ipc_msg_free(&msg);
@@ -564,16 +562,36 @@ int main(int argc, char **argv) {
         fetch_poll_all();
         cleanup_finished_fetches();
 
-        if (active_fetches_list != NULL) {
-            had_work = true;
+        /* Event-driven I/O wait using select instead of blocking sleep */
+        fd_set read_fds, write_fds, exc_fds;
+        FD_ZERO(&read_fds);
+        FD_ZERO(&write_fds);
+        FD_ZERO(&exc_fds);
+
+        int maxfd = -1;
+        int ipc_fd = wisp_ipc_get_fd(ipc_main);
+        if (ipc_fd >= 0) {
+            FD_SET(ipc_fd, &read_fds);
+            maxfd = ipc_fd;
         }
 
-        if (!had_work) {
-#ifdef _WIN32
-            Sleep(5);
-#else
-            usleep(5000);
-#endif
+        int fetch_maxfd = -1;
+        fetch_fdset(&read_fds, &write_fds, &exc_fds, &fetch_maxfd);
+        if (fetch_maxfd > maxfd) {
+            maxfd = fetch_maxfd;
+        }
+
+        struct timeval tv;
+        struct timeval *ptv = NULL;
+
+        if (active_fetches_list != NULL) {
+            tv.tv_sec = 0;
+            tv.tv_usec = 10000; /* 10ms timeout when active fetches are in progress */
+            ptv = &tv;
+        }
+
+        if (maxfd >= 0) {
+            select(maxfd + 1, &read_fds, &write_fds, &exc_fds, ptv);
         }
     }
 
