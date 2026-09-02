@@ -240,6 +240,7 @@ static nserror make_search_nsurl(struct search_provider *provider, const char *t
         return ret;
     }
 
+    /* cache length of eterm outside loop to avoid redundant strlen evaluations */
     eterm_len = strlen(eterm);
     searchstr = provider->searchstring;
 
