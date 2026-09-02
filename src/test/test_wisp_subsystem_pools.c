@@ -282,6 +282,53 @@ START_TEST(test_pop_task_and_wait_group_pumping)
 }
 END_TEST
 
+static void test_image_decode_task_cb(void *arg) {
+    uint8_t *buffer = (uint8_t *)arg;
+    // Simulate decoding raw RGBA surface off-thread
+    for (int i = 0; i < 256 * 4; i += 4) {
+        buffer[i + 0] = 255; // R
+        buffer[i + 1] = 0;   // G
+        buffer[i + 2] = 0;   // B
+        buffer[i + 3] = 255; // A
+    }
+    ns_mutex_lock(&count_lock);
+    task_executed_count++;
+    ns_mutex_unlock(&count_lock);
+}
+
+START_TEST(test_image_decoding_raster_pool)
+{
+    init_wisp_subsystem(10);
+
+    task_executed_count = 0;
+    uint8_t rgba_surface[256 * 4] = {0};
+
+    /* Dispatch off-thread image decoding task to raster worker pool */
+    ck_assert(wisp_dispatch_raster(NULL, test_image_decode_task_cb, rgba_surface, 1.0f));
+
+    /* Wait for task completion on worker thread */
+    int retries = 0;
+    while (retries < 50) {
+        ns_mutex_lock(&count_lock);
+        if (task_executed_count == 1) {
+            ns_mutex_unlock(&count_lock);
+            break;
+        }
+        ns_mutex_unlock(&count_lock);
+        ns_usleep(100000);
+        retries++;
+    }
+
+    ck_assert_int_eq(task_executed_count, 1);
+    ck_assert_int_eq(rgba_surface[0], 255);
+    ck_assert_int_eq(rgba_surface[1], 0);
+    ck_assert_int_eq(rgba_surface[2], 0);
+    ck_assert_int_eq(rgba_surface[3], 255);
+
+    shutdown_wisp_subsystem();
+}
+END_TEST
+
 START_TEST(test_tile_pool_compressed_cache)
 {
     // Initialize pool
@@ -360,6 +407,7 @@ Suite *subsystem_suite(void)
     tcase_add_test(tc_core, test_browser_tile_priority);
     tcase_add_test(tc_core, test_tile_pool_compressed_cache);
     tcase_add_test(tc_core, test_pop_task_and_wait_group_pumping);
+    tcase_add_test(tc_core, test_image_decoding_raster_pool);
 
     suite_add_tcase(s, tc_core);
     return s;
