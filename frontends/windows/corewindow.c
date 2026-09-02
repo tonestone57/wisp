@@ -419,8 +419,39 @@ static nserror nsw32_cw_set_scroll(struct core_window *cw, int x, int y)
 
 static nserror nsw32_cw_get_scroll(const struct core_window *cw, int *x, int *y)
 {
-    /** /todo call getscroll apropriately */
-    return NSERROR_NOT_IMPLEMENTED;
+    const struct nsw32_corewindow *nsw32_cw = (const struct nsw32_corewindow *)cw;
+    SCROLLINFO si;
+
+    if (nsw32_cw == NULL || nsw32_cw->hWnd == NULL) {
+        if (x != NULL) {
+            *x = 0;
+        }
+        if (y != NULL) {
+            *y = 0;
+        }
+        return NSERROR_OK;
+    }
+
+    si.cbSize = sizeof(si);
+    si.fMask = SIF_POS;
+
+    if (x != NULL) {
+        if (GetScrollInfo(nsw32_cw->hWnd, SB_HORZ, &si)) {
+            *x = si.nPos;
+        } else {
+            *x = 0;
+        }
+    }
+
+    if (y != NULL) {
+        if (GetScrollInfo(nsw32_cw->hWnd, SB_VERT, &si)) {
+            *y = si.nPos;
+        } else {
+            *y = 0;
+        }
+    }
+
+    return NSERROR_OK;
 }
 
 
