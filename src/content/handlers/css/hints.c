@@ -491,14 +491,14 @@ static bool parse_font_size(const char *size, uint8_t *val, css_fixed *len, css_
         value = 7;
 
     if (value == 7) {
-        /* Manually calculated dimension for xxx-large font size. */
-        *len = FDIV(FMUL(INTTOFIX(3), INTTOFIX(nsoption_int(font_size))), F_10);
+        /* Manually calculated dimension for xxx-large font size (3 * default_font_size). */
+        *len = INTTOFIX(3 * nsoption_int(font_size));
     } else {
         /* Len is irrelevant */
         *len = 0;
     }
 
-    *unit = CSS_UNIT_PT;
+    *unit = CSS_UNIT_PX;
     *val = size_map[value - 1];
 
     return true;

@@ -120,7 +120,7 @@ static nserror textplain_create_internal(textplain_content *c, lwc_string *encod
     parserutils_inputstream *stream;
     parserutils_error error;
 
-    textplain_style.size = (nsoption_int(font_size) * PLOT_STYLE_SCALE) / 10;
+    textplain_style.size = (nsoption_int(font_size) * 72 * PLOT_STYLE_SCALE) / 96;
 
     utf8_data = malloc(CHUNK);
     if (utf8_data == NULL)

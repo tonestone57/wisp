@@ -394,9 +394,8 @@ static void html_get_dimensions(html_content *htmlc)
 	NSLOG(wisp, DEEPDEBUG, "DIAG: html_get_dimensions: media.width=%u media.height=%u (CSS px)", FIXTOINT(w),
 		FIXTOINT(h));
 
-	/** \todo Change nsoption font sizes to px. */
-	f_size = FDIV(FMUL(F_96, FDIV(INTTOFIX(nsoption_int(font_size)), F_10)), F_72);
-	f_min = FDIV(FMUL(F_96, FDIV(INTTOFIX(nsoption_int(font_min_size)), F_10)), F_72);
+	f_size = INTTOFIX(nsoption_int(font_size));
+	f_min = INTTOFIX(nsoption_int(font_min_size));
 
 	htmlc->unit_len_ctx.font_size_default = f_size;
 	htmlc->unit_len_ctx.font_size_minimum = f_min;

@@ -181,12 +181,12 @@ static INT_PTR CALLBACK options_appearance_dialog_handler(HWND hwnd, UINT msg, W
         }
         if (nsoption_int(font_min_size) != 0) {
             sub = GetDlgItem(hwnd, IDC_PREFS_FONT_MINSIZE);
-            snprintf(number, 6, "%.1f", nsoption_int(font_min_size) / 10.0);
+            snprintf(number, 6, "%d", nsoption_int(font_min_size));
             SendMessage(sub, WM_SETTEXT, 0, (LPARAM)number);
         }
         if (nsoption_int(font_size) != 0) {
             sub = GetDlgItem(hwnd, IDC_PREFS_FONT_SIZE);
-            snprintf(number, 6, "%.1f", nsoption_int(font_size) / 10.0);
+            snprintf(number, 6, "%d", nsoption_int(font_size));
             SendMessage(sub, WM_SETTEXT, 0, (LPARAM)number);
         }
         if (nsoption_int(max_fetchers) != 0) {
@@ -219,7 +219,7 @@ static INT_PTR CALLBACK options_appearance_dialog_handler(HWND hwnd, UINT msg, W
             temp = malloc(len + 1);
             if (temp != NULL) {
                 SendMessage(sub, WM_GETTEXT, (WPARAM)(len + 1), (LPARAM)temp);
-                nsoption_int(font_size) = (int)(10 * strtod(temp, NULL));
+                nsoption_set_int(font_size, (int)strtod(temp, NULL));
                 free(temp);
             }
 
@@ -228,7 +228,7 @@ static INT_PTR CALLBACK options_appearance_dialog_handler(HWND hwnd, UINT msg, W
             temp = malloc(len + 1);
             if (temp != NULL) {
                 SendMessage(sub, WM_GETTEXT, (WPARAM)(len + 1), (LPARAM)temp);
-                nsoption_set_int(font_min_size, (int)(10 * strtod(temp, NULL)));
+                nsoption_set_int(font_min_size, (int)strtod(temp, NULL));
                 free(temp);
             }
 
@@ -242,11 +242,11 @@ static INT_PTR CALLBACK options_appearance_dialog_handler(HWND hwnd, UINT msg, W
             NMUPDOWN *ud = (NMUPDOWN *)lParam;
             switch (((NMHDR *)lParam)->idFrom) {
             case IDC_PREFS_FONT_SIZE_SPIN:
-                change_spinner(GetDlgItem(hwnd, IDC_PREFS_FONT_SIZE), 0.1 * ud->iDelta, 1.0, 50.0);
+                change_spinner(GetDlgItem(hwnd, IDC_PREFS_FONT_SIZE), 1.0 * ud->iDelta, 5.0, 100.0);
                 return TRUE;
 
             case IDC_PREFS_FONT_MINSIZE_SPIN:
-                change_spinner(GetDlgItem(hwnd, IDC_PREFS_FONT_MINSIZE), 0.1 * ud->iDelta, 1.0, 50.0);
+                change_spinner(GetDlgItem(hwnd, IDC_PREFS_FONT_MINSIZE), 1.0 * ud->iDelta, 1.0, 50.0);
                 return TRUE;
             }
         } break;

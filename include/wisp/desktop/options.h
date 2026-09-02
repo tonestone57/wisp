@@ -67,11 +67,11 @@ NSOPTION_STRING(http_proxy_noproxy, "localhost")
 /** Default treeview font size (unit: 0.1pt) */
 NSOPTION_INTEGER(treeview_font_size, 110)
 
-/** Default font size (unit: 0.1pt) */
-NSOPTION_INTEGER(font_size, 128)
+/** Default font size (unit: px) */
+NSOPTION_INTEGER(font_size, 16)
 
-/** Minimum font size. */
-NSOPTION_INTEGER(font_min_size, 85)
+/** Minimum font size (unit: px). */
+NSOPTION_INTEGER(font_min_size, 11)
 
 /** Default sans serif font */
 NSOPTION_STRING(font_sans, NULL)

@@ -155,20 +155,20 @@ static void nsoption_validate(struct nsoption_s *opts, struct nsoption_s *defs)
         opts[NSOPTION_treeview_font_size].value.i = 1000;
     }
 
-    if (opts[NSOPTION_font_size].value.i < 50) {
-        opts[NSOPTION_font_size].value.i = 50;
+    if (opts[NSOPTION_font_size].value.i < 5) {
+        opts[NSOPTION_font_size].value.i = 5;
     }
 
-    if (opts[NSOPTION_font_size].value.i > 1000) {
-        opts[NSOPTION_font_size].value.i = 1000;
+    if (opts[NSOPTION_font_size].value.i > 100) {
+        opts[NSOPTION_font_size].value.i = 100;
     }
 
-    if (opts[NSOPTION_font_min_size].value.i < 10) {
-        opts[NSOPTION_font_min_size].value.i = 10;
+    if (opts[NSOPTION_font_min_size].value.i < 1) {
+        opts[NSOPTION_font_min_size].value.i = 1;
     }
 
-    if (opts[NSOPTION_font_min_size].value.i > 500) {
-        opts[NSOPTION_font_min_size].value.i = 500;
+    if (opts[NSOPTION_font_min_size].value.i > 50) {
+        opts[NSOPTION_font_min_size].value.i = 50;
     }
 
     if (opts[NSOPTION_memory_cache_size].value.i < 0) {
