@@ -358,6 +358,121 @@ START_TEST(test_fetch_multipart_data_destroy_chain)
 }
 END_TEST
 
+START_TEST(test_fetch_multipart_data_destroy_file_null_rawfile)
+{
+    struct fetch_multipart_data *item = calloc(1, sizeof(*item));
+    ck_assert_ptr_ne(item, NULL);
+
+    item->name = strdup("upload_no_raw");
+    item->value = strdup("file_no_raw.txt");
+    item->rawfile = NULL;
+    item->file = true;
+    item->next = NULL;
+
+    fetch_multipart_data_destroy(item);
+}
+END_TEST
+
+START_TEST(test_fetch_multipart_data_destroy_null_fields)
+{
+    struct fetch_multipart_data *item = calloc(1, sizeof(*item));
+    ck_assert_ptr_ne(item, NULL);
+
+    item->name = NULL;
+    item->value = NULL;
+    item->rawfile = NULL;
+    item->file = false;
+
+    struct fetch_multipart_data *item2 = calloc(1, sizeof(*item2));
+    ck_assert_ptr_ne(item2, NULL);
+    item2->name = strdup("valid_name");
+    item2->value = NULL;
+    item2->file = true;
+    item2->rawfile = NULL;
+
+    item->next = item2;
+
+    fetch_multipart_data_destroy(item);
+}
+END_TEST
+
+START_TEST(test_fetch_multipart_data_destroy_cloned)
+{
+    struct fetch_multipart_data *orig = NULL;
+    nserror err = fetch_multipart_data_new_kv(&orig, "key1", "val1");
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    struct fetch_multipart_data *file_item = calloc(1, sizeof(*file_item));
+    ck_assert_ptr_ne(file_item, NULL);
+    file_item->name = strdup("attachment");
+    file_item->value = strdup("notes.txt");
+    file_item->rawfile = strdup("/tmp/notes.txt");
+    file_item->file = true;
+    file_item->next = orig;
+    orig = file_item;
+
+    struct fetch_multipart_data *clone = fetch_multipart_data_clone(orig);
+    ck_assert_ptr_ne(clone, NULL);
+
+    /* Verify search finding elements in original and clone */
+    ck_assert_str_eq(fetch_multipart_data_find(orig, "key1"), "val1");
+    ck_assert_str_eq(fetch_multipart_data_find(clone, "key1"), "val1");
+    ck_assert_str_eq(fetch_multipart_data_find(orig, "attachment"), "notes.txt");
+    ck_assert_str_eq(fetch_multipart_data_find(clone, "attachment"), "notes.txt");
+
+    /* Destroy original and clone independently */
+    fetch_multipart_data_destroy(orig);
+    fetch_multipart_data_destroy(clone);
+}
+END_TEST
+
+START_TEST(test_fetch_multipart_data_destroy_large_mixed_chain)
+{
+    struct fetch_multipart_data *list = NULL;
+
+    for (int i = 0; i < 10; i++) {
+        char name[32], val[32], raw[64];
+        snprintf(name, sizeof(name), "field_%d", i);
+        snprintf(val, sizeof(val), "value_%d", i);
+        snprintf(raw, sizeof(raw), "/path/to/file_%d.dat", i);
+
+        if (i % 3 == 0) {
+            /* Key-value pair */
+            nserror err = fetch_multipart_data_new_kv(&list, name, val);
+            ck_assert_int_eq(err, NSERROR_OK);
+        } else if (i % 3 == 1) {
+            /* File item with rawfile */
+            struct fetch_multipart_data *item = calloc(1, sizeof(*item));
+            ck_assert_ptr_ne(item, NULL);
+            item->name = strdup(name);
+            item->value = strdup(val);
+            item->rawfile = strdup(raw);
+            item->file = true;
+            item->next = list;
+            list = item;
+        } else {
+            /* File item with NULL rawfile */
+            struct fetch_multipart_data *item = calloc(1, sizeof(*item));
+            ck_assert_ptr_ne(item, NULL);
+            item->name = strdup(name);
+            item->value = strdup(val);
+            item->rawfile = NULL;
+            item->file = true;
+            item->next = list;
+            list = item;
+        }
+    }
+
+    /* Verify lookup works */
+    ck_assert_str_eq(fetch_multipart_data_find(list, "field_0"), "value_0");
+    ck_assert_str_eq(fetch_multipart_data_find(list, "field_9"), "value_9");
+    ck_assert_ptr_eq(fetch_multipart_data_find(list, "nonexistent"), NULL);
+
+    /* Destroy the whole chain */
+    fetch_multipart_data_destroy(list);
+}
+END_TEST
+
 START_TEST(test_fetch_curl_preconnect_null)
 {
     /* Passing NULL url string should execute safely via guard check */
@@ -403,6 +518,10 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_single_kv);
     tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_file);
     tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_chain);
+    tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_file_null_rawfile);
+    tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_null_fields);
+    tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_cloned);
+    tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_large_mixed_chain);
     suite_add_tcase(s, tc_multipart);
 
     TCase *tc_curl = tcase_create("cURL");
