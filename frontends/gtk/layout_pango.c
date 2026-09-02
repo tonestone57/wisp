@@ -420,15 +420,19 @@ static nserror nsgtk_load_font_data(const struct font_variant_id *id, const uint
         return NSERROR_BAD_PARAMETER;
     }
 
-    char temp_path[] = "/tmp/wisp-font-XXXXXX";
-    int fd = mkstemp(temp_path);
-    if (fd < 0) {
+    char *temp_path = NULL;
+    int fd = g_file_open_tmp("wisp-font-XXXXXX", &temp_path, NULL);
+    if (fd < 0 || temp_path == NULL) {
+        if (temp_path != NULL) {
+            g_free(temp_path);
+        }
         return NSERROR_NOT_FOUND;
     }
 
     if (write(fd, data, size) != (ssize_t)size) {
         close(fd);
         unlink(temp_path);
+        g_free(temp_path);
         return NSERROR_NOT_FOUND;
     }
     close(fd);
@@ -436,6 +440,7 @@ static nserror nsgtk_load_font_data(const struct font_variant_id *id, const uint
     /* Register the font file with Fontconfig */
     if (!FcConfigAppFontAddFile(NULL, (const FcChar8 *)temp_path)) {
         unlink(temp_path);
+        g_free(temp_path);
         return NSERROR_NOT_FOUND;
     }
 
@@ -453,14 +458,20 @@ static nserror nsgtk_load_font_data(const struct font_variant_id *id, const uint
 
     /* Track the loaded font */
     struct nsgtk_loaded_font *f = malloc(sizeof(*f));
-    if (f) {
-        f->family_name = strdup(id->family_name);
-        f->weight = id->weight;
-        f->style = id->style;
-        f->temp_path = strdup(temp_path);
-        f->next = nsgtk_fonts;
-        nsgtk_fonts = f;
+    if (f == NULL) {
+        unlink(temp_path);
+        g_free(temp_path);
+        return NSERROR_NOMEM;
     }
+
+    f->family_name = strdup(id->family_name);
+    f->weight = id->weight;
+    f->style = id->style;
+    f->temp_path = strdup(temp_path);
+    f->next = nsgtk_fonts;
+    nsgtk_fonts = f;
+
+    g_free(temp_path);
 
     NSLOG(wisp, INFO, "Successfully registered custom web font '%s' dynamically via Fontconfig!", id->family_name);
     return NSERROR_OK;
