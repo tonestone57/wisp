@@ -483,8 +483,26 @@ static nserror html_object_callback(hlcache_handle *object, const hlcache_event 
         break;
 
     case CONTENT_MSG_GETDIMS:
-        *(event->data.getdims.viewport_width) = content__get_width(&c->base);
-        *(event->data.getdims.viewport_height) = content__get_height(&c->base);
+        if (event->data.getdims.viewport_width != NULL) {
+            *(event->data.getdims.viewport_width) = content__get_width(&c->base);
+        }
+        if (event->data.getdims.viewport_height != NULL) {
+            *(event->data.getdims.viewport_height) = content__get_height(&c->base);
+        }
+        if (event->data.getdims.screen_width != NULL) {
+            int sw = nsoption_int(window_screen_width);
+            if (sw <= 0) {
+                sw = 1920;
+            }
+            *(event->data.getdims.screen_width) = sw;
+        }
+        if (event->data.getdims.screen_height != NULL) {
+            int sh = nsoption_int(window_screen_height);
+            if (sh <= 0) {
+                sh = 1080;
+            }
+            *(event->data.getdims.screen_height) = sh;
+        }
         break;
 
     case CONTENT_MSG_SCROLL:

@@ -371,11 +371,15 @@ static void html_get_dimensions(html_content *htmlc)
 	unsigned f_min;
 	unsigned w;
 	unsigned h;
+	unsigned sw;
+	unsigned sh;
 	union content_msg_data msg_data = {
 		.getdims =
 			{
 				.viewport_width = &w,
 				.viewport_height = &h,
+				.screen_width = &sw,
+				.screen_height = &sh,
 			},
 	};
 
@@ -391,8 +395,8 @@ static void html_get_dimensions(html_content *htmlc)
 	htmlc->unit_len_ctx.viewport_height = h;
 	htmlc->unit_len_ctx.device_dpi = device_dpi;
 
-	NSLOG(wisp, DEEPDEBUG, "DIAG: html_get_dimensions: media.width=%u media.height=%u (CSS px)", FIXTOINT(w),
-		FIXTOINT(h));
+	NSLOG(wisp, DEEPDEBUG, "DIAG: html_get_dimensions: media.width=%u media.height=%u screen.width=%u screen.height=%u (CSS px)", FIXTOINT(w),
+		FIXTOINT(h), sw, sh);
 
 	f_size = INTTOFIX(nsoption_int(font_size));
 	f_min = INTTOFIX(nsoption_int(font_min_size));

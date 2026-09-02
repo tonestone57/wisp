@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include <wisp/browser_window.h>
+#include <wisp/content/content.h>
 #include <wisp/content/content_protected.h>
 #include <wisp/desktop/gui_table.h>
 #include <wisp/misc.h>
@@ -329,6 +330,35 @@ START_TEST(test_show_cookies_error_propagation)
 }
 END_TEST
 
+START_TEST(test_getdims_options_defaults)
+{
+    nsoption_set_int(window_screen_width, 0);
+    nsoption_set_int(window_screen_height, 0);
+
+    unsigned vw = 0, vh = 0, sw = 0, sh = 0;
+    union content_msg_data msg_data = {
+        .getdims = {
+            .viewport_width = &vw,
+            .viewport_height = &vh,
+            .screen_width = &sw,
+            .screen_height = &sh,
+        },
+    };
+
+    ck_assert_ptr_nonnull(msg_data.getdims.viewport_width);
+    ck_assert_ptr_nonnull(msg_data.getdims.viewport_height);
+    ck_assert_ptr_nonnull(msg_data.getdims.screen_width);
+    ck_assert_ptr_nonnull(msg_data.getdims.screen_height);
+
+    /* Test setting and getting screen dimensions options */
+    nsoption_set_int(window_screen_width, 2560);
+    nsoption_set_int(window_screen_height, 1440);
+
+    ck_assert_int_eq(nsoption_int(window_screen_width), 2560);
+    ck_assert_int_eq(nsoption_int(window_screen_height), 1440);
+}
+END_TEST
+
 static Suite *browser_window_suite_create(void)
 {
     Suite *s = suite_create("Browser Window");
@@ -343,6 +373,8 @@ static Suite *browser_window_suite_create(void)
     tcase_add_test(tc, test_show_cookies_no_content);
     tcase_add_test(tc, test_show_cookies_with_content_host);
     tcase_add_test(tc, test_show_cookies_error_propagation);
+
+    tcase_add_test(tc, test_getdims_options_defaults);
 
     suite_add_tcase(s, tc);
     return s;
