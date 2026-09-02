@@ -28,6 +28,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <assert.h>
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -354,6 +355,24 @@ static char **nsgtk_init_resource_path(const char *config_home)
 
 
 /**
+ * Check if a string is NULL, empty, or consists entirely of whitespace characters.
+ */
+static bool is_empty_or_whitespace(const char *str)
+{
+    if (str == NULL) {
+        return true;
+    }
+    while (*str != '\0') {
+        if (!isspace((unsigned char)*str)) {
+            return false;
+        }
+        str++;
+    }
+    return true;
+}
+
+
+/**
  * create directory name and check it is acessible and a directory.
  */
 static nserror check_dirname(const char *path, const char *leaf, char **dirname_out)
@@ -424,16 +443,9 @@ static nserror get_config_home(char **config_home_out)
      */
     xdg_config_dir = getenv("XDG_CONFIG_HOME");
 
-    if ((xdg_config_dir == NULL) || (*xdg_config_dir == 0)) {
+    if (is_empty_or_whitespace(xdg_config_dir)) {
         /* If $XDG_CONFIG_HOME is either not set or empty, a
          * default equal to $HOME/.config should be used.
-         */
-
-        /** @todo the meaning of empty is never defined so I
-         * am assuming it is a zero length string but is it
-         * supposed to mean "whitespace" and if so what counts
-         * as whitespace? (are tabs etc. counted or should
-         * isspace() be used)
          */
 
         /* the HOME envvar is required */
@@ -474,10 +486,10 @@ static nserror create_config_home(char **config_home_out)
      */
     xdg_config_dir = getenv("XDG_CONFIG_HOME");
 
-    if ((xdg_config_dir == NULL) || (*xdg_config_dir == 0)) {
+    if (is_empty_or_whitespace(xdg_config_dir)) {
         home_dir = getenv("HOME");
 
-        if ((home_dir == NULL) || (*home_dir == 0)) {
+        if (is_empty_or_whitespace(home_dir)) {
             return NSERROR_NOT_DIRECTORY;
         }
 
@@ -708,7 +720,7 @@ static nserror get_cache_home(char **cache_home_out)
      */
     xdg_cache_dir = getenv("XDG_CACHE_HOME");
 
-    if ((xdg_cache_dir == NULL) || (*xdg_cache_dir == 0)) {
+    if (is_empty_or_whitespace(xdg_cache_dir)) {
         /* If $XDG_CACHE_HOME is either not set or empty, a
          * default equal to $HOME/.cache should be used.
          */
@@ -756,10 +768,10 @@ static nserror create_cache_home(char **cache_home_out)
      */
     xdg_cache_dir = getenv("XDG_CACHE_HOME");
 
-    if ((xdg_cache_dir == NULL) || (*xdg_cache_dir == 0)) {
+    if (is_empty_or_whitespace(xdg_cache_dir)) {
         home_dir = getenv("HOME");
 
-        if ((home_dir == NULL) || (*home_dir == 0)) {
+        if (is_empty_or_whitespace(home_dir)) {
             return NSERROR_NOT_DIRECTORY;
         }
 
