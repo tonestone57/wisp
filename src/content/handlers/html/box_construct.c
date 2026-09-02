@@ -907,7 +907,8 @@ static css_error snap_ua_default_for_property(void *pw, uint32_t property, css_h
         hint->data.strings = wisp_get_default_quotes_ptr();
         hint->status = CSS_QUOTES_STRING;
     } else if (property == CSS_PROP_VOICE_FAMILY) {
-        hint->data.strings = NULL;
+        extern void *wisp_get_default_voice_family_ptr(void);
+        hint->data.strings = wisp_get_default_voice_family_ptr();
         hint->status = 0;
     } else {
         return CSS_INVALID;
@@ -3497,4 +3498,14 @@ void *wisp_get_default_quotes_ptr(void) {
         init_quotes = true;
     }
     return default_quotes;
+}
+
+void *wisp_get_default_voice_family_ptr(void) {
+    static lwc_string *default_voice_family[1];
+    static bool init_voice_family = false;
+    if (!init_voice_family) {
+        default_voice_family[0] = NULL;
+        init_voice_family = true;
+    }
+    return default_voice_family;
 }
