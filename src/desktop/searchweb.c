@@ -353,11 +353,13 @@ nserror search_web_omni(const char *term, enum search_web_omni_flags flags, stru
         }
 
         /* try with adding default scheme */
-        eterm = malloc(strlen(term) + SLEN("https://") + 1);
+        size_t term_len = strlen(term);
+        size_t eterm_len = term_len + SLEN("https://") + 1;
+        eterm = malloc(eterm_len);
         if (eterm == NULL) {
             return NSERROR_NOMEM;
         }
-        snprintf(eterm, strlen(term) + SLEN("https://") + 1, "https://%s", term);
+        snprintf(eterm, eterm_len, "https://%s", term);
         ret = nsurl_create(eterm, &url);
         free(eterm);
         if (ret == NSERROR_OK) {
@@ -584,7 +586,7 @@ nserror search_web_init(const char *provider_fname)
         if (providers == NULL) {
             return NSERROR_NOMEM;
         }
-        providers_size = strlen(providers);
+        providers_size = SLEN(default_providers);
     }
 
     /* parse list of providers */
