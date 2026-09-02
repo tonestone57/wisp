@@ -877,7 +877,9 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 
 			if (b->next) {
 				if (b->space == UNKNOWN_WIDTH) {
-					font_func->width(&fstyle, " ", 1, &b->space);
+					if (font_func->width(&fstyle, " ", 1, &b->space) != NSERROR_OK) {
+						b->space = 0;
+					}
 				}
 				max += b->space;
 			}
@@ -921,7 +923,9 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 					css_computed_tab_size(b->style, &tab_size);
 					int space_w = b->space;
 					if (space_w == UNKNOWN_WIDTH) {
-						font_func->width(&fstyle, " ", 1, &space_w);
+						if (font_func->width(&fstyle, " ", 1, &space_w) != NSERROR_OK) {
+							space_w = 0;
+						}
 					}
 					/* For min/max width, use maximum possible tab width */
 					b->width = (int)tab_size * space_w;
@@ -934,7 +938,9 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 			max += b->width;
 			if (b->next) {
 				if (b->space == UNKNOWN_WIDTH) {
-					font_func->width(&fstyle, " ", 1, &b->space);
+					if (font_func->width(&fstyle, " ", 1, &b->space) != NSERROR_OK) {
+						b->space = 0;
+					}
 				}
 				max += b->space;
 			}
@@ -2968,7 +2974,9 @@ static bool layout_text_box_split(
 		/* We're need to add a space, and we don't know how big
 		 * it's to be, OR we have a space of unknown width anyway;
 		 * Calculate space width */
-		font_func->width(fstyle, " ", 1, &space_width);
+		if (font_func->width(fstyle, " ", 1, &space_width) != NSERROR_OK) {
+			space_width = 0;
+		}
 	}
 
 	if (split_box->space == UNKNOWN_WIDTH)
@@ -3409,8 +3417,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 		} else if (b->type == BOX_INLINE_END) {
 			b->width = 0;
 			if (b->space == UNKNOWN_WIDTH) {
-				font_func->width(&fstyle, " ", 1, &b->space);
-				/** \todo handle errors */
+				if (font_func->width(&fstyle, " ", 1, &b->space) != NSERROR_OK) {
+					b->space = 0;
+				}
 			}
 			space_after = b->space;
 
@@ -3496,8 +3505,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
 			x += b->width;
 			if (b->space == UNKNOWN_WIDTH) {
-				font_func->width(&fstyle, " ", 1, &b->space);
-				/** \todo handle errors */
+				if (font_func->width(&fstyle, " ", 1, &b->space) != NSERROR_OK) {
+					b->space = 0;
+				}
 			}
 			space_after = b->space;
 			continue;
@@ -3635,7 +3645,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 				int space_w = b->space;
 				if (space_w == UNKNOWN_WIDTH) {
 					font_plot_style_from_css(&content->unit_len_ctx, b->style, &fstyle);
-					font_func->width(&fstyle, " ", 1, &space_w);
+					if (font_func->width(&fstyle, " ", 1, &space_w) != NSERROR_OK) {
+						space_w = 0;
+					}
 				}
 				int tab_width = (int)tab_size * space_w;
 				if (tab_width > 0) {
@@ -3671,8 +3683,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			else if (b->text || b->type == BOX_INLINE_END) {
 				if (b->space == UNKNOWN_WIDTH) {
 					font_plot_style_from_css(&content->unit_len_ctx, b->style, &fstyle);
-					/** \todo handle errors */
-					font_func->width(&fstyle, " ", 1, &b->space);
+					if (font_func->width(&fstyle, " ", 1, &b->space) != NSERROR_OK) {
+						b->space = 0;
+					}
 				}
 				space_after = b->space;
 			} else {
