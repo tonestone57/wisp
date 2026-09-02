@@ -2128,6 +2128,10 @@ static int flex_item_cmp(const void *a, const void *b)
 
 bool layout_flex(struct box *flex, int available_width, html_content *content)
 {
+	/* Proposal 5.2: Layout Constraint Caching for Flex Items and Containers.
+	 * Cache target input constraint bounds (min_width, max_width, available_width) on flex layout boxes.
+	 * If parent constraints remain identical and flags are clean, return previous layout dimensions
+	 * without re-executing item collection or flex line resolution. */
 	if (!(flex->flags & (DIRTY_INTRINSIC | CHILD_DIRTY))) {
 		if (flex->last_available_width == available_width &&
 		    flex->last_min_width == flex->min_width.value &&
