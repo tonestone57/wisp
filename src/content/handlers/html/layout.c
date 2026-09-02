@@ -2705,9 +2705,79 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 	}
 	/* Table height is either the height of the contents, or specified
 	 * height if greater */
+	int content_table_height = table_height;
 	table_height = max(table_height, min_height);
+	int extra_height = table_height - content_table_height;
+
+	if (extra_height > 0) {
+		int total_rows = 0;
+		int total_row_height = 0;
+
+		for (row_group = table->children; row_group; row_group = row_group->next) {
+			for (row = row_group->children; row; row = row->next) {
+				total_rows++;
+				total_row_height += row->height;
+			}
+		}
+
+		if (total_rows > 0) {
+			int *row_extras = malloc(total_rows * sizeof(int));
+			if (row_extras != NULL) {
+				int distributed_extra = 0;
+				int r = 0;
+
+				for (row_group = table->children; row_group; row_group = row_group->next) {
+					for (row = row_group->children; row; row = row->next) {
+						int row_extra;
+						if (r == total_rows - 1) {
+							row_extra = extra_height - distributed_extra;
+						} else if (total_row_height > 0) {
+							row_extra = (int)((long long)extra_height * row->height / total_row_height);
+						} else {
+							row_extra = extra_height / total_rows;
+						}
+						row_extras[r] = row_extra;
+						distributed_extra += row_extra;
+						r++;
+					}
+				}
+
+				int rg_y = border_spacing_v + table->padding[TOP];
+				r = 0;
+
+				for (row_group = table->children; row_group != NULL; row_group = row_group->next) {
+					int row_y = 0;
+
+					for (row = row_group->children; row != NULL; row = row->next) {
+						int row_extra = row_extras[r];
+
+						for (c = row->children; c != NULL; c = c->next) {
+							if (!c || !c->style)
+								continue;
+							int cell_extra = 0;
+							for (i = 0; i < c->rows && (r + (int)i) < total_rows; i++) {
+								cell_extra += row_extras[r + i];
+							}
+							c->padding[BOTTOM] += cell_extra;
+						}
+
+						row->y = row_y;
+						row->height += row_extra;
+						row_y += row->height + border_spacing_v;
+						r++;
+					}
+
+					row_group->y = rg_y;
+					row_group->height = row_y;
+					rg_y += row_group->height;
+				}
+
+				free(row_extras);
+			}
+		}
+	}
+
 	table_height += table->padding[BOTTOM];
-	/** \todo distribute spare height over the row groups / rows / cells */
 
 	/* perform vertical alignment */
 	for (row_group = table->children; row_group; row_group = row_group->next) {
