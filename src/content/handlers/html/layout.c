@@ -2713,8 +2713,8 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 		int total_rows = 0;
 		int total_row_height = 0;
 
-		for (row_group = table->children; row_group; row_group = row_group->next) {
-			for (row = row_group->children; row; row = row->next) {
+		for (row_group = table->children; row_group != NULL; row_group = row_group->next) {
+			for (row = row_group->children; row != NULL; row = row->next) {
 				total_rows++;
 				total_row_height += row->height;
 			}
@@ -2726,8 +2726,8 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 				int distributed_extra = 0;
 				int r = 0;
 
-				for (row_group = table->children; row_group; row_group = row_group->next) {
-					for (row = row_group->children; row; row = row->next) {
+				for (row_group = table->children; row_group != NULL; row_group = row_group->next) {
+					for (row = row_group->children; row != NULL; row = row->next) {
 						int row_extra;
 						if (r == total_rows - 1) {
 							row_extra = extra_height - distributed_extra;
@@ -2750,16 +2750,6 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 
 					for (row = row_group->children; row != NULL; row = row->next) {
 						int row_extra = row_extras[r];
-
-						for (c = row->children; c != NULL; c = c->next) {
-							if (!c || !c->style)
-								continue;
-							int cell_extra = 0;
-							for (i = 0; i < c->rows && (r + (int)i) < total_rows; i++) {
-								cell_extra += row_extras[r + i];
-							}
-							c->padding[BOTTOM] += cell_extra;
-						}
 
 						row->y = row_y;
 						row->height += row_extra;
