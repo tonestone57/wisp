@@ -900,13 +900,16 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 			if (b->width == UNKNOWN_WIDTH) {
 				/* If it's a select element, we must use the
 				 * width of the widest option text */
-				if (b->parent->parent->gadget && b->parent->parent->gadget->type == GADGET_SELECT) {
+				if (b->parent && b->parent->parent && b->parent->parent->gadget &&
+				    b->parent->parent->gadget->type == GADGET_SELECT) {
 					int opt_maxwidth = 0;
 					struct form_option *o;
 
 					for (o = b->parent->parent->gadget->data.select.items; o; o = o->next) {
 						int opt_width = 0;
-						if (font_func->width(&fstyle, o->text, o->text_len, &opt_width) != NSERROR_OK) {
+						if (o->text == NULL ||
+						    font_func->width(&fstyle, o->text, o->text_len, &opt_width) != NSERROR_OK ||
+						    opt_width < 0) {
 							opt_width = 0;
 						}
 
@@ -3450,13 +3453,16 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			if (b->width == UNKNOWN_WIDTH) {
 				/* If it's a select element, we must use the
 				 * width of the widest option text */
-				if (b->parent->parent->gadget && b->parent->parent->gadget->type == GADGET_SELECT) {
+				if (b->parent && b->parent->parent && b->parent->parent->gadget &&
+				    b->parent->parent->gadget->type == GADGET_SELECT) {
 					int opt_maxwidth = 0;
 					struct form_option *o;
 
 					for (o = b->parent->parent->gadget->data.select.items; o; o = o->next) {
 						int opt_width = 0;
-						if (font_func->width(&fstyle, o->text, o->text_len, &opt_width) != NSERROR_OK) {
+						if (o->text == NULL ||
+						    font_func->width(&fstyle, o->text, o->text_len, &opt_width) != NSERROR_OK ||
+						    opt_width < 0) {
 							opt_width = 0;
 						}
 
@@ -3831,12 +3837,15 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			split_box->text) {
 
 			font_plot_style_from_css(&content->unit_len_ctx, split_box->style, &fstyle);
-			/** \todo handle errors */
 			if (split_box->length == 1 && split_box->text[0] == '\t') {
 				/* A tab shouldn't be split */
 				split = 0;
 			} else {
-				font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w);
+				if (font_func->split(&fstyle, split_box->text, split_box->length,
+						     x1 - x0 - x - space_before, &split, &w) != NSERROR_OK) {
+					split = 0;
+					w = split_box->width;
+				}
 			}
 		}
 
