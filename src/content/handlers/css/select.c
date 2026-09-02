@@ -1474,7 +1474,8 @@ css_error node_is_hover(void *pw, void *node, bool *match)
     }
 
     dom_node *target = node;
-    dom_node *curr = dom_node_ref(ctx->c->hover_node);
+    dom_node_ref(ctx->c->hover_node);
+    dom_node *curr = ctx->c->hover_node;
 
     *match = false;
 

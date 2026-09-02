@@ -1786,6 +1786,11 @@ static void html_free_layout(html_content *htmlc)
 		htmlc->bctx = NULL;
 	}
 
+	if (htmlc->hover_node != NULL) {
+		dom_node_unref(htmlc->hover_node);
+		htmlc->hover_node = NULL;
+	}
+
 	htmlc->layout = NULL;
 	/* Clear dirty rectangle and list to prevent dangling pointers */
 	htmlc->dirty_list = NULL;
