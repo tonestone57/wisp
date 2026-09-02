@@ -3198,7 +3198,11 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
         llcache_invalidate_cache_control_data(object);
 
         event.type = LLCACHE_EVENT_ERROR;
-        event.data.error.code = NSERROR_UNKNOWN;
+        if (msg->data.error != NULL && strcmp(msg->data.error, messages_get("Not2xx")) == 0) {
+            event.data.error.code = NSERROR_BAD_CONTENT;
+        } else {
+            event.data.error.code = NSERROR_UNKNOWN;
+        }
         event.data.error.msg = msg->data.error;
 
         NSLOG(llcache, INFO, "FETCH_ERROR received. Code: %d (%s), Msg: %s",
