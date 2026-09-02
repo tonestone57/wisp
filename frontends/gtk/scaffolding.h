@@ -169,4 +169,12 @@ void nsgtk_scaffolding_set_title(struct gui_window *gw, const char *title);
  */
 struct nsgtk_scaffolding *nsgtk_scaffolding_from_notebook(GtkNotebook *notebook);
 
+/**
+ * find which scaffolding contains a gtk widget
+ *
+ * \param widget The widget to search for.
+ * \return The scaffolding containing the widget or NULL if not found
+ */
+struct nsgtk_scaffolding *nsgtk_scaffolding_from_widget(GtkWidget *widget);
+
 #endif /* NETSURF_GTK_SCAFFOLDING_H */

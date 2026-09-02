@@ -1177,6 +1177,39 @@ GtkWindow *nsgtk_scaffolding_window(struct nsgtk_scaffolding *g)
 }
 
 /* exported interface documented in gtk/scaffolding.h */
+struct nsgtk_scaffolding *nsgtk_scaffolding_from_widget(GtkWidget *widget)
+{
+    struct nsgtk_scaffolding *gs;
+    GtkWindow *window;
+    GtkNotebook *notebook;
+
+    if (widget == NULL) {
+        return NULL;
+    }
+
+    notebook = GTK_NOTEBOOK(gtk_widget_get_ancestor(widget, GTK_TYPE_NOTEBOOK));
+    if (notebook != NULL) {
+        gs = nsgtk_scaffolding_from_notebook(notebook);
+        if (gs != NULL) {
+            return gs;
+        }
+    }
+
+    window = GTK_WINDOW(gtk_widget_get_ancestor(widget, GTK_TYPE_WINDOW));
+    if (window != NULL) {
+        gs = scaf_list;
+        while (gs != NULL) {
+            if (gs->window == window) {
+                return gs;
+            }
+            gs = gs->next;
+        }
+    }
+
+    return NULL;
+}
+
+/* exported interface documented in gtk/scaffolding.h */
 GtkNotebook *nsgtk_scaffolding_notebook(struct nsgtk_scaffolding *g)
 {
     return g->notebook;
