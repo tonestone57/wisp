@@ -19,6 +19,7 @@
 #include <string.h>
 
 #include <wisp/browser_window.h>
+#include <wisp/content/content_protected.h>
 #include <wisp/desktop/gui_table.h>
 #include <wisp/misc.h>
 #include <wisp/ssl_certs.h>
@@ -42,8 +43,20 @@ static nserror mock_schedule(int delay, void (*callback)(void *p), void *p)
     return NSERROR_OK;
 }
 
+static const char *last_presented_cookies_search_term = NULL;
+static bool mock_present_cookies_called = false;
+static nserror mock_present_cookies_return_code = NSERROR_OK;
+
+static nserror mock_present_cookies(const char *search_term)
+{
+    mock_present_cookies_called = true;
+    last_presented_cookies_search_term = search_term;
+    return mock_present_cookies_return_code;
+}
+
 static struct gui_misc_table mock_misc = {
     .schedule = mock_schedule,
+    .present_cookies = mock_present_cookies,
 };
 
 static struct gui_window *mock_gui_window_create(
@@ -134,6 +147,9 @@ static struct wisp_table mock_guit_fail = {
 static void setup(void)
 {
     last_created_bw = NULL;
+    mock_present_cookies_called = false;
+    last_presented_cookies_search_term = NULL;
+    mock_present_cookies_return_code = NSERROR_OK;
     corestrings_init();
     nsoption_init(NULL, NULL, NULL);
     js_initialise();
@@ -211,6 +227,108 @@ START_TEST(test_show_certificates_create_failure)
 }
 END_TEST
 
+START_TEST(test_show_cookies_no_content)
+{
+    struct wisp_table *saved_guit = guit;
+    guit = &mock_guit_success;
+
+    struct browser_window bw;
+    memset(&bw, 0, sizeof(bw));
+
+    mock_present_cookies_called = false;
+    last_presented_cookies_search_term = (const char *)0x1234;
+
+    nserror res = browser_window_show_cookies(&bw);
+    ck_assert_int_eq(res, NSERROR_OK);
+    ck_assert(mock_present_cookies_called);
+    ck_assert_ptr_null(last_presented_cookies_search_term);
+
+    guit = saved_guit;
+}
+END_TEST
+
+START_TEST(test_show_cookies_with_content_host)
+{
+    struct wisp_table *saved_guit = guit;
+    guit = &mock_guit_success;
+
+    /* Define full internal struct layouts matching hlcache.c and llcache.c */
+    struct mock_llcache_object {
+        void *dummy_prev;
+        void *dummy_next;
+        nsurl *url;
+    } mock_object;
+
+    struct mock_llcache_handle {
+        struct mock_llcache_object *object;
+    } mock_llcache;
+
+    struct mock_hlcache_entry {
+        struct content *content;
+    } mock_entry;
+
+    struct mock_hlcache_handle {
+        struct mock_hlcache_entry *entry;
+    } mock_handle;
+
+    struct content mock_content_obj;
+    memset(&mock_content_obj, 0, sizeof(mock_content_obj));
+    mock_content_obj.llcache = (struct llcache_handle *)&mock_llcache;
+
+    nsurl *url = NULL;
+    nserror err = nsurl_create("http://example.com/path/to/page", &url);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    memset(&mock_object, 0, sizeof(mock_object));
+    mock_object.url = url;
+
+    memset(&mock_llcache, 0, sizeof(mock_llcache));
+    mock_llcache.object = &mock_object;
+
+    memset(&mock_entry, 0, sizeof(mock_entry));
+    mock_entry.content = &mock_content_obj;
+
+    memset(&mock_handle, 0, sizeof(mock_handle));
+    mock_handle.entry = &mock_entry;
+
+    struct browser_window bw;
+    memset(&bw, 0, sizeof(bw));
+    bw.current_content = (struct hlcache_handle *)&mock_handle;
+
+    mock_present_cookies_called = false;
+    last_presented_cookies_search_term = NULL;
+
+    nserror res = browser_window_show_cookies(&bw);
+    ck_assert_int_eq(res, NSERROR_OK);
+    ck_assert(mock_present_cookies_called);
+    ck_assert_ptr_nonnull(last_presented_cookies_search_term);
+    ck_assert_str_eq(last_presented_cookies_search_term, "example.com");
+
+    nsurl_unref(url);
+    guit = saved_guit;
+}
+END_TEST
+
+START_TEST(test_show_cookies_error_propagation)
+{
+    struct wisp_table *saved_guit = guit;
+    guit = &mock_guit_success;
+
+    struct browser_window bw;
+    memset(&bw, 0, sizeof(bw));
+
+    mock_present_cookies_called = false;
+    mock_present_cookies_return_code = NSERROR_UNKNOWN;
+
+    nserror res = browser_window_show_cookies(&bw);
+    ck_assert_int_eq(res, NSERROR_UNKNOWN);
+    ck_assert(mock_present_cookies_called);
+
+    mock_present_cookies_return_code = NSERROR_OK;
+    guit = saved_guit;
+}
+END_TEST
+
 static Suite *browser_window_suite_create(void)
 {
     Suite *s = suite_create("Browser Window");
@@ -221,6 +339,10 @@ static Suite *browser_window_suite_create(void)
     tcase_add_test(tc, test_show_certificates_null_chain);
     tcase_add_test(tc, test_show_certificates_success);
     tcase_add_test(tc, test_show_certificates_create_failure);
+
+    tcase_add_test(tc, test_show_cookies_no_content);
+    tcase_add_test(tc, test_show_cookies_with_content_host);
+    tcase_add_test(tc, test_show_cookies_error_propagation);
 
     suite_add_tcase(s, tc);
     return s;
