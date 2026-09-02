@@ -3184,6 +3184,8 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
         }
 
         /* An error occurred while fetching */
+        long http_code = fetch_http_code(object->fetch.fetch);
+
         /* The fetch has has already been cleaned up by the fetcher */
         object->fetch.state = LLCACHE_FETCH_COMPLETE;
         object->fetch.fetch = NULL;
@@ -3198,7 +3200,11 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
         llcache_invalidate_cache_control_data(object);
 
         event.type = LLCACHE_EVENT_ERROR;
-        event.data.error.code = NSERROR_UNKNOWN;
+        if (http_code >= 400) {
+            event.data.error.code = NSERROR_BAD_CONTENT;
+        } else {
+            event.data.error.code = NSERROR_UNKNOWN;
+        }
         event.data.error.msg = msg->data.error;
 
         NSLOG(llcache, INFO, "FETCH_ERROR received. Code: %d (%s), Msg: %s",
