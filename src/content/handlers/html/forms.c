@@ -36,20 +36,16 @@
 static struct form *parse_form_element(const char *docenc, dom_node *node)
 {
     dom_string *ds_action = NULL;
-    dom_string *ds_charset = NULL;
     dom_string *ds_target = NULL;
     dom_string *ds_method = NULL;
     dom_string *ds_enctype = NULL;
-    char *action = NULL, *charset = NULL, *target = NULL;
+    char *action = NULL, *target = NULL;
     form_method method;
     dom_html_form_element *formele = (dom_html_form_element *)(node);
     struct form *ret = NULL;
 
     /* Retrieve the attributes from the node */
     if (dom_html_form_element_get_action(formele, &ds_action) != DOM_NO_ERR)
-        goto out;
-
-    if (dom_html_form_element_get_accept_charset(formele, &ds_charset) != DOM_NO_ERR)
         goto out;
 
     if (dom_html_form_element_get_target(formele, &ds_target) != DOM_NO_ERR)
@@ -67,9 +63,6 @@ static struct form *parse_form_element(const char *docenc, dom_node *node)
      */
     if (ds_action != NULL)
         action = strndup(dom_string_data(ds_action), dom_string_byte_length(ds_action));
-
-    if (ds_charset != NULL)
-        charset = strndup(dom_string_data(ds_charset), dom_string_byte_length(ds_charset));
 
     if (ds_target != NULL)
         target = strndup(dom_string_data(ds_target), dom_string_byte_length(ds_target));
@@ -89,13 +82,11 @@ static struct form *parse_form_element(const char *docenc, dom_node *node)
     }
 
     /* Construct the form object */
-    ret = form_new(node, action, target, method, charset, docenc);
+    ret = form_new(node, action, target, method, docenc);
 
 out:
     if (ds_action != NULL)
         dom_string_unref(ds_action);
-    if (ds_charset != NULL)
-        dom_string_unref(ds_charset);
     if (ds_target != NULL)
         dom_string_unref(ds_target);
     if (ds_method != NULL)
@@ -104,8 +95,6 @@ out:
         dom_string_unref(ds_enctype);
     if (action != NULL)
         free(action);
-    if (charset != NULL)
-        free(charset);
     if (target != NULL)
         free(target);
     return ret;

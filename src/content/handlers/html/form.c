@@ -819,10 +819,25 @@ static nserror form_dom_to_data_button(dom_html_button_element *button_element, 
  */
 static char *form_acceptable_charset(struct form *form)
 {
-    char *temp, *c;
+    dom_string *ds_charset = NULL;
+    dom_exception exc;
+    const char *accept_charsets = NULL;
+    size_t accept_charsets_len = 0;
+    char *temp, *c, *ret = NULL;
 
-    if (!form->accept_charsets) {
-        /* no accept-charsets attribute for this form */
+    if (form->node != NULL) {
+        exc = dom_html_form_element_get_accept_charset((dom_html_form_element *)form->node, &ds_charset);
+        if (exc == DOM_NO_ERR && ds_charset != NULL) {
+            accept_charsets = dom_string_data(ds_charset);
+            accept_charsets_len = dom_string_byte_length(ds_charset);
+        }
+    }
+
+    if (accept_charsets == NULL || accept_charsets_len == 0) {
+        if (ds_charset != NULL) {
+            dom_string_unref(ds_charset);
+        }
+        /* no accept-charset attribute for this form */
         if (form->document_charset) {
             /* document charset present, so use it */
             return strdup(form->document_charset);
@@ -833,9 +848,13 @@ static char *form_acceptable_charset(struct form *form)
     }
 
     /* make temporary copy of accept-charsets attribute */
-    temp = strdup(form->accept_charsets);
-    if (!temp)
+    temp = strndup(accept_charsets, accept_charsets_len);
+    if (!temp) {
+        if (ds_charset != NULL) {
+            dom_string_unref(ds_charset);
+        }
         return NULL;
+    }
 
     /* make it upper case */
     for (c = temp; *c; c++) {
@@ -843,9 +862,11 @@ static char *form_acceptable_charset(struct form *form)
     }
 
     /* is UTF-8 specified? */
-    c = strstr(temp, "UTF-8");
-    if (c) {
+    if (strstr(temp, "UTF-8") != NULL) {
         free(temp);
+        if (ds_charset != NULL) {
+            dom_string_unref(ds_charset);
+        }
         return strdup("UTF-8");
     }
 
@@ -854,7 +875,8 @@ static char *form_acceptable_charset(struct form *form)
 
     /* according to RFC2070, the accept-charsets attribute of the
      * form element contains a space and/or comma separated list */
-    c = form->accept_charsets;
+    c = (char *)accept_charsets;
+    const char *end = accept_charsets + accept_charsets_len;
 
     /** \todo an improvement would be to choose an encoding
      * acceptable to the server which covers as much of the input
@@ -863,13 +885,19 @@ static char *form_acceptable_charset(struct form *form)
      * textual input values.  For now, we just extract the first
      * element of the charset list
      */
-    while (*c && !ascii_is_space(*c)) {
+    while (c < end && *c && !ascii_is_space(*c)) {
         if (*c == ',')
             break;
         c++;
     }
 
-    return strndup(form->accept_charsets, c - form->accept_charsets);
+    ret = strndup(accept_charsets, c - accept_charsets);
+
+    if (ds_charset != NULL) {
+        dom_string_unref(ds_charset);
+    }
+
+    return ret;
 }
 
 
@@ -916,7 +944,6 @@ form_dom_to_data(struct form *form, struct form_control *submit_control, struct 
         submit_button = NULL;
     }
 
-    /** \todo Replace this call with something DOMish */
     charset = form_acceptable_charset(form);
     if (charset == NULL) {
         NSLOG(wisp, INFO, "failed to find charset");
@@ -2028,7 +2055,7 @@ static hashmap_parameters_t form_node_map_params = {
     map_key_clone, map_key_hash, map_key_eq, map_key_destroy, map_value_alloc, map_value_destroy};
 
 /* exported interface documented in html/form_internal.h */
-struct form *form_new(void *node, const char *action, const char *target, form_method method, const char *charset,
+struct form *form_new(void *node, const char *action, const char *target, form_method method,
     const char *doc_charset)
 {
     struct form *form;
@@ -2052,17 +2079,8 @@ struct form *form_new(void *node, const char *action, const char *target, form_m
 
     form->method = method;
 
-    form->accept_charsets = charset != NULL ? strdup(charset) : NULL;
-    if (charset != NULL && form->accept_charsets == NULL) {
-        free(form->target);
-        free(form->action);
-        free(form);
-        return NULL;
-    }
-
     form->document_charset = doc_charset != NULL ? strdup(doc_charset) : NULL;
     if (doc_charset && form->document_charset == NULL) {
-        free(form->accept_charsets);
         free(form->target);
         free(form->action);
         free(form);
@@ -2090,7 +2108,6 @@ void form_free(struct form *form)
 
     free(form->action);
     free(form->target);
-    free(form->accept_charsets);
     free(form->document_charset);
 
     if (form->control_index != NULL) {
