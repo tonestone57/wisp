@@ -412,7 +412,42 @@ static nserror nsw32_cw_update_size(struct core_window *cw, int width, int heigh
 
 static nserror nsw32_cw_set_scroll(struct core_window *cw, int x, int y)
 {
-    /** /todo call setscroll apropriately */
+    struct nsw32_corewindow *nsw32_cw = (struct nsw32_corewindow *)cw;
+    SCROLLINFO si;
+    int old_x = 0;
+    int old_y = 0;
+    int dx;
+    int dy;
+
+    if (nsw32_cw == NULL || nsw32_cw->hWnd == NULL) {
+        return NSERROR_BAD_PARAMETER;
+    }
+
+    si.cbSize = sizeof(si);
+    si.fMask = SIF_POS;
+
+    if (GetScrollInfo(nsw32_cw->hWnd, SB_HORZ, &si)) {
+        old_x = si.nPos;
+    }
+    if (GetScrollInfo(nsw32_cw->hWnd, SB_VERT, &si)) {
+        old_y = si.nPos;
+    }
+
+    dx = old_x - x;
+    dy = old_y - y;
+
+    if (dx != 0 || dy != 0) {
+        si.cbSize = sizeof(si);
+        si.fMask = SIF_POS;
+        si.nPos = x;
+        SetScrollInfo(nsw32_cw->hWnd, SB_HORZ, &si, TRUE);
+
+        si.nPos = y;
+        SetScrollInfo(nsw32_cw->hWnd, SB_VERT, &si, TRUE);
+
+        ScrollWindowEx(nsw32_cw->hWnd, dx, dy, NULL, NULL, NULL, NULL, SW_INVALIDATE);
+    }
+
     return NSERROR_OK;
 }
 
