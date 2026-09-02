@@ -130,13 +130,17 @@ static plot_font_flags_t plot_font_flags(enum css_font_style_e style, enum css_f
 
 
 /* exported function documented in html/font.h */
-void font_plot_style_from_css(
+nserror font_plot_style_from_css(
     const css_unit_ctx *unit_len_ctx, const css_computed_style *css, plot_font_style_t *fstyle)
 {
     lwc_string **families;
     css_fixed length = 0;
     css_unit unit = CSS_UNIT_PX;
     css_color col;
+
+    if (unit_len_ctx == NULL || css == NULL || fstyle == NULL) {
+        return NSERROR_BAD_PARAMETER;
+    }
 
     fstyle->family = plot_font_generic_family(css_computed_font_family(css, &families));
     fstyle->families = families;
@@ -165,4 +169,6 @@ void font_plot_style_from_css(
     } else {
         fstyle->letter_spacing = 0;
     }
+
+    return NSERROR_OK;
 }

@@ -29,14 +29,17 @@
 
 struct plot_font_style;
 
+#include <wisp/utils/errors.h>
+
 /**
  * Populate a font style using data from a computed CSS style
  *
  * \param unit_len_ctx  Length conversion context
  * \param css      Computed style to consider
  * \param fstyle   Font style to populate
+ * \return NSERROR_OK on success or appropriate error code on failure
  */
-void font_plot_style_from_css(
+nserror font_plot_style_from_css(
     const css_unit_ctx *unit_len_ctx, const css_computed_style *css, struct plot_font_style *fstyle);
 
 #endif

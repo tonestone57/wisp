@@ -3830,8 +3830,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			!(split_box->flags & REPLACE_DIM) && !(split_box->flags & IFRAME) && !split_box->gadget &&
 			split_box->text) {
 
-			font_plot_style_from_css(&content->unit_len_ctx, split_box->style, &fstyle);
-			if (split_box->length == 1 && split_box->text[0] == '\t') {
+			if (font_plot_style_from_css(&content->unit_len_ctx, split_box->style, &fstyle) != NSERROR_OK) {
+				split = 0;
+			} else if (split_box->length == 1 && split_box->text[0] == '\t') {
 				/* A tab shouldn't be split */
 				split = 0;
 			} else {
