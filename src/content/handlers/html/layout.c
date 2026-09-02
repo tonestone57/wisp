@@ -3831,12 +3831,13 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			split_box->text) {
 
 			font_plot_style_from_css(&content->unit_len_ctx, split_box->style, &fstyle);
-			/** \todo handle errors */
 			if (split_box->length == 1 && split_box->text[0] == '\t') {
 				/* A tab shouldn't be split */
 				split = 0;
 			} else {
-				font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w);
+				if (font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w) != NSERROR_OK) {
+					split = 0;
+				}
 			}
 		}
 
