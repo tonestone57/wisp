@@ -30,8 +30,8 @@ General Options
  http_proxy_auth_user | string | NULL      | Proxy authentication user name   
  http_proxy_auth_pass | string | NULL      | Proxy authentication password    
  http_proxy_noproxy   | string | localhost | Proxy omission list              
- font_size            | int    | 128       | Default font size / 0.1pt.       
- font_min_size        | int    | 85        | Minimum font size.               
+ font_size            | int    | 16        | Default font size (px).
+ font_min_size        | int    | 11        | Minimum font size (px).
  font_sans            | string | NULL      | Default sans serif font          
  font_serif           | string | NULL      | Default serif font               
  font_mono            | string |  NULL     | Default monospace font           

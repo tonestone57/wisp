@@ -456,7 +456,7 @@ G_MODULE_EXPORT void nsgtk_preferences_comboDefault_realize(GtkWidget *widget, s
 }
 
 /* default font size */
-SPINBUTTON_SIGNALS(spinDefaultSize, font_size, 10.0)
+SPINBUTTON_SIGNALS(spinDefaultSize, font_size, 1.0)
 
 /* preview - actually reflow all views */
 G_MODULE_EXPORT void nsgtk_preferences_fontPreview_clicked(GtkButton *button, struct ppref *priv)

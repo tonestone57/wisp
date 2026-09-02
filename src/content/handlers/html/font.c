@@ -145,9 +145,10 @@ void font_plot_style_from_css(
     fstyle->size = FIXTOINT(
         FMUL(css_unit_font_size_len2pt(css, unit_len_ctx, length, unit), INTTOFIX(PLOT_STYLE_SCALE)));
 
-    /* Clamp font size to configured minimum */
-    if (fstyle->size < (nsoption_int(font_min_size) * PLOT_STYLE_SCALE) / 10)
-        fstyle->size = (nsoption_int(font_min_size) * PLOT_STYLE_SCALE) / 10;
+    /* Clamp font size to configured minimum (convert font_min_size in px to pt * PLOT_STYLE_SCALE) */
+    int min_size_pt = (nsoption_int(font_min_size) * 72 * PLOT_STYLE_SCALE) / 96;
+    if (fstyle->size < min_size_pt)
+        fstyle->size = min_size_pt;
 
     fstyle->weight = plot_font_weight(css_computed_font_weight(css));
     fstyle->flags = plot_font_flags(css_computed_font_style(css), css_computed_font_variant(css));

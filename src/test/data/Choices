@@ -17,8 +17,8 @@ font_mono:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 http_proxy:0
 http_proxy_port:8080
 http_proxy_auth:0
-font_size:128
-font_min_size:85
+font_size:16
+font_min_size:11
 font_sans:Sans
 font_serif:Serif
 font_mono:Monospace

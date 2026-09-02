@@ -6,8 +6,8 @@ http_proxy_auth_user:
 http_proxy_auth_pass:
 http_proxy_noproxy:localhost
 treeview_font_size:110
-font_size:128
-font_min_size:85
+font_size:16
+font_min_size:11
 font_sans:Sans
 font_serif:Serif
 font_mono:Monospace
