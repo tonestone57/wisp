@@ -736,11 +736,8 @@ static bool qjs_compound_selector_matches(struct dom_node *node, const qjs_compo
                     }
                 }
             }
-            if (!found) {
-                dom_string_unref(cls);
-                return false;
-            }
             dom_string_unref(cls);
+            if (!found) return false;
         } else return false;
     }
 
