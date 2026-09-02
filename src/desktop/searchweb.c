@@ -232,6 +232,7 @@ static nserror make_search_nsurl(struct search_provider *provider, const char *t
     char *urlstr; /* the escaped term substituted into the provider */
     char *urlstro;
     size_t urlstr_len;
+    size_t eterm_len;
 
     /* escape the search term and join it to the search url */
     ret = url_escape(term, true, NULL, &eterm);
@@ -239,9 +240,10 @@ static nserror make_search_nsurl(struct search_provider *provider, const char *t
         return ret;
     }
 
+    eterm_len = strlen(eterm);
     searchstr = provider->searchstring;
 
-    urlstr_len = strlen(searchstr) + strlen(eterm) + 1;
+    urlstr_len = strlen(searchstr) + eterm_len + 1;
     urlstro = urlstr = malloc(urlstr_len);
     if (urlstr == NULL) {
         free(eterm);
@@ -253,8 +255,8 @@ static nserror make_search_nsurl(struct search_provider *provider, const char *t
         *urlstro = *searchstr;
         if ((*searchstr == '%') && (searchstr[1] == 's')) {
             searchstr++; /* skip % */
-            memcpy(urlstro, eterm, strlen(eterm));
-            urlstro += strlen(eterm) - 1;
+            memcpy(urlstro, eterm, eterm_len);
+            urlstro += eterm_len - 1;
         }
     }
     free(eterm);
