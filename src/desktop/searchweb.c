@@ -353,11 +353,12 @@ nserror search_web_omni(const char *term, enum search_web_omni_flags flags, stru
         }
 
         /* try with adding default scheme */
-        eterm = malloc(strlen(term) + SLEN("https://") + 1);
+        const size_t term_len = strlen(term);
+        eterm = malloc(term_len + SLEN("https://") + 1);
         if (eterm == NULL) {
             return NSERROR_NOMEM;
         }
-        snprintf(eterm, strlen(term) + SLEN("https://") + 1, "https://%s", term);
+        snprintf(eterm, term_len + SLEN("https://") + 1, "https://%s", term);
         ret = nsurl_create(eterm, &url);
         free(eterm);
         if (ret == NSERROR_OK) {
