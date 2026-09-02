@@ -35,7 +35,8 @@
 /**
  * Replace consecutive whitespace with a single space.
  *
- * @todo determine if squash_whitespace utf-8 safe and that it needs to be
+ * Safe for UTF-8 encoded strings because ASCII whitespace characters
+ * (' ', '\n', '\r', '\t') do not overlap with multi-byte UTF-8 sequences.
  *
  * \param  s  source string
  * \return  heap allocated result, or NULL on memory exhaustion
