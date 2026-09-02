@@ -3197,8 +3197,6 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
         /* Invalidate cache control data */
         llcache_invalidate_cache_control_data(object);
 
-        /** \todo Consider using errorcode for something */
-
         event.type = LLCACHE_EVENT_ERROR;
         event.data.error.code = NSERROR_UNKNOWN;
         event.data.error.msg = msg->data.error;
