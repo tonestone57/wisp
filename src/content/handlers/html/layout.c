@@ -908,7 +908,9 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 
 					for (o = b->parent->parent->gadget->data.select.items; o; o = o->next) {
 						int opt_width;
-						font_func->width(&fstyle, o->text, o->text_len, &opt_width);
+						if (font_func->width(&fstyle, o->text, o->text_len, &opt_width) != NSERROR_OK) {
+							opt_width = 0;
+						}
 
 						if (opt_maxwidth < opt_width)
 							opt_maxwidth = opt_width;
@@ -931,7 +933,9 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 					b->width = (int)tab_size * space_w;
 					b->flags |= MEASURED;
 				} else {
-					font_func->width(&fstyle, b->text, b->length, &b->width);
+					if (font_func->width(&fstyle, b->text, b->length, &b->width) != NSERROR_OK) {
+						b->width = 0;
+					}
 					b->flags |= MEASURED;
 				}
 			}
@@ -965,7 +969,9 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 				do {
 					for (j = i; j != b->length && b->text[j] != ' '; j++)
 						;
-					font_func->width(&fstyle, b->text + i, j - i, &width);
+					if (font_func->width(&fstyle, b->text + i, j - i, &width) != NSERROR_OK) {
+						width = 0;
+					}
 					if (min < width)
 						min = width;
 					i = j + 1;
@@ -3450,7 +3456,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 
 					for (o = b->parent->parent->gadget->data.select.items; o; o = o->next) {
 						int opt_width;
-						font_func->width(&fstyle, o->text, o->text_len, &opt_width);
+						if (font_func->width(&fstyle, o->text, o->text_len, &opt_width) != NSERROR_OK) {
+							opt_width = 0;
+						}
 
 						if (opt_maxwidth < opt_width)
 							opt_maxwidth = opt_width;
@@ -3463,7 +3471,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 					css_computed_tab_size(b->style, &tab_size);
 					int space_w = b->space;
 					if (space_w == UNKNOWN_WIDTH) {
-						font_func->width(&fstyle, " ", 1, &space_w);
+						if (font_func->width(&fstyle, " ", 1, &space_w) != NSERROR_OK) {
+							space_w = 0;
+						}
 					}
 					int tab_width = (int)tab_size * space_w;
 					if (tab_width > 0) {
@@ -3473,7 +3483,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 					}
 					b->flags |= MEASURED;
 				} else {
-					font_func->width(&fstyle, b->text, b->length, &b->width);
+					if (font_func->width(&fstyle, b->text, b->length, &b->width) != NSERROR_OK) {
+						b->width = 0;
+					}
 					b->flags |= MEASURED;
 				}
 			}
@@ -3489,7 +3501,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 					css_computed_tab_size(b->style, &tab_size);
 					int space_w = b->space;
 					if (space_w == UNKNOWN_WIDTH) {
-						font_func->width(&fstyle, " ", 1, &space_w);
+						if (font_func->width(&fstyle, " ", 1, &space_w) != NSERROR_OK) {
+							space_w = 0;
+						}
 					}
 					int tab_width = (int)tab_size * space_w;
 					if (tab_width > 0) {
@@ -3498,7 +3512,9 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 						b->width = 0;
 					}
 				} else {
-					font_func->width(&fstyle, b->text, b->length, &b->width);
+					if (font_func->width(&fstyle, b->text, b->length, &b->width) != NSERROR_OK) {
+						b->width = 0;
+					}
 				}
 				b->flags |= MEASURED;
 			}
@@ -3811,12 +3827,14 @@ static bool layout_line(struct box *first, int *width, int *y, int cx, int cy, s
 			split_box->text) {
 
 			font_plot_style_from_css(&content->unit_len_ctx, split_box->style, &fstyle);
-			/** \todo handle errors */
 			if (split_box->length == 1 && split_box->text[0] == '\t') {
 				/* A tab shouldn't be split */
 				split = 0;
 			} else {
-				font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w);
+				if (font_func->split(&fstyle, split_box->text, split_box->length, x1 - x0 - x - space_before, &split, &w) != NSERROR_OK) {
+					split = 0;
+					w = split_box->width;
+				}
 			}
 		}
 
@@ -5338,7 +5356,9 @@ static void layout_lists(const html_content *content, struct box *box)
 				if (marker->width == UNKNOWN_WIDTH) {
 					plot_font_style_t fstyle;
 					font_plot_style_from_css(&content->unit_len_ctx, marker->style, &fstyle);
-					content->font_func->width(&fstyle, marker->text, marker->length, &marker->width);
+					if (content->font_func->width(&fstyle, marker->text, marker->length, &marker->width) != NSERROR_OK) {
+						marker->width = 0;
+					}
 					marker->flags |= MEASURED;
 				}
 				marker->x = -marker->width;
