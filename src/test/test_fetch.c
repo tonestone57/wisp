@@ -296,6 +296,66 @@ START_TEST(test_fetch_immediate_redirect_processing)
 }
 END_TEST
 
+START_TEST(test_fetch_multipart_data_destroy_null)
+{
+    /* Passing NULL should execute safely without crashing */
+    fetch_multipart_data_destroy(NULL);
+}
+END_TEST
+
+START_TEST(test_fetch_multipart_data_destroy_single_kv)
+{
+    struct fetch_multipart_data *list = NULL;
+    nserror err = fetch_multipart_data_new_kv(&list, "field_name", "field_value");
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(list, NULL);
+
+    fetch_multipart_data_destroy(list);
+}
+END_TEST
+
+START_TEST(test_fetch_multipart_data_destroy_file)
+{
+    struct fetch_multipart_data *item = calloc(1, sizeof(*item));
+    ck_assert_ptr_ne(item, NULL);
+
+    item->name = strdup("upload");
+    item->value = strdup("file.txt");
+    item->rawfile = strdup("/tmp/file.txt");
+    item->file = true;
+    item->next = NULL;
+
+    fetch_multipart_data_destroy(item);
+}
+END_TEST
+
+START_TEST(test_fetch_multipart_data_destroy_chain)
+{
+    struct fetch_multipart_data *list = NULL;
+
+    /* Add key-value node 1 */
+    nserror err = fetch_multipart_data_new_kv(&list, "username", "alice");
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Add key-value node 2 */
+    err = fetch_multipart_data_new_kv(&list, "action", "upload");
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Add file node 3 manually */
+    struct fetch_multipart_data *file_item = calloc(1, sizeof(*file_item));
+    ck_assert_ptr_ne(file_item, NULL);
+
+    file_item->name = strdup("file_attachment");
+    file_item->value = strdup("document.pdf");
+    file_item->rawfile = strdup("/path/to/document.pdf");
+    file_item->file = true;
+    file_item->next = list;
+    list = file_item;
+
+    fetch_multipart_data_destroy(list);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -312,6 +372,13 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_cookie, test_fetch_set_cookie_unverifiable_no_referer);
     tcase_add_test(tc_cookie, test_fetch_immediate_redirect_processing);
     suite_add_tcase(s, tc_cookie);
+
+    TCase *tc_multipart = tcase_create("Multipart");
+    tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_null);
+    tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_single_kv);
+    tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_file);
+    tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_chain);
+    suite_add_tcase(s, tc_multipart);
 
     return s;
 }
