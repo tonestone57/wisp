@@ -5,7 +5,9 @@
 
 #include "content/fetch.h"
 #include "content/fetchers.h"
+#include "content/fetchers/curl.h"
 #include "content/urldb.h"
+#include <unistd.h>
 #include "utils/log.h"
 #include "utils/nsurl.h"
 #include "utils/nsoption.h"
@@ -356,6 +358,29 @@ START_TEST(test_fetch_multipart_data_destroy_chain)
 }
 END_TEST
 
+START_TEST(test_fetch_curl_preconnect_null)
+{
+    /* Passing NULL url string should execute safely via guard check */
+    fetch_curl_preconnect(NULL);
+    fetch_curl_dns_prefetch(NULL);
+}
+END_TEST
+
+START_TEST(test_fetch_curl_preconnect_valid)
+{
+    /* Register curl fetcher which initialises network_thread_pool */
+    nserror err = fetch_curl_register();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Test preconnect and DNS prefetch with valid URL string */
+    fetch_curl_preconnect("http://127.0.0.1:9");
+    fetch_curl_dns_prefetch("127.0.0.1");
+
+    /* Allow background thread pool worker tasks to execute */
+    usleep(50000);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -379,6 +404,11 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_file);
     tcase_add_test(tc_multipart, test_fetch_multipart_data_destroy_chain);
     suite_add_tcase(s, tc_multipart);
+
+    TCase *tc_curl = tcase_create("cURL");
+    tcase_add_test(tc_curl, test_fetch_curl_preconnect_null);
+    tcase_add_test(tc_curl, test_fetch_curl_preconnect_valid);
+    suite_add_tcase(s, tc_curl);
 
     return s;
 }
