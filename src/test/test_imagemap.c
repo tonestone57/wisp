@@ -18,10 +18,10 @@
 
 #include <wisp/content/content_protected.h>
 #include <wisp/content/hlcache.h>
-#include <wisp/desktop/options.h>
 #include <wisp/utils/corestrings.h>
 #include <wisp/utils/log.h>
 #include <wisp/utils/messages.h>
+#include <wisp/utils/nsoption.h>
 #include <wisp/utils/nsurl.h>
 #include <wisp/utils/utils.h>
 
@@ -76,7 +76,7 @@ START_TEST(test_imagemap_dom_extract_and_lookup)
 
     html_content *c = create_dummy_html_content();
 
-    exc = dom_implementation_create_document(DOM_IMPLEMENTATION_XML, NULL, NULL, NULL, &doc, NULL);
+    exc = dom_implementation_create_document(DOM_IMPLEMENTATION_XML, NULL, NULL, NULL, NULL, NULL, &doc);
     ck_assert_int_eq(exc, DOM_NO_ERR);
     ck_assert_ptr_nonnull(doc);
     c->document = doc;
