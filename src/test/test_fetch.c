@@ -536,6 +536,100 @@ START_TEST(test_fetch_curl_security_options)
 }
 END_TEST
 
+START_TEST(test_fetch_http_code)
+{
+    setup_test_fetcher();
+
+    /* 1. Null fetch handle returns 0 */
+    ck_assert_int_eq(fetch_http_code(NULL), 0);
+
+    /* 2. New fetch handle initial http_code is 0 */
+    nsurl *url;
+    nsurl_create("http://example.com/http_code_test", &url);
+
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    ck_assert_int_eq(fetch_http_code(f), 0);
+
+    /* 3. Updating http_code via fetch_set_http_code and retrieving via fetch_http_code */
+    fetch_set_http_code(f, 200);
+    ck_assert_int_eq(fetch_http_code(f), 200);
+
+    fetch_set_http_code(f, 404);
+    ck_assert_int_eq(fetch_http_code(f), 404);
+
+    fetch_set_http_code(f, 500);
+    ck_assert_int_eq(fetch_http_code(f), 500);
+
+    fetch_msg msg = { .type = FETCH_FINISHED };
+    fetch_send_callback(&msg, f);
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+    nsurl_unref(url);
+}
+END_TEST
+
+START_TEST(test_fetch_get_referer)
+{
+    setup_test_fetcher();
+
+    /* 1. Null fetch handle returns NULL */
+    ck_assert_ptr_eq(fetch_get_referer(NULL), NULL);
+
+    nsurl *url, *referer;
+    nsurl_create("http://example.com/target", &url);
+    nsurl_create("http://example.com/source", &referer);
+
+    /* 2. Fetch with referer set */
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, referer, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    ck_assert_ptr_ne(fetch_get_referer(f), NULL);
+    ck_assert_int_eq(nsurl_has_component(fetch_get_referer(f), NSURL_HOST), true);
+
+    fetch_msg msg = { .type = FETCH_FINISHED };
+    fetch_send_callback(&msg, f);
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+
+    /* 3. Fetch with no referer */
+    struct fetch *f_no_ref = NULL;
+    err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f_no_ref);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f_no_ref, NULL);
+
+    ck_assert_ptr_eq(fetch_get_referer(f_no_ref), NULL);
+
+    fetch_send_callback(&msg, f_no_ref);
+    fetch_remove_from_queues(f_no_ref);
+    fetch_free(f_no_ref);
+
+    nsurl_unref(referer);
+    nsurl_unref(url);
+}
+END_TEST
+
+START_TEST(test_fetch_can_fetch)
+{
+    setup_test_fetcher();
+
+    nsurl *http_url, *unknown_url;
+    nsurl_create("http://example.com/test", &http_url);
+    nsurl_create("unknownscheme://example.com/test", &unknown_url);
+
+    ck_assert_int_eq(fetch_can_fetch(http_url), true);
+    ck_assert_int_eq(fetch_can_fetch(unknown_url), false);
+
+    nsurl_unref(http_url);
+    nsurl_unref(unknown_url);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -570,6 +664,12 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_curl, test_fetch_curl_preconnect_valid);
     tcase_add_test(tc_curl, test_fetch_curl_security_options);
     suite_add_tcase(s, tc_curl);
+
+    TCase *tc_accessors = tcase_create("Accessors");
+    tcase_add_test(tc_accessors, test_fetch_http_code);
+    tcase_add_test(tc_accessors, test_fetch_get_referer);
+    tcase_add_test(tc_accessors, test_fetch_can_fetch);
+    suite_add_tcase(s, tc_accessors);
 
     return s;
 }
