@@ -563,7 +563,7 @@ static char **xdg_data_strvec(void)
  *
  * create filename form path and applications/defaults.list
  *
- * look for [Default Applications]
+ * look for [Default Applications] or [Added Associations]
  * search lines looking like mime/type=Desktop
  *
  * \param path The base path.
@@ -578,11 +578,16 @@ static char *xdg_get_default_app(const char *path, const char *mimetype)
     ssize_t rd;
     int fname_len;
     char *fname;
-    int mimetype_len;
+    size_t mimetype_len;
     char *ret = NULL;
+    bool in_default_apps = false;
+    bool saw_group_header = false;
 
     fname_len = strlen(path) + SLEN("/applications/defaults.list") + 1;
     fname = malloc(fname_len);
+    if (fname == NULL) {
+        return NULL;
+    }
     snprintf(fname, fname_len, "%s/applications/defaults.list", path);
 
     NSLOG(wisp, INFO, "Checking %s", fname);
@@ -595,21 +600,84 @@ static char *xdg_get_default_app(const char *path, const char *mimetype)
 
     mimetype_len = strlen(mimetype);
     while ((rd = getline(&line, &len, fp)) != -1) {
-        /* line includes line endings if present, remove them */
-        while ((line[rd - 1] == '\n') || (line[rd - 1] == '\r')) {
+        char *cur = line;
+
+        /* line includes line endings if present, remove them along with trailing spaces */
+        while (rd > 0 && (line[rd - 1] == '\n' || line[rd - 1] == '\r' ||
+                          line[rd - 1] == ' ' || line[rd - 1] == '\t')) {
             rd--;
         }
-        line[rd] = 0;
+        line[rd] = '\0';
 
-        /* look for mimetype */
-        if ((rd > mimetype_len) && (line[mimetype_len] == '=') && (strncmp(line, mimetype, mimetype_len) == 0)) {
+        /* skip leading whitespace */
+        while (*cur == ' ' || *cur == '\t') {
+            cur++;
+        }
 
-            ret = strdup(line + mimetype_len + 1);
+        /* skip comments and empty lines */
+        if (*cur == '\0' || *cur == '#') {
+            continue;
+        }
 
-            NSLOG(wisp, INFO, "Found line match for %s length %zu\n", mimetype, rd);
-            NSLOG(wisp, INFO, "Result %s", ret);
+        /* check group header */
+        if (*cur == '[') {
+            char *end_bracket = strchr(cur, ']');
+            saw_group_header = true;
+            if (end_bracket != NULL) {
+                size_t group_len = end_bracket - (cur + 1);
+                if (group_len == SLEN("Default Applications") &&
+                    strncmp(cur + 1, "Default Applications", group_len) == 0) {
+                    in_default_apps = true;
+                } else if (group_len == SLEN("Added Associations") &&
+                           strncmp(cur + 1, "Added Associations", group_len) == 0) {
+                    in_default_apps = true;
+                } else {
+                    in_default_apps = false;
+                }
+            }
+            continue;
+        }
 
-            break;
+        /* if no group header has been seen yet, default to searching key/value */
+        if (saw_group_header && !in_default_apps) {
+            continue;
+        }
+
+        /* look for key=value delimiter */
+        char *eq = strchr(cur, '=');
+        if (eq != NULL) {
+            char *key_start = cur;
+            char *key_end = eq - 1;
+
+            while (key_end >= key_start && (*key_end == ' ' || *key_end == '\t')) {
+                key_end--;
+            }
+            size_t klen = (key_end >= key_start) ? (size_t)(key_end - key_start + 1) : 0;
+
+            if (klen == mimetype_len && strncmp(key_start, mimetype, mimetype_len) == 0) {
+                char *val_start = eq + 1;
+
+                while (*val_start == ' ' || *val_start == '\t') {
+                    val_start++;
+                }
+
+                char *semi = strchr(val_start, ';');
+                if (semi != NULL) {
+                    *semi = '\0';
+                }
+
+                size_t vlen = strlen(val_start);
+                while (vlen > 0 && (val_start[vlen - 1] == ' ' || val_start[vlen - 1] == '\t')) {
+                    val_start[--vlen] = '\0';
+                }
+
+                if (vlen > 0) {
+                    ret = strdup(val_start);
+                    NSLOG(wisp, INFO, "Found line match for %s length %zu", mimetype, vlen);
+                    NSLOG(wisp, INFO, "Result %s", ret);
+                    break;
+                }
+            }
         }
     }
 
@@ -628,10 +696,12 @@ static char *xdg_get_default_app(const char *path, const char *mimetype)
  * Desktop file format
  * http://standards.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html
  *
- * \todo The parsing of the desktop file is badly incomplete and needs
- * improving. For example the handling of the = delimiter is wrong and
- * selection from the "Desktop Entry" group is completely absent.
+ * Enforces selection strictly from the "Desktop Entry" group and handles
+ * arbitrary whitespace around the '=' delimiter.
  *
+ * \param path The base search directory path.
+ * \param desktop The desktop entry filename.
+ * \return The Exec command line or NULL if not found.
  */
 static char *xdg_get_exec_cmd(const char *path, const char *desktop)
 {
@@ -642,9 +712,13 @@ static char *xdg_get_exec_cmd(const char *path, const char *desktop)
     int fname_len;
     char *fname;
     char *ret = NULL;
+    bool in_desktop_entry = false;
 
     fname_len = strlen(path) + SLEN("/applications/") + strlen(desktop) + 1;
     fname = malloc(fname_len);
+    if (fname == NULL) {
+        return NULL;
+    }
     snprintf(fname, fname_len, "%s/applications/%s", path, desktop);
 
     NSLOG(wisp, INFO, "Checking %s", fname);
@@ -656,21 +730,70 @@ static char *xdg_get_exec_cmd(const char *path, const char *desktop)
     }
 
     while ((rd = getline(&line, &len, fp)) != -1) {
-        /* line includes line endings if present, remove them */
-        while ((line[rd - 1] == '\n') || (line[rd - 1] == '\r')) {
+        char *cur = line;
+
+        /* line includes line endings if present, remove them along with trailing spaces */
+        while (rd > 0 && (line[rd - 1] == '\n' || line[rd - 1] == '\r' ||
+                          line[rd - 1] == ' ' || line[rd - 1] == '\t')) {
             rd--;
         }
-        line[rd] = 0;
+        line[rd] = '\0';
 
-        /* look for mimetype */
-        if ((rd > (ssize_t)SLEN("Exec=")) && (strncmp(line, "Exec=", SLEN("Exec=")) == 0)) {
+        /* skip leading whitespace */
+        while (*cur == ' ' || *cur == '\t') {
+            cur++;
+        }
 
-            ret = strdup(line + SLEN("Exec="));
+        /* skip empty lines and comments */
+        if (*cur == '\0' || *cur == '#') {
+            continue;
+        }
 
-            NSLOG(wisp, INFO, "Found Exec length %zu", rd);
-            NSLOG(wisp, INFO, "Result %s", ret);
+        /* group header check: e.g. [Desktop Entry] */
+        if (*cur == '[') {
+            char *end_bracket = strchr(cur, ']');
+            if (end_bracket != NULL) {
+                size_t group_len = end_bracket - (cur + 1);
+                if (group_len == SLEN("Desktop Entry") &&
+                    strncmp(cur + 1, "Desktop Entry", group_len) == 0) {
+                    in_desktop_entry = true;
+                } else {
+                    in_desktop_entry = false;
+                }
+            }
+            continue;
+        }
 
-            break;
+        /* keys must be inside [Desktop Entry] group */
+        if (!in_desktop_entry) {
+            continue;
+        }
+
+        /* find key=value delimiter */
+        char *eq = strchr(cur, '=');
+        if (eq != NULL) {
+            char *key_start = cur;
+            char *key_end = eq - 1;
+
+            while (key_end >= key_start && (*key_end == ' ' || *key_end == '\t')) {
+                key_end--;
+            }
+            size_t klen = (key_end >= key_start) ? (size_t)(key_end - key_start + 1) : 0;
+
+            if (klen == SLEN("Exec") && strncmp(key_start, "Exec", SLEN("Exec")) == 0) {
+                char *val_start = eq + 1;
+
+                while (*val_start == ' ' || *val_start == '\t') {
+                    val_start++;
+                }
+
+                if (*val_start != '\0') {
+                    ret = strdup(val_start);
+                    NSLOG(wisp, INFO, "Found Exec in [Desktop Entry]");
+                    NSLOG(wisp, INFO, "Result %s", ret);
+                    break;
+                }
+            }
         }
     }
 
@@ -708,8 +831,9 @@ static char **build_exec_argv(const char *fname, const char *exec_cmd)
     const char *start; /* current arguments start */
     const char *cur; /* current ptr within exec cmd */
     int aidx = 0; /* argv index */
+    int capacity = 10;
 
-    argv = calloc(10, sizeof(char *));
+    argv = calloc(capacity, sizeof(char *));
     if (argv == NULL) {
         return NULL;
     }
@@ -728,6 +852,17 @@ static char **build_exec_argv(const char *fname, const char *exec_cmd)
         /* find end of element */
         while ((*cur != 0) && (*cur != ' ')) {
             cur++;
+        }
+
+        if (aidx >= capacity - 1) {
+            int new_cap = capacity * 2;
+            char **new_argv = realloc(argv, new_cap * sizeof(char *));
+            if (new_argv == NULL) {
+                break;
+            }
+            memset(new_argv + capacity, 0, (new_cap - capacity) * sizeof(char *));
+            argv = new_argv;
+            capacity = new_cap;
         }
 
         argv[aidx] = exec_arg(start, cur - start, fname);
