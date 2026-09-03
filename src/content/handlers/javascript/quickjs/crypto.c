@@ -97,7 +97,6 @@ static const EVP_MD *get_hash_md(const char *hash_name)
     if (strcasecmp(hash_name, "SHA-256") == 0) return EVP_sha256();
     if (strcasecmp(hash_name, "SHA-384") == 0) return EVP_sha384();
     if (strcasecmp(hash_name, "SHA-512") == 0) return EVP_sha512();
-    if (strcasecmp(hash_name, "SHA-1") == 0) return EVP_sha1();
     return NULL;
 }
 
