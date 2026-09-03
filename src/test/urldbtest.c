@@ -963,6 +963,41 @@ START_TEST(urldb_hsts_preload_test)
 }
 END_TEST
 
+START_TEST(urldb_overlong_host_test)
+{
+    char long_host_url[600];
+    nsurl *url = NULL;
+    nsurl *res_url = NULL;
+    size_t i;
+
+    /* Construct a hostname longer than 256 chars (e.g., ~300 chars domain) */
+    strcpy(long_host_url, "http://a");
+    for (i = 0; i < 28; i++) {
+        strcat(long_host_url, ".subdomain123");
+    }
+    strcat(long_host_url, ".com/");
+
+    ck_assert_int_eq(nsurl_create(long_host_url, &url), NSERROR_OK);
+    /* Adding overlong host truncates host safely without buffer overflow */
+    ck_assert(urldb_add_url(url) == true);
+    nsurl_unref(url);
+
+    /* Construct a hostname near 250 chars that fits in buf */
+    strcpy(long_host_url, "http://a");
+    for (i = 0; i < 18; i++) {
+        strcat(long_host_url, ".subdomain123");
+    }
+    strcat(long_host_url, ".com/");
+
+    ck_assert_int_eq(nsurl_create(long_host_url, &url), NSERROR_OK);
+    ck_assert(urldb_add_url(url) == true);
+    res_url = urldb_get_url(url);
+    ck_assert(res_url != NULL);
+
+    nsurl_unref(url);
+}
+END_TEST
+
 
 static TCase *urldb_case_create(void)
 {
@@ -985,6 +1020,7 @@ static TCase *urldb_case_create(void)
     tcase_add_test(tc, urldb_reset_visit_test);
     tcase_add_test(tc, urldb_persistence_test);
     tcase_add_test(tc, urldb_hsts_preload_test);
+    tcase_add_test(tc, urldb_overlong_host_test);
 
     return tc;
 }

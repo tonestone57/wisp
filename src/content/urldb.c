@@ -2152,8 +2152,7 @@ static struct host_part *urldb_add_host(const char *host)
     }
 
     /* Copy host string, so we can corrupt it */
-    strncpy(buf, host, sizeof buf);
-    buf[sizeof buf - 1] = '\0';
+    snprintf(buf, sizeof(buf), "%s", host);
 
     /* Process FQDN segments backwards */
     do {
