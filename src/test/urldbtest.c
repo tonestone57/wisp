@@ -435,6 +435,20 @@ START_TEST(urldb_original_test)
         "foo=bar; domain=.example.tld\r\n", "http://www.foo.example.tld/", "http://bar.example.tld/"));
     verify_cookie("http://www.foo.example.tld/", "foo=bar");
 
+    /* Test referer domain matching with PSL: same registrable domain */
+    ck_assert(test_urldb_set_cookie(
+        "ref_cookie=val1; Path=/\r\n", "http://sub.example.co.uk/page", "http://example.co.uk/"));
+    verify_cookie("http://sub.example.co.uk/page", "ref_cookie=val1");
+
+    /* Test referer domain matching with PSL: different domains sharing a public suffix */
+    ck_assert(test_urldb_set_cookie(
+        "bad_ref_cookie=val2; Path=/\r\n", "http://foo.co.uk/page", "http://bar.co.uk/") == false);
+    verify_cookie("http://foo.co.uk/page", NULL);
+
+    ck_assert(test_urldb_set_cookie(
+        "bad_ref_cookie2=val3; Path=/\r\n", "http://foo.com/page", "http://bar.com/") == false);
+    verify_cookie("http://foo.com/page", NULL);
+
     /* Test expiry */
     ck_assert(test_urldb_set_cookie("foo=bar", "http://expires.com/", NULL));
     verify_cookie("http://expires.com/", "foo=bar");

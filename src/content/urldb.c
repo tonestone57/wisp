@@ -3957,10 +3957,6 @@ bool urldb_set_cookie(const char *header, nsurl *url, nsurl *referer)
              * more accurately.
              */
 
-            /** \todo In future, we should consult a TLD service
-             * instead of just looking for embedded dots.
-             */
-
             hptr = host_data + lwc_string_length(host) - 1;
             rptr = rhost_data + lwc_string_length(rhost) - 1;
 
@@ -3977,13 +3973,30 @@ bool urldb_set_cookie(const char *header, nsurl *url, nsurl *referer)
             hptr++;
 
             /* 2 */
-            while (*hptr != '\0' && *hptr != '.')
+            if (hptr > host_data && *(hptr - 1) != '.') {
+                while (*hptr != '\0' && *hptr != '.')
+                    hptr++;
+            }
+
+            if (*hptr == '.')
                 hptr++;
 
             /* 3 */
-            if (*hptr == '\0' || (dot = strchr(hptr + 1, '.')) == NULL || *(dot + 1) == '\0') {
+            if (*hptr == '\0') {
                 lwc_string_unref(rhost);
                 goto error;
+            }
+
+            if (psl_ctx) {
+                if (psl_is_public_suffix(psl_ctx, hptr)) {
+                    lwc_string_unref(rhost);
+                    goto error;
+                }
+            } else {
+                if ((dot = strchr(hptr, '.')) == NULL || *(dot + 1) == '\0') {
+                    lwc_string_unref(rhost);
+                    goto error;
+                }
             }
         }
 
