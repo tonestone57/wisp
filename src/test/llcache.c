@@ -516,6 +516,41 @@ int main(int argc, char **argv)
     llcache_handle_release(handle);
     nsurl_unref(url);
 
+    /* Test metadata deserialization error handling */
+    {
+        nsurl *meta_url;
+        llcache_handle *meta_handle;
+        bool meta_done = false;
+
+        if (nsurl_create("https://www.wispbrowser.com/meta-test", &meta_url) == NSERROR_OK) {
+            /* Create backing store metadata entry with invalid numeric field (e.g. trailing garbage / negative) */
+            const char *bad_meta = "https://www.wispbrowser.com/meta-test\0-100\0 100\0 100\0 100\0 0\0";
+            size_t bad_meta_len = strlen("https://www.wispbrowser.com/meta-test") + 1 +
+                                  strlen("-100") + 1 +
+                                  strlen("100") + 1 +
+                                  strlen("100") + 1 +
+                                  strlen("100") + 1 +
+                                  strlen("0") + 1;
+
+            guit->llcache->store(meta_url, BACKING_STORE_META, (uint8_t *)(uintptr_t)bad_meta, bad_meta_len);
+
+            /* Attempting to retrieve from persistent store should fail on corrupt metadata and fallback to network fetch */
+            error = llcache_handle_retrieve(meta_url, 0, NULL, NULL, event_handler, &meta_done, &meta_handle);
+            if (error == NSERROR_OK) {
+                pump_all();
+                if (meta_done) {
+                    fprintf(stdout, "llcache metadata strict numeric deserialization test PASSED\n");
+                } else {
+                    fprintf(stderr, "llcache metadata strict numeric deserialization test FAILED\n");
+                    return 1;
+                }
+                llcache_handle_release(meta_handle);
+            }
+            guit->llcache->invalidate(meta_url);
+            nsurl_unref(meta_url);
+        }
+    }
+
     llcache_finalise();
     fetcher_quit();
     messages_destroy();

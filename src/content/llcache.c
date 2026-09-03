@@ -1636,10 +1636,12 @@ static nserror llcache_process_metadata(llcache_object *object)
     lnsize = strlen(ln);
     remaining -= lnsize + 1;
 
-    if ((lnsize < 1) || (sscanf(ln, "%" PRIsizet, &source_length) != 1)) {
+    unsigned long long ull_val;
+    if ((lnsize < 1) || (ns_strtoull(ln, 10, &ull_val) != NSERROR_OK)) {
         res = NSERROR_INVALID;
         goto format_error;
     }
+    source_length = (size_t)ull_val;
 
 
     /* metadata line 3 is the time of request */
@@ -1681,10 +1683,15 @@ static nserror llcache_process_metadata(llcache_object *object)
     lnsize = strlen(ln);
     remaining -= lnsize + 1;
 
-    if ((lnsize < 1) || (sscanf(ln, "%" PRIsizet, &num_headers) != 1)) {
+    if ((lnsize < 1) || (ns_strtoull(ln, 10, &ull_val) != NSERROR_OK)) {
         res = NSERROR_INVALID;
         goto format_error;
     }
+    if (ull_val > 10000) {
+        res = NSERROR_INVALID;
+        goto format_error;
+    }
+    num_headers = (size_t)ull_val;
 
     /* read headers */
     for (hloop = 0; hloop < num_headers; hloop++) {
@@ -1708,10 +1715,11 @@ static nserror llcache_process_metadata(llcache_object *object)
     lnsize = strlen(ln);
     remaining -= lnsize + 1;
 
-    if ((lnsize < 1) || (sscanf(ln, "%" PRIsizet, &ssl_cert_count) != 1)) {
+    if ((lnsize < 1) || (ns_strtoull(ln, 10, &ull_val) != NSERROR_OK)) {
         res = NSERROR_INVALID;
         goto format_error;
     }
+    ssl_cert_count = (size_t)ull_val;
 
     if (ssl_cert_count == 0) {
         goto skip_ssl_certificates;
@@ -1736,7 +1744,7 @@ static nserror llcache_process_metadata(llcache_object *object)
         ln += lnsize + 1;
         lnsize = strlen(ln);
         remaining -= lnsize + 1;
-        if ((lnsize < 1) || (sscanf(ln, "%d", &errcode) != 1)) {
+        if ((lnsize < 1) || (ns_strtoint(ln, 10, &errcode) != NSERROR_OK)) {
             res = NSERROR_INVALID;
             goto format_error;
         }
