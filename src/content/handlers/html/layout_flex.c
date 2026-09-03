@@ -296,23 +296,15 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 		}
 	}
 
-	/* First pass: count children */
 	int child_count_initial = 0;
-	for (struct box *child = flex->children; child; child = child->next) {
-		if (child->type != BOX_FLOAT_LEFT && child->type != BOX_FLOAT_RIGHT) {
-			child_count_initial++;
-		}
-	}
 
-	/* Calculate gap_total from CSS row-gap, not from measured positions */
-	int gap_total = (child_count_initial > 1) ? (child_count_initial - 1) * css_row_gap : 0;
-
-	/* Second pass: calculate content height, auto margins, and flex-grow */
-	struct box *prev_child = NULL;
+	/* Combined pass: count non-floated children, calculate content height, auto margins, and flex-grow */
 	for (struct box *child = flex->children; child; child = child->next) {
 		if (child->type == BOX_FLOAT_LEFT || child->type == BOX_FLOAT_RIGHT) {
 			continue;
 		}
+
+		child_count_initial++;
 
 		/* Calculate this child's outer height (excluding auto margins which we'll compute) */
 		int child_height = (child->height == AUTO) ? 0 : child->height;
@@ -351,8 +343,6 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 
 		content_height += child_outer_height;
 
-		/* gap_total is now calculated from CSS row-gap at the top - no need to measure */
-
 		/* Get flex-grow factor if this child has a style */
 		if (child->style) {
 			css_fixed grow;
@@ -364,6 +354,9 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 			}
 		}
 	}
+
+	/* Calculate gap_total from CSS row-gap using child_count_initial */
+	int gap_total = (child_count_initial > 1) ? (child_count_initial - 1) * css_row_gap : 0;
 
 	NSLOG(flex, DEEPDEBUG, "  Initial: content_h=%d, auto_margins=%d, grow_sum=%d, gap_total=%d", content_height,
 		auto_margin_count, FIXTOINT(grow_factor_sum), gap_total);
