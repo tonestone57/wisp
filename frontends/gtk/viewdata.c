@@ -714,6 +714,15 @@ static char *xdg_get_exec_cmd(const char *path, const char *desktop)
     char *ret = NULL;
     bool in_desktop_entry = false;
 
+    if (desktop == NULL || *desktop == '\0') {
+        return NULL;
+    }
+
+    if (strchr(desktop, '/') != NULL || strstr(desktop, "..") != NULL) {
+        NSLOG(wisp, WARNING, "Path traversal attempt detected in desktop file name: %s", desktop);
+        return NULL;
+    }
+
     fname_len = strlen(path) + SLEN("/applications/") + strlen(desktop) + 1;
     fname = malloc(fname_len);
     if (fname == NULL) {
