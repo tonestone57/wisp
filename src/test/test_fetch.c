@@ -536,6 +536,62 @@ START_TEST(test_fetch_curl_security_options)
 }
 END_TEST
 
+START_TEST(test_fetch_get_referer_null_fetch)
+{
+    /* NULL fetch should return NULL */
+    ck_assert_ptr_null(fetch_get_referer(NULL));
+}
+END_TEST
+
+START_TEST(test_fetch_get_referer_no_referer)
+{
+    setup_test_fetcher();
+    nsurl *url;
+    nsurl_create("http://example.com/noreferer", &url);
+
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    /* Fetch initialized with NULL referer should return NULL */
+    ck_assert_ptr_null(fetch_get_referer(f));
+
+    fetch_msg msg = { .type = FETCH_FINISHED };
+    fetch_send_callback(&msg, f);
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+    nsurl_unref(url);
+}
+END_TEST
+
+START_TEST(test_fetch_get_referer_with_referer)
+{
+    setup_test_fetcher();
+    nsurl *url, *referer;
+    nsurl_create("http://example.com/target", &url);
+    nsurl_create("http://example.com/source", &referer);
+
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, referer, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    /* Fetch initialized with referer should return pointer to referer */
+    nsurl *ret_referer = fetch_get_referer(f);
+    ck_assert_ptr_ne(ret_referer, NULL);
+    ck_assert_ptr_eq(ret_referer, referer);
+    ck_assert_int_eq(nsurl_has_component(ret_referer, NSURL_PATH), true);
+
+    fetch_msg msg = { .type = FETCH_FINISHED };
+    fetch_send_callback(&msg, f);
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+    nsurl_unref(referer);
+    nsurl_unref(url);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -570,6 +626,12 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_curl, test_fetch_curl_preconnect_valid);
     tcase_add_test(tc_curl, test_fetch_curl_security_options);
     suite_add_tcase(s, tc_curl);
+
+    TCase *tc_referer = tcase_create("Referer");
+    tcase_add_test(tc_referer, test_fetch_get_referer_null_fetch);
+    tcase_add_test(tc_referer, test_fetch_get_referer_no_referer);
+    tcase_add_test(tc_referer, test_fetch_get_referer_with_referer);
+    suite_add_tcase(s, tc_referer);
 
     return s;
 }
