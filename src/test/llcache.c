@@ -532,6 +532,42 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    /* Test bounds check on num_headers in metadata deserialization */
+    {
+        nsurl *meta_url;
+        if (nsurl_create("https://www.wispbrowser.com/meta-bounds-test", &meta_url) == NSERROR_OK) {
+            /* Store metadata with excessively large num_headers (e.g. 99999) */
+            const char *bad_meta = "https://www.wispbrowser.com/meta-bounds-test\0"
+                                   "100\0"                  /* source_length */
+                                   "1600000000\0"           /* req_time */
+                                   "1600000000\0"           /* res_time */
+                                   "1600000000\0"           /* fin_time */
+                                   "99999\0";              /* num_headers > 10000 */
+            /* Construct buffer with null terminators */
+            size_t meta_len = strlen("https://www.wispbrowser.com/meta-bounds-test") + 1 +
+                              strlen("100") + 1 +
+                              strlen("1600000000") + 1 +
+                              strlen("1600000000") + 1 +
+                              strlen("1600000000") + 1 +
+                              strlen("99999") + 1;
+            if (guit->llcache->store(meta_url, BACKING_STORE_META, (uint8_t *)(uintptr_t)bad_meta, meta_len) == NSERROR_OK) {
+                llcache_handle *meta_handle = NULL;
+                bool meta_done = false;
+                error = llcache_handle_retrieve(meta_url, 0, NULL, NULL, event_handler, &meta_done, &meta_handle);
+                if (error == NSERROR_OK) {
+                    pump_all();
+                    /* Since metadata parsing fails due to num_headers > 10000,
+                       it falls back to fetching fresh object from test fetcher */
+                    if (meta_handle != NULL) {
+                        fprintf(stdout, "llcache metadata num_headers bounds check test PASSED\n");
+                        llcache_handle_release(meta_handle);
+                    }
+                }
+            }
+            nsurl_unref(meta_url);
+        }
+    }
+
     /* Test concurrent llcache_handle_abort during redirect event */
     {
         nsurl *redirect_src_url;

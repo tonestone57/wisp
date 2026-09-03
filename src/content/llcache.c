@@ -1683,7 +1683,7 @@ static nserror llcache_process_metadata(llcache_object *object)
     lnsize = strlen(ln);
     remaining -= lnsize + 1;
 
-    if ((lnsize < 1) || (sscanf(ln, "%" PRIsizet, &num_headers) != 1)) {
+    if ((lnsize < 1) || (sscanf(ln, "%" PRIsizet, &num_headers) != 1) || (num_headers > 10000)) {
         res = NSERROR_INVALID;
         goto format_error;
     }
