@@ -569,13 +569,15 @@ static nserror form_dom_to_data_input_checkbox(dom_html_input_element *input_ele
 }
 
 
-static nserror form_dom_to_data_input_file(dom_html_input_element *input_element, dom_string *inputname,
-    const char *charset, const char *document_charset, struct fetch_multipart_data ***fetch_data_next_ptr)
+static nserror form_dom_to_data_input_file(struct form *form, dom_html_input_element *input_element,
+    dom_string *inputname, const char *charset, const char *document_charset,
+    struct fetch_multipart_data ***fetch_data_next_ptr)
 {
     nserror res;
     dom_exception exp; /* the result from DOM operations */
     dom_string *inputvalue;
     const char *rawfile = NULL;
+    struct form_control *control;
 
     exp = dom_html_input_element_get_value(input_element, &inputvalue);
     if (exp != DOM_NO_ERR) {
@@ -583,13 +585,10 @@ static nserror form_dom_to_data_input_file(dom_html_input_element *input_element
         return NSERROR_DOM;
     }
 
-    exp = dom_node_get_user_data((dom_node *)input_element, corestring_dom___ns_key_file_name_node_data, &rawfile);
-    if (exp != DOM_NO_ERR) {
-        NSLOG(wisp, INFO, "Could not get file rawname");
-        return NSERROR_DOM;
-    }
-
-    if (rawfile == NULL) {
+    control = html_forms_get_control_for_node(form, (dom_node *)input_element);
+    if (control != NULL && control->rawfile != NULL) {
+        rawfile = control->rawfile;
+    } else {
         rawfile = "";
     }
 
@@ -636,7 +635,7 @@ static nserror form_dom_to_data_input_text(dom_html_input_element *input_element
  * \param fetch_data_next_ptr The multipart data list being constructed.
  * \return NSERROR_OK on success or appropriate error code.
  */
-static nserror form_dom_to_data_input(dom_html_input_element *input_element, const char *charset,
+static nserror form_dom_to_data_input(struct form *form, dom_html_input_element *input_element, const char *charset,
     const char *document_charset, dom_html_element **submit_button, struct fetch_multipart_data ***fetch_data_next_ptr)
 {
     dom_exception exp; /* the result from DOM operations */
@@ -695,7 +694,7 @@ static nserror form_dom_to_data_input(dom_html_input_element *input_element, con
 
     } else if (dom_string_caseless_isequal(inputtype, corestring_dom_file)) {
 
-        res = form_dom_to_data_input_file(input_element, inputname, charset, document_charset, fetch_data_next_ptr);
+        res = form_dom_to_data_input_file(form, input_element, inputname, charset, document_charset, fetch_data_next_ptr);
 
     } else if (dom_string_caseless_isequal(inputtype, corestring_dom_reset) ||
         dom_string_caseless_isequal(inputtype, corestring_dom_button)) {
@@ -996,7 +995,7 @@ form_dom_to_data(struct form *form, struct form_control *submit_control, struct 
         } else if (dom_string_isequal(nodename, corestring_dom_INPUT)) {
             /* Form element is HTMLInputElement */
             res = form_dom_to_data_input(
-                (dom_html_input_element *)element, charset, form->document_charset, &submit_button, &fetch_data_next);
+                form, (dom_html_input_element *)element, charset, form->document_charset, &submit_button, &fetch_data_next);
 
         } else if (dom_string_isequal(nodename, corestring_dom_BUTTON)) {
             /* Form element is HTMLButtonElement */
@@ -1311,6 +1310,7 @@ void form_free_control(struct form_control *control)
     free(control->name);
     free(control->value);
     free(control->initial_value);
+    free(control->rawfile);
     if (control->last_synced_value != NULL) {
         free(control->last_synced_value);
     }

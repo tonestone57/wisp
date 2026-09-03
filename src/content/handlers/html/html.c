@@ -2272,48 +2272,10 @@ static bool html_scroll_at_point(struct content *c, int x, int y, int scrx, int 
 	return false;
 }
 
-/** Helper for file gadgets to store their filename unencoded on the
- * dom node associated with the gadget.
- *
- * \todo Get rid of this crap eventually
- */
-static void html__dom_user_data_handler(
-	dom_node_operation operation, dom_string *key, void *_data, struct dom_node *src, struct dom_node *dst)
-{
-	char *oldfile;
-	char *data = (char *)_data;
-
-	if (!dom_string_isequal(corestring_dom___ns_key_file_name_node_data, key) || data == NULL) {
-		return;
-	}
-
-	switch (operation) {
-	case DOM_NODE_CLONED:
-		if (dom_node_set_user_data(dst, corestring_dom___ns_key_file_name_node_data, strdup(data),
-				html__dom_user_data_handler, &oldfile) == DOM_NO_ERR) {
-			if (oldfile != NULL)
-				free(oldfile);
-		}
-		break;
-
-	case DOM_NODE_RENAMED:
-	case DOM_NODE_IMPORTED:
-	case DOM_NODE_ADOPTED:
-		break;
-
-	case DOM_NODE_DELETED:
-		free(data);
-		break;
-	default:
-		NSLOG(wisp, WARNING, "User data operation not handled.");
-		break;
-	}
-}
-
 static void html__set_file_gadget_filename(struct content *c, struct form_control *gadget, const char *fn)
 {
 	nserror ret;
-	char *utf8_fn, *oldfile = NULL;
+	char *utf8_fn;
 	html_content *html = (html_content *)c;
 	struct box *file_box = gadget->box;
 
@@ -2328,12 +2290,8 @@ static void html__set_file_gadget_filename(struct content *c, struct form_contro
 	form_gadget_update_value(gadget, utf8_fn);
 	free(utf8_fn);
 
-	/* corestring_dom___ns_key_file_name_node_data */
-	if (dom_node_set_user_data((dom_node *)file_box->gadget->node, corestring_dom___ns_key_file_name_node_data,
-			strdup(fn), html__dom_user_data_handler, &oldfile) == DOM_NO_ERR) {
-		if (oldfile != NULL)
-			free(oldfile);
-	}
+	free(gadget->rawfile);
+	gadget->rawfile = fn ? strdup(fn) : NULL;
 
 	/* Redraw box. */
 	html__redraw_a_box(html, file_box);
