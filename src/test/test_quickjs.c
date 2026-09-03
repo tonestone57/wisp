@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include "wisp/utils/shm_dom.h"
 
@@ -7583,6 +7584,66 @@ START_TEST(test_quickjs_ipc_pump_destroy_thread_safety)
 }
 END_TEST
 
+START_TEST(test_quickjs_temp_file_permissions)
+{
+    const char *tmpdir = getenv("TMPDIR");
+    if (!tmpdir || tmpdir[0] == '\0') {
+        tmpdir = "/tmp";
+    }
+
+    uid_t uid = getuid();
+    char expected_dir[256];
+    snprintf(expected_dir, sizeof(expected_dir), "%s/wisp-%u/scripts", tmpdir, (unsigned int)uid);
+
+    struct stat st_dir;
+    if (stat(expected_dir, &st_dir) == 0) {
+        ck_assert_int_eq(st_dir.st_mode & 0777, 0700);
+    }
+
+    /* Allocate script text > 65536 bytes to trigger temp file creation in js_exec */
+    size_t script_len = 70000;
+    char *big_script = malloc(script_len + 1);
+    ck_assert_ptr_nonnull(big_script);
+    memset(big_script, ' ', script_len);
+    const char *code = "console.log('test_large_script');";
+    memcpy(big_script, code, strlen(code));
+    big_script[script_len] = '\0';
+
+    js_initialise();
+
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void *)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    /* Set thread origin to "http://example.com" so ensure_js_process_for_origin spawns wisp-js */
+    if (thread->origin) free(thread->origin);
+    thread->origin = strdup("http://example.com");
+
+    /* Ensure get_user_cache_dir creates the scripts directory */
+    extern bool get_user_cache_dir(const char *sub_dir, char *out_buf, size_t out_buf_len);
+    char dir_buf[256];
+    get_user_cache_dir("scripts", dir_buf, sizeof(dir_buf));
+
+    /* Execute the large script. With origin set, it will attempt IPC and trigger file creation */
+    js_exec(thread, (const uint8_t *)big_script, script_len, "test_large_script.js");
+
+    free(big_script);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+
+    /* Verify that the secure directory exists and has 0700 permissions */
+    ck_assert_int_eq(stat(expected_dir, &st_dir), 0);
+    ck_assert_int_eq(st_dir.st_mode & 0777, 0700);
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -7708,6 +7769,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_dom_wrapper_finalization_after_context_free);
     tcase_add_test(tc_event_loop, test_quickjs_showpicker_smil_websocket_rtc);
     tcase_add_test(tc_event_loop, test_quickjs_ipc_pump_destroy_thread_safety);
+    tcase_add_test(tc_event_loop, test_quickjs_temp_file_permissions);
     suite_add_tcase(s, tc_event_loop);
 
     return s;

@@ -202,7 +202,7 @@ dom_string *g_qjs_node_key = NULL;
 static void compute_sha256(const uint8_t *data, size_t len, char *hex_out, size_t hex_out_len);
 static char *wisp_read_local_file(const char *filename, size_t *out_len);
 
-static bool get_user_cache_dir(const char *sub_dir, char *out_buf, size_t out_buf_len)
+bool get_user_cache_dir(const char *sub_dir, char *out_buf, size_t out_buf_len)
 {
     const char *tmpdir = getenv("TMPDIR");
     if (!tmpdir || tmpdir[0] == '\0') {
@@ -7733,14 +7733,15 @@ bool js_exec(jsthread *thread, const uint8_t *txt, size_t txtlen, const char *na
         bool is_file = false;
         char temp_file_path[512];
         if (txtlen > 65536) {
-            // Write to a temporary file to avoid IPC buffer saturation
-            const char *tmpdir = getenv("TMPDIR");
-            if (!tmpdir || tmpdir[0] == '\0') {
-                tmpdir = "/tmp";
-            }
-            snprintf(temp_file_path, sizeof(temp_file_path), "%s/wisp-script-XXXXXX", tmpdir);
+            // Write to a temporary file in a secure per-user directory to avoid IPC buffer saturation
+            char script_dir[256];
+            get_user_cache_dir("scripts", script_dir, sizeof(script_dir));
+            snprintf(temp_file_path, sizeof(temp_file_path), "%s/script-XXXXXX", script_dir);
             int fd = mkstemp(temp_file_path);
             if (fd >= 0) {
+#ifndef _WIN32
+                fchmod(fd, 0600);
+#endif
                 if (write(fd, txt, txtlen) == (ssize_t)txtlen) {
                     fsync(fd);
                     is_file = true;
