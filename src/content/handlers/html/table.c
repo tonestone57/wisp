@@ -499,7 +499,8 @@ static bool table_cell_top_process_group(
  */
 static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, struct box *cell)
 {
-    struct border a, b;
+    struct border a = { .width = 0, .unit = CSS_UNIT_PX };
+    struct border b = { .width = 0, .unit = CSS_UNIT_PX };
     box_type a_src, b_src;
     const struct box *a_box = cell;
 
@@ -623,7 +624,8 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
  */
 static void table_used_top_border_for_cell(const css_unit_ctx *unit_len_ctx, struct box *cell)
 {
-    struct border a, b;
+    struct border a = { .width = 0, .unit = CSS_UNIT_PX };
+    struct border b = { .width = 0, .unit = CSS_UNIT_PX };
     box_type a_src, b_src;
     const struct box *a_box = cell;
     struct box *row = cell->parent;
@@ -714,7 +716,8 @@ static void table_used_top_border_for_cell(const css_unit_ctx *unit_len_ctx, str
  */
 static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, struct box *cell)
 {
-    struct border a, b;
+    struct border a = { .width = 0, .unit = CSS_UNIT_PX };
+    struct border b = { .width = 0, .unit = CSS_UNIT_PX };
     box_type a_src, b_src;
     const struct box *a_box = cell;
 
@@ -812,7 +815,8 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
  */
 static void table_used_bottom_border_for_cell(const css_unit_ctx *unit_len_ctx, struct box *cell)
 {
-    struct border a, b;
+    struct border a = { .width = 0, .unit = CSS_UNIT_PX };
+    struct border b = { .width = 0, .unit = CSS_UNIT_PX };
     box_type a_src, b_src;
     const struct box *a_box = cell;
     struct box *row = cell->parent;
