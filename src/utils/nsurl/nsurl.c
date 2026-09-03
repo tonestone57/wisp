@@ -921,7 +921,7 @@ void nsurl_dump(const nsurl *url)
     if (url->components.username)
         fprintf(stderr, "Username: %s\n", lwc_string_data(url->components.username));
     if (url->components.password)
-        fprintf(stderr, "Password: %s\n", lwc_string_data(url->components.password));
+        fprintf(stderr, "Password: [REDACTED]\n");
     if (url->components.host)
         fprintf(stderr, "    Host: %s\n", lwc_string_data(url->components.host));
     if (url->components.port)
