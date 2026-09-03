@@ -56,6 +56,8 @@ struct dom_string *corestring_dom_title;
 struct dom_string *corestring_dom_style;
 struct dom_string *corestring_dom_colspan;
 struct dom_string *corestring_dom_rowspan;
+struct dom_string *corestring_dom_lang;
+struct dom_string *corestring_dom_xml_lang;
 struct dom_string *corestring_dom___ns_key_box_node_data;
 struct dom_string *corestring_dom___ns_key_style_cache_data;
 lwc_string *corestring_lwc_open_double_quote = NULL;
@@ -165,6 +167,12 @@ uint8_t css_computed_text_transform(const css_computed_style *style)
 }
 
 css_error node_is_checked(void *pw, void *node, bool *match)
+{
+    *match = false;
+    return CSS_OK;
+}
+
+css_error node_is_lang(void *pw, void *node, lwc_string *lang, bool *match)
 {
     *match = false;
     return CSS_OK;
@@ -612,6 +620,8 @@ START_TEST(test_grid_construction)
     INIT_STR(corestring_dom_style, "style");
     INIT_STR(corestring_dom_colspan, "colspan");
     INIT_STR(corestring_dom_rowspan, "rowspan");
+    INIT_STR(corestring_dom_lang, "lang");
+    INIT_STR(corestring_dom_xml_lang, "xml:lang");
     INIT_STR(corestring_dom___ns_key_box_node_data, "__ns_key_box_node_data");
     INIT_STR(corestring_dom___ns_key_style_cache_data, "__ns_key_style_cache_data");
 
@@ -788,6 +798,8 @@ START_TEST(test_grid_construction)
     dom_string_unref(corestring_dom_style);
     dom_string_unref(corestring_dom_colspan);
     dom_string_unref(corestring_dom_rowspan);
+    dom_string_unref(corestring_dom_lang);
+    dom_string_unref(corestring_dom_xml_lang);
     dom_string_unref(corestring_dom___ns_key_box_node_data);
     dom_string_unref(corestring_dom___ns_key_style_cache_data);
 
