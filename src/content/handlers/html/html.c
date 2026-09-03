@@ -3084,13 +3084,69 @@ html_textsearch_find(struct content *c, struct textsearch_context *context, cons
 static nserror html_textsearch_bounds(struct content *c, unsigned start_idx, unsigned end_idx, struct box *start_box,
 	struct box *end_box, struct rect *bounds)
 {
-	/* get box position and jump to it */
+	html_content *htmlc = (html_content *)c;
+
+	/* get box position */
 	box_coords(start_box, &bounds->x0, &bounds->y0);
-	/* \todo: move x0 in by correct idx */
 	box_coords(end_box, &bounds->x1, &bounds->y1);
-	/* \todo: move x1 in by correct idx */
-	bounds->x1 += end_box->width;
-	bounds->y1 += end_box->height;
+
+	/* adjust x0 based on start_idx offset in start_box */
+	if (start_box != NULL) {
+		bounds->x0 += start_box->padding[LEFT];
+		if (start_box->text != NULL && start_idx > start_box->byte_offset &&
+			guit != NULL && guit->layout != NULL && guit->layout->width != NULL) {
+			unsigned start_off = start_idx - start_box->byte_offset;
+			const css_computed_style *style = start_box->style;
+			if (style == NULL && start_box->parent != NULL) {
+				style = start_box->parent->style;
+			}
+			if (style != NULL) {
+				plot_font_style_t fstyle;
+				int width = 0;
+				font_plot_style_from_css(&htmlc->unit_len_ctx, style, &fstyle);
+				if (start_off > start_box->length) {
+					start_off = start_box->length;
+				}
+				if (start_off > 0) {
+					if (guit->layout->width(&fstyle, start_box->text, start_off, &width) == NSERROR_OK) {
+						bounds->x0 += width;
+					}
+				}
+			}
+		}
+	}
+
+	/* adjust x1 based on end_idx offset in end_box */
+	if (end_box != NULL) {
+		bounds->x1 += end_box->padding[LEFT];
+		if (end_box->text != NULL && end_idx >= end_box->byte_offset &&
+			guit != NULL && guit->layout != NULL && guit->layout->width != NULL) {
+			unsigned end_off = end_idx - end_box->byte_offset;
+			const css_computed_style *style = end_box->style;
+			if (style == NULL && end_box->parent != NULL) {
+				style = end_box->parent->style;
+			}
+			if (style != NULL) {
+				plot_font_style_t fstyle;
+				int width = 0;
+				font_plot_style_from_css(&htmlc->unit_len_ctx, style, &fstyle);
+				if (end_off <= end_box->length) {
+					if (guit->layout->width(&fstyle, end_box->text, end_off, &width) == NSERROR_OK) {
+						bounds->x1 += width;
+					} else {
+						bounds->x1 += end_box->width;
+					}
+				} else {
+					bounds->x1 += end_box->width + ((end_box->type == BOX_TEXT && end_box->space != 0) ? end_box->space : 0);
+				}
+			} else {
+				bounds->x1 += end_box->width;
+			}
+		} else {
+			bounds->x1 += end_box->width;
+		}
+		bounds->y1 += end_box->padding[TOP] + end_box->height + end_box->padding[BOTTOM];
+	}
 
 	return NSERROR_OK;
 }
