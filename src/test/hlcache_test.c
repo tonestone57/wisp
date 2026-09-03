@@ -102,6 +102,59 @@ static const struct content_handler dummy_handler = {
     .type = dummy_type,
 };
 
+static int mock_reformat_count = 0;
+static int mock_reformat_w = 0;
+static int mock_reformat_h = 0;
+
+static void mock_reformat_cb(struct content *c, int width, int height)
+{
+    (void)c;
+    mock_reformat_count++;
+    mock_reformat_w = width;
+    mock_reformat_h = height;
+}
+
+static nserror reformat_dummy_create(const struct content_handler *handler,
+        lwc_string *imime_type, const struct http_parameter *params,
+        struct llcache_handle *llcache, const char *fallback_charset,
+        bool quirks, struct content **c)
+{
+    (void)imime_type; (void)params;
+    (void)fallback_charset; (void)quirks;
+    struct content *content = calloc(1, sizeof(struct content));
+    if (!content) return NSERROR_NOMEM;
+    content->handler = handler;
+    lwc_intern_string("image/svg+xml", 13, &content->mime_type);
+    content->llcache = llcache;
+    llcache_handle_change_callback(content->llcache, dummy_llcache_callback, content);
+    content->user_list = calloc(1, sizeof(struct content_user));
+    content->status = CONTENT_STATUS_DONE;
+    content->available_width = -1;
+    content->available_height = -1;
+    *c = content;
+    return NSERROR_OK;
+}
+
+static const struct content_handler reformat_handler = {
+    .create = reformat_dummy_create,
+    .type = dummy_type,
+    .reformat = mock_reformat_cb,
+};
+
+static int user_reformat_msg_count = 0;
+static bool user_reformat_bg_val = false;
+
+static void mock_content_user_cb(struct content *c, content_msg msg, const union content_msg_data *data, void *pw)
+{
+    (void)c; (void)pw;
+    if (msg == CONTENT_MSG_REFORMAT) {
+        user_reformat_msg_count++;
+        if (data != NULL) {
+            user_reformat_bg_val = data->background;
+        }
+    }
+}
+
 static nserror dummy_callback(hlcache_handle *handle, const hlcache_event *event, void *pw)
 {
     (void)handle; (void)event; (void)pw;
@@ -359,6 +412,106 @@ START_TEST(test_hlcache_finalise_with_pending_retrieval_ctx)
 }
 END_TEST
 
+START_TEST(test_content_reformat)
+{
+    guit = &mock_gui_table;
+    guit->llcache = filesystem_llcache_table;
+    guit->file = default_file_table;
+
+    /* Check NULL handle capability */
+    ck_assert(!content_can_reformat(NULL));
+
+    /* Register handler with NO reformat callback */
+    content_factory_register_handler("image/svg+xml", &dummy_handler);
+
+    struct hlcache_parameters params = {
+        .bg_clean_time = 10000,
+        .llcache = {
+            .limit = 1024 * 1024,
+        },
+    };
+
+    nserror error = hlcache_initialise(&params);
+    ck_assert_int_eq(error, NSERROR_OK);
+
+    uint8_t data1[32] = "<svg><polygon/></svg>";
+    hlcache_handle *handle_no_reformat = NULL;
+    hlcache_retrieve_options opts = {
+        .accepted_types = CONTENT_IMAGE
+    };
+    error = hlcache_handle_retrieve_buffer(data1, strlen((char *)data1), "image/svg+xml", &opts, dummy_callback, NULL, &handle_no_reformat);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(handle_no_reformat);
+    pump_scheduled();
+
+    /* Handler without reformat function returns false for content_can_reformat */
+    ck_assert(!content_can_reformat(handle_no_reformat));
+
+    /* Release first handle */
+    ck_assert_int_eq(hlcache_handle_release(handle_no_reformat), NSERROR_OK);
+    hlcache_stop();
+    hlcache_finalise();
+
+    /* Register handler WITH reformat callback */
+    mock_reformat_count = 0;
+    mock_reformat_w = 0;
+    mock_reformat_h = 0;
+    user_reformat_msg_count = 0;
+    user_reformat_bg_val = false;
+
+    content_factory_register_handler("image/svg+xml", &reformat_handler);
+
+    error = hlcache_initialise(&params);
+    ck_assert_int_eq(error, NSERROR_OK);
+
+    uint8_t data2[32] = "<svg><polyline/></svg>";
+    hlcache_handle *handle = NULL;
+    error = hlcache_handle_retrieve_buffer(data2, strlen((char *)data2), "image/svg+xml", &opts, dummy_callback, NULL, &handle);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(handle);
+    pump_scheduled();
+
+    /* Handler with reformat function returns true for content_can_reformat */
+    ck_assert(content_can_reformat(handle));
+
+    struct content *c = hlcache_handle_get_content(handle);
+    ck_assert_ptr_nonnull(c);
+
+    /* Add content user to verify CONTENT_MSG_REFORMAT broadcast */
+    ck_assert(content_add_user(c, mock_content_user_cb, NULL));
+
+    /* First reformat: background=true, 800x600 */
+    content_reformat(handle, true, 800, 600);
+    ck_assert_int_eq(mock_reformat_count, 1);
+    ck_assert_int_eq(mock_reformat_w, 800);
+    ck_assert_int_eq(mock_reformat_h, 600);
+    ck_assert_int_eq(user_reformat_msg_count, 1);
+    ck_assert(user_reformat_bg_val == true);
+    ck_assert_int_eq(content_get_available_width(handle), 800);
+
+    /* Second reformat with identical dimensions: should return early (no reformat callback or broadcast) */
+    content_reformat(handle, false, 800, 600);
+    ck_assert_int_eq(mock_reformat_count, 1);
+    ck_assert_int_eq(user_reformat_msg_count, 1);
+
+    /* Third reformat with new dimensions: background=false, 1024x768 */
+    content_reformat(handle, false, 1024, 768);
+    ck_assert_int_eq(mock_reformat_count, 2);
+    ck_assert_int_eq(mock_reformat_w, 1024);
+    ck_assert_int_eq(mock_reformat_h, 768);
+    ck_assert_int_eq(user_reformat_msg_count, 2);
+    ck_assert(user_reformat_bg_val == false);
+    ck_assert_int_eq(content_get_available_width(handle), 1024);
+
+    /* Cleanup */
+    content_remove_user(c, mock_content_user_cb, NULL);
+    ck_assert_int_eq(hlcache_handle_release(handle), NSERROR_OK);
+
+    hlcache_stop();
+    hlcache_finalise();
+}
+END_TEST
+
 static Suite *hlcache_suite(void)
 {
     Suite *s = suite_create("hlcache");
@@ -370,6 +523,7 @@ static Suite *hlcache_suite(void)
     tcase_add_test(tc_core, test_hlcache_abort_and_replace_callback);
     tcase_add_test(tc_core, test_hlcache_sync_result_populated_during_catchup);
     tcase_add_test(tc_core, test_hlcache_finalise_with_pending_retrieval_ctx);
+    tcase_add_test(tc_core, test_content_reformat);
     suite_add_tcase(s, tc_core);
 
     return s;
