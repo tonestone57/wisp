@@ -2616,6 +2616,9 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 	}
 
 	/* position cells */
+	int total_rows = 0;
+	int total_row_height = 0;
+
 	table_height = border_spacing_v + table->padding[TOP];
 	for (row_group = table->children; row_group; row_group = row_group->next) {
 		int row_group_height = 0;
@@ -2628,6 +2631,8 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 
 		for (row = row_group->children; row; row = row->next) {
 			int row_height = 0;
+
+			total_rows++;
 
 			if (row->style == NULL) {
 				continue;
@@ -2748,6 +2753,7 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 			row->width = table_width;
 			row->height = row_height;
 			row_group_height += row_height + border_spacing_v;
+			total_row_height += row_height;
 		}
 		row_group->x = 0;
 		row_group->y = table_height;
@@ -2762,16 +2768,6 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 	int extra_height = table_height - content_table_height;
 
 	if (extra_height > 0) {
-		int total_rows = 0;
-		int total_row_height = 0;
-
-		for (row_group = table->children; row_group != NULL; row_group = row_group->next) {
-			for (row = row_group->children; row != NULL; row = row->next) {
-				total_rows++;
-				total_row_height += row->height;
-			}
-		}
-
 		if (total_rows > 0) {
 			int *row_extras = malloc(total_rows * sizeof(int));
 			if (row_extras != NULL) {
