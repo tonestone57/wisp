@@ -5745,21 +5745,15 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	static_left = cx + box->x;
 	static_top = cy + box->y;
 
-	if (containing_block->type == BOX_BLOCK || containing_block->type == BOX_INLINE_BLOCK ||
-		containing_block->type == BOX_TABLE_CELL || containing_block->type == BOX_FLEX ||
-		containing_block->type == BOX_INLINE_FLEX || containing_block->type == BOX_GRID ||
-		containing_block->type == BOX_INLINE_GRID) {
-		/* Block level container => temporarily increase containing
-		 * block dimensions to include padding (we restore this
-		 * again at the end) */
-		if (containing_block->width != AUTO && containing_block->width != UNKNOWN_WIDTH) {
-			containing_block->width += containing_block->padding[LEFT] + containing_block->padding[RIGHT];
-			adjusted_width = true;
-		}
-		if (containing_block->height != AUTO) {
-			containing_block->height += containing_block->padding[TOP] + containing_block->padding[BOTTOM];
-			adjusted_height = true;
-		}
+	/* Temporarily increase containing block dimensions (block or inline)
+	 * to include padding for absolute positioning (restored below) */
+	if (containing_block->width != AUTO && containing_block->width != UNKNOWN_WIDTH) {
+		containing_block->width += containing_block->padding[LEFT] + containing_block->padding[RIGHT];
+		adjusted_width = true;
+	}
+	if (containing_block->height != AUTO) {
+		containing_block->height += containing_block->padding[TOP] + containing_block->padding[BOTTOM];
+		adjusted_height = true;
 	}
 
 	/* Capture available_width AFTER padding adjustment */
@@ -5965,14 +5959,9 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 	 * Per CSS 2.1 §10.1, box->x/y are relative to the containing block. */
 	box->abs_containing_block = containing_block;
 	box->x = left + margin[LEFT] + border[LEFT].width;
-	if (containing_block->type == BOX_BLOCK || containing_block->type == BOX_INLINE_BLOCK ||
-		containing_block->type == BOX_TABLE_CELL || containing_block->type == BOX_FLEX ||
-		containing_block->type == BOX_INLINE_FLEX || containing_block->type == BOX_GRID ||
-		containing_block->type == BOX_INLINE_GRID) {
-		/* Block-level ancestor => reset container's width */
+	if (adjusted_width) {
 		containing_block->width -= containing_block->padding[LEFT] + containing_block->padding[RIGHT];
-	} else {
-		/** \todo inline ancestors */
+		adjusted_width = false;
 	}
 	box->width = width;
 	box->height = height;
@@ -6081,9 +6070,11 @@ static bool layout_absolute(struct box *box, struct box *containing_block, int c
 
 	if (adjusted_width) {
 		containing_block->width -= containing_block->padding[LEFT] + containing_block->padding[RIGHT];
+		adjusted_width = false;
 	}
 	if (adjusted_height) {
 		containing_block->height -= containing_block->padding[TOP] + containing_block->padding[BOTTOM];
+		adjusted_height = false;
 	}
 	box->height = (height == AUTO) ? 0 : height;
 	layout_apply_minmax_height(&content->unit_len_ctx, box, containing_block);
