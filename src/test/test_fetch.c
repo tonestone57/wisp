@@ -28,7 +28,11 @@ static nserror test_fetcher_setup(struct fetch *parent_fetch, struct nsurl *url,
 
 static bool test_fetcher_start(void *fetch) { return true; }
 static bool test_fetcher_abort_called = false;
-static void test_fetcher_abort(void *fetch) { test_fetcher_abort_called = true; }
+static void *test_fetcher_abort_handle = NULL;
+static void test_fetcher_abort(void *fetch) {
+    test_fetcher_abort_called = true;
+    test_fetcher_abort_handle = fetch;
+}
 
 static bool test_fetcher_free_called = false;
 static void test_fetcher_free(void *fetch) {
@@ -109,6 +113,43 @@ START_TEST(test_fetch_free_failure)
 }
 END_TEST
 
+START_TEST(test_fetch_abort_after_data)
+{
+    setup_test_fetcher();
+    nsurl *url;
+    nsurl_create("http://example.com/abort_after_data", &url);
+
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
+
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    /* Simulate sending header and data messages prior to abort */
+    fetch_msg header_msg = { .type = FETCH_HEADER, .data = { .header_or_data = { .buf = (uint8_t *)"HTTP/1.1 200 OK\r\n", .len = 17 } } };
+    fetch_send_callback(&header_msg, f);
+    ck_assert_int_eq(test_callback_msg_type, FETCH_HEADER);
+
+    fetch_msg data_msg = { .type = FETCH_DATA, .data = { .header_or_data = { .buf = (uint8_t *)"data", .len = 4 } } };
+    fetch_send_callback(&data_msg, f);
+    ck_assert_int_eq(test_callback_msg_type, FETCH_DATA);
+
+    test_fetcher_abort_called = false;
+    test_fetcher_abort_handle = NULL;
+
+    /* Abort in-progress fetch */
+    fetch_abort(f);
+
+    ck_assert_int_eq(test_fetcher_abort_called, true);
+    ck_assert_ptr_eq(test_fetcher_abort_handle, (void *)0x1234);
+
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+
+    nsurl_unref(url);
+}
+END_TEST
+
 START_TEST(test_fetch_free_success)
 {
     setup_test_fetcher();
@@ -147,11 +188,9 @@ END_TEST
 START_TEST(test_fetch_abort_success)
 {
     setup_test_fetcher();
-    // Setup lwc and nsurl first
     nsurl *url;
     nsurl_create("http://example.com/abort", &url);
 
-    // Create a fetch object
     struct fetch *f = NULL;
     nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
 
@@ -159,10 +198,89 @@ START_TEST(test_fetch_abort_success)
     ck_assert_ptr_ne(f, NULL);
 
     test_fetcher_abort_called = false;
+    test_fetcher_abort_handle = NULL;
+
+    fetch_abort(f);
+
+    /* Verify abort callback was called with the fetcher handle created during setup */
+    ck_assert_int_eq(test_fetcher_abort_called, true);
+    ck_assert_ptr_eq(test_fetcher_abort_handle, (void *)0x1234);
+
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+
+    nsurl_unref(url);
+}
+END_TEST
+
+START_TEST(test_fetch_abort_then_free)
+{
+    setup_test_fetcher();
+    nsurl *url;
+    nsurl_create("http://example.com/abort_free", &url);
+
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
+
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    test_fetcher_abort_called = false;
+    test_fetcher_abort_handle = NULL;
+    test_callback_called = false;
+    test_fetcher_free_called = false;
+
+    /* Abort the fetch */
     fetch_abort(f);
 
     ck_assert_int_eq(test_fetcher_abort_called, true);
-    // ck_assert_int_eq(f->last_msg, FETCH__INTERNAL_ABORTED); struct fetch is opaque here
+    ck_assert_ptr_eq(test_fetcher_abort_handle, (void *)0x1234);
+
+    /* Freeing an aborted fetch should NOT trigger an extra error callback because last_msg is set to
+       FETCH__INTERNAL_ABORTED (FETCH_ERROR >= FETCH_MIN_FINISHED_MSG), but it must free the fetcher */
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+
+    ck_assert_int_eq(test_callback_called, false);
+    ck_assert_int_eq(test_fetcher_free_called, true);
+
+    nsurl_unref(url);
+}
+END_TEST
+
+static bool pipeline_callback_called = false;
+static void test_pipeline_callback(const struct fetch_response *res, void *p)
+{
+    pipeline_callback_called = true;
+}
+
+START_TEST(test_fetch_abort_pipeline)
+{
+    setup_test_fetcher();
+    nsurl *url;
+    nsurl_create("http://example.com/abort_pipeline", &url);
+
+    struct fetch_request req = {
+        .url = url,
+        .method = "GET",
+        .postdata = NULL,
+        .headers = NULL,
+        .no_cache = false
+    };
+
+    struct fetch *f = NULL;
+    pipeline_callback_called = false;
+    test_fetcher_abort_called = false;
+
+    nserror err = fetch_pipeline_start(&req, test_pipeline_callback, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    /* Abort the pipeline fetch directly */
+    fetch_abort(f);
+
+    ck_assert_int_eq(test_fetcher_abort_called, true);
+    ck_assert_ptr_eq(test_fetcher_abort_handle, (void *)0x1234);
 
     fetch_remove_from_queues(f);
     fetch_free(f);
@@ -600,6 +718,9 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_core, test_fetch_free_failure);
     tcase_add_test(tc_core, test_fetch_free_success);
     tcase_add_test(tc_core, test_fetch_abort_success);
+    tcase_add_test(tc_core, test_fetch_abort_then_free);
+    tcase_add_test(tc_core, test_fetch_abort_pipeline);
+    tcase_add_test(tc_core, test_fetch_abort_after_data);
     suite_add_tcase(s, tc_core);
 
     TCase *tc_cookie = tcase_create("Cookie");
