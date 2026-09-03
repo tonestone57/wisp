@@ -2907,6 +2907,11 @@ bool html_exec(struct content *c, const char *src, size_t srclen)
 	dom_node *spare_node;
 	dom_html_script_element *script_node;
 
+	if (htmlc == NULL || !htmlc->enable_scripting) {
+		NSLOG(wisp, INFO, "Unable to exec, scripting disabled or null content");
+		return false;
+	}
+
 	if (htmlc->document == NULL) {
 		NSLOG(wisp, WARNING, "Unable to exec, no document");
 		goto out_no_string;
