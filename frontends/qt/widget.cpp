@@ -524,6 +524,8 @@ void NS_Widget::contextMenuEvent(QContextMenuEvent *event)
         m_contextmenu->addAction(m_actions->m_page_save);
         m_contextmenu->addSeparator();
         m_contextmenu->addAction(m_actions->m_page_source);
+        m_contextmenu->addAction(m_actions->m_debug_dom_tree);
+        m_contextmenu->addAction(m_actions->m_debug_box_tree);
     } else {
         bool prev = false; // have there been previous menu entries
         if (features.link != NULL) {
@@ -561,7 +563,13 @@ void NS_Widget::contextMenuEvent(QContextMenuEvent *event)
             m_contextmenu->addAction(m_actions->m_sel_copy);
             m_contextmenu->addAction(m_actions->m_sel_search);
         }
-        /** @todo are there any additional entries like "inspect" */
+        /* inspect / developer tools entries */
+        if (prev) {
+            m_contextmenu->addSeparator();
+        }
+        m_contextmenu->addAction(m_actions->m_page_source);
+        m_contextmenu->addAction(m_actions->m_debug_dom_tree);
+        m_contextmenu->addAction(m_actions->m_debug_box_tree);
     }
     m_contextmenu->popup(event->globalPos());
 }
