@@ -96,20 +96,24 @@ static plot_font_style_t plot_fstyle_entry = {
  * Convert a string from UTF-8 to the specified charset
  * As a final fallback, this will attempt to convert to ISO-8859-1.
  *
- * \todo Return charset used?
- *
  * \param item String to convert
  * \param len Length of string to convert
  * \param charset Destination charset
  * \param fallback Fallback charset (may be NULL),
  *                 used iff converting to charset fails
+ * \param[out] used_charset Final charset used (may be NULL)
  * \return Pointer to converted string (on heap, caller frees), or NULL
  */
-static char *form_encode_item(const char *item, uint32_t len, const char *charset, const char *fallback)
+static char *form_encode_item(const char *item, uint32_t len, const char *charset, const char *fallback,
+    const char **used_charset)
 {
     nserror err;
     char *ret = NULL;
     char cset[256];
+    const char *final_charset = NULL;
+
+    if (used_charset != NULL)
+        *used_charset = NULL;
 
     if (!item || !charset)
         return NULL;
@@ -117,36 +121,56 @@ static char *form_encode_item(const char *item, uint32_t len, const char *charse
     snprintf(cset, sizeof cset, "%s//TRANSLIT", charset);
 
     err = utf8_to_enc(item, cset, 0, &ret);
-    if (err == NSERROR_BAD_ENCODING) {
+    if (err == NSERROR_OK) {
+        final_charset = charset;
+    } else if (err == NSERROR_BAD_ENCODING) {
         /* charset not understood, try without transliteration */
         snprintf(cset, sizeof cset, "%s", charset);
         err = utf8_to_enc(item, cset, len, &ret);
 
-        if (err == NSERROR_BAD_ENCODING) {
+        if (err == NSERROR_OK) {
+            final_charset = charset;
+        } else if (err == NSERROR_BAD_ENCODING) {
             /* nope, try fallback charset (if any) */
             if (fallback) {
                 snprintf(cset, sizeof cset, "%s//TRANSLIT", fallback);
                 err = utf8_to_enc(item, cset, 0, &ret);
 
-                if (err == NSERROR_BAD_ENCODING) {
+                if (err == NSERROR_OK) {
+                    final_charset = fallback;
+                } else if (err == NSERROR_BAD_ENCODING) {
                     /* and without transliteration */
                     snprintf(cset, sizeof cset, "%s", fallback);
                     err = utf8_to_enc(item, cset, 0, &ret);
+
+                    if (err == NSERROR_OK) {
+                        final_charset = fallback;
+                    }
                 }
             }
 
             if (err == NSERROR_BAD_ENCODING) {
                 /* that also failed, use 8859-1 */
                 err = utf8_to_enc(item, "ISO-8859-1//TRANSLIT", 0, &ret);
-                if (err == NSERROR_BAD_ENCODING) {
+                if (err == NSERROR_OK) {
+                    final_charset = "ISO-8859-1";
+                } else if (err == NSERROR_BAD_ENCODING) {
                     /* and without transliteration */
                     err = utf8_to_enc(item, "ISO-8859-1", 0, &ret);
+                    if (err == NSERROR_OK) {
+                        final_charset = "ISO-8859-1";
+                    }
                 }
             }
         }
     }
-    if (err == NSERROR_NOMEM) {
+
+    if (err == NSERROR_NOMEM || ret == NULL) {
         return NULL;
+    }
+
+    if (used_charset != NULL) {
+        *used_charset = final_charset;
     }
 
     return ret;
@@ -232,7 +256,7 @@ static nserror fetch_data_list_add(dom_string *name, dom_string *value, const ch
     }
 
     fetch_data->name = form_encode_item(
-        dom_string_data(name), dom_string_byte_length(name), form_charset, docu_charset);
+        dom_string_data(name), dom_string_byte_length(name), form_charset, docu_charset, NULL);
     if (fetch_data->name == NULL) {
         NSLOG(wisp, INFO, "Could not encode name for fetch data");
         free(fetch_data);
@@ -243,7 +267,7 @@ static nserror fetch_data_list_add(dom_string *name, dom_string *value, const ch
         fetch_data->value = strdup("");
     } else {
         fetch_data->value = form_encode_item(
-            dom_string_data(value), dom_string_byte_length(value), form_charset, docu_charset);
+            dom_string_data(value), dom_string_byte_length(value), form_charset, docu_charset, NULL);
     }
     if (fetch_data->value == NULL) {
         NSLOG(wisp, INFO, "Could not encode value for fetch data");
@@ -512,7 +536,7 @@ static nserror form_dom_to_data_input_image(dom_html_input_element *input_elemen
 
     /* encode input name once */
     basename = form_encode_item(
-        dom_string_data(inputname), dom_string_byte_length(inputname), charset, document_charset);
+        dom_string_data(inputname), dom_string_byte_length(inputname), charset, document_charset, NULL);
     if (basename == NULL) {
         NSLOG(wisp, INFO, "Could not encode basename");
         return NSERROR_NOMEM;
