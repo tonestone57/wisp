@@ -404,7 +404,6 @@ add_wisp_test(transform_clip_test
 )
 add_wisp_test(test_form_charset
   ${CMAKE_SOURCE_DIR}/src/test/log.c
-  ${CMAKE_SOURCE_DIR}/src/test/guit_stub.c
   ${CMAKE_SOURCE_DIR}/src/test/test_form_charset.c
 )
 target_link_libraries(test_form_charset PRIVATE wisp)
