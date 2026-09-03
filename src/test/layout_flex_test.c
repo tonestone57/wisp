@@ -2,7 +2,6 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #include <dom/dom.h>
 #include "content/handlers/html/layout.h"
@@ -79,7 +78,6 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 /* Mock CSS styles for test */
 static uint8_t mock_style_flex_grow_0[256]; /* flex-grow: 0 (fixed child) */
 static uint8_t mock_style_flex_grow_1[256]; /* flex-grow: 1 (flex child) */
-static uint8_t mock_style_pct_basis[256];   /* flex-basis: 20% (for two-pass) */
 
 /* Mock css_computed_flex_grow to return values based on style pointer */
 uint8_t css_computed_flex_grow(const css_computed_style *style, css_fixed *grow)
@@ -91,23 +89,6 @@ uint8_t css_computed_flex_grow(const css_computed_style *style, css_fixed *grow)
     /* Default: flex-grow: 0 */
     *grow = 0;
     return CSS_FLEX_GROW_SET;
-}
-
-uint8_t css_computed_flex_basis(const css_computed_style *style, css_fixed_or_calc *length, css_unit *unit)
-{
-    if (style == (const css_computed_style *)mock_style_pct_basis) {
-        length->value = INTTOFIX(20); /* 20% */
-        *unit = CSS_UNIT_PCT;
-        return CSS_FLEX_BASIS_SET;
-    }
-    *unit = CSS_UNIT_PX;
-    length->value = 0;
-    return CSS_FLEX_BASIS_AUTO;
-}
-
-uint8_t css_computed_flex_direction(const css_computed_style *style)
-{
-    return CSS_FLEX_DIRECTION_COLUMN;
 }
 
 /* Now linking against REAL layout_flex.c - provide stubs for its dependencies */
@@ -1009,59 +990,6 @@ START_TEST(test_flex_constraint_caching)
 }
 END_TEST
 
-START_TEST(test_flex_benchmark)
-{
-    struct box *flex = calloc(1, sizeof(struct box));
-    flex->type = BOX_FLEX;
-    flex->width = 300;
-    flex->height = 500;
-    flex->style = (css_computed_style *)mock_style_flex_grow_0;
-
-    const int NUM_ITEMS = 64;
-    struct box *prev = NULL;
-    for (int i = 0; i < NUM_ITEMS; i++) {
-        struct box *child = calloc(1, sizeof(struct box));
-        child->type = BOX_BLOCK;
-        child->style = (css_computed_style *)mock_style_pct_basis;
-        child->width = 100;
-        child->height = 20;
-        if (prev == NULL) {
-            flex->children = child;
-        } else {
-            prev->next = child;
-            child->prev = prev;
-        }
-        child->parent = flex;
-        prev = child;
-    }
-    flex->last = prev;
-
-    html_content content;
-    memset(&content, 0, sizeof(content));
-
-    struct timespec start, end;
-    clock_gettime(CLOCK_MONOTONIC, &start);
-
-    const int ITERATIONS = 5000;
-    for (int iter = 0; iter < ITERATIONS; iter++) {
-        flex->flags |= DIRTY_INTRINSIC;
-        layout_flex(flex, 300, &content);
-    }
-
-    clock_gettime(CLOCK_MONOTONIC, &end);
-    double elapsed = (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9;
-    printf("\n[BENCHMARK] %d iterations over %d items took %.6f seconds (%.3f us/iter)\n",
-           ITERATIONS, NUM_ITEMS, elapsed, (elapsed / ITERATIONS) * 1e6);
-
-    struct box *curr = flex->children;
-    while (curr) {
-        struct box *next = curr->next;
-        free(curr);
-        curr = next;
-    }
-    free(flex);
-}
-END_TEST
 
 /* Test suite setup */
 Suite *layout_flex_suite(void)
@@ -1098,7 +1026,6 @@ Suite *layout_flex_suite(void)
     tcase_add_test(tc_core, test_row_flex_min_height_unchanged);
     tcase_add_test(tc_core, test_flex_null_style_child_safety);
     tcase_add_test(tc_core, test_flex_constraint_caching);
-    tcase_add_test(tc_core, test_flex_benchmark);
 
     suite_add_tcase(s, tc_core);
 
