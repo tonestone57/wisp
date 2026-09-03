@@ -1135,6 +1135,27 @@ static void form_select_menu_scroll_callback(void *client_data, struct scrollbar
 
 
 /**
+ * Safely retrieve the inline text box inside a select form control box.
+ *
+ * \param control The select form control.
+ * \return Pointer to the child BOX_TEXT box, or NULL if unavailable.
+ */
+static struct box *form_select_get_inline_text_box(const struct form_control *control)
+{
+    if (control == NULL || control->box == NULL || control->box->children == NULL) {
+        return NULL;
+    }
+
+    struct box *inline_box = control->box->children->children;
+    if (inline_box != NULL && inline_box->type == BOX_TEXT) {
+        return inline_box;
+    }
+
+    return NULL;
+}
+
+
+/**
  * Process a selection from a form select menu.
  *
  * \param  html The html content handle for the form
@@ -1151,13 +1172,6 @@ static nserror form__select_process_selection(html_content *html, struct form_co
 
     assert(control != NULL);
     assert(html != NULL);
-
-    /**
-     * \todo Even though the form code is effectively part of the html
-     *        content handler, poking around inside contents is not good
-     */
-
-    inline_box = control->box->children->children;
 
     for (count = 0, o = control->data.select.items; o != NULL; count++, o = o->next) {
         if (!control->data.select.multiple && o->selected) {
@@ -1187,26 +1201,33 @@ static nserror form__select_process_selection(html_content *html, struct form_co
         }
     }
 
-    talloc_free(inline_box->text);
-    inline_box->text = 0;
+    inline_box = form_select_get_inline_text_box(control);
+    if (inline_box != NULL) {
+        talloc_free(inline_box->text);
+        inline_box->text = 0;
 
-    if (control->data.select.num_selected == 0) {
-        inline_box->text = arena_strdup(html->bctx, messages_get("Form_None"));
-    } else if (control->data.select.num_selected == 1) {
-        inline_box->text = arena_strdup(html->bctx, control->data.select.current->text);
-    } else {
-        inline_box->text = arena_strdup(html->bctx, messages_get("Form_Many"));
+        if (control->data.select.num_selected == 0) {
+            inline_box->text = arena_strdup(html->bctx, messages_get("Form_None"));
+        } else if (control->data.select.num_selected == 1 && control->data.select.current != NULL) {
+            inline_box->text = arena_strdup(html->bctx, control->data.select.current->text);
+        } else {
+            inline_box->text = arena_strdup(html->bctx, messages_get("Form_Many"));
+        }
+
+        if (!inline_box->text) {
+            ret = NSERROR_NOMEM;
+            inline_box->length = 0;
+        } else {
+            inline_box->length = strlen(inline_box->text);
+        }
+        if (control->box != NULL) {
+            inline_box->width = control->box->width;
+        }
     }
 
-    if (!inline_box->text) {
-        ret = NSERROR_NOMEM;
-        inline_box->length = 0;
-    } else {
-        inline_box->length = strlen(inline_box->text);
+    if (control->box != NULL) {
+        html__redraw_a_box(html, control->box);
     }
-    inline_box->width = control->box->width;
-
-    html__redraw_a_box(html, control->box);
 
     return ret;
 }
