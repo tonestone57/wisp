@@ -166,6 +166,7 @@ font_face_parse_src(css_language *c, const parserutils_vector *vector, int32_t *
     const css_token *token;
     css_font_face_src *srcs = NULL, *new_srcs = NULL;
     uint32_t n_srcs = 0;
+    uint32_t n_alloc = 0;
 
     /* src             ::= spec-or-name [ ',' spec-or-name ]*
      * spec-or-name    ::= font-face-spec | font-face-name
@@ -186,15 +187,17 @@ font_face_parse_src(css_language *c, const parserutils_vector *vector, int32_t *
         if (error != CSS_OK)
             goto cleanup;
 
-        /* This will be inefficient if there are a lot of locations -
-         * probably not a problem in practice.
-         */
-        new_srcs = realloc(srcs, (n_srcs + 1) * sizeof(css_font_face_src));
-        if (new_srcs == NULL) {
-            error = CSS_NOMEM;
-            goto cleanup;
+        if (n_srcs == n_alloc) {
+            uint32_t new_alloc = (n_alloc == 0) ? 4 : n_alloc * 2;
+            new_srcs = realloc(srcs, new_alloc * sizeof(css_font_face_src));
+            if (new_srcs == NULL) {
+                lwc_string_unref(location);
+                error = CSS_NOMEM;
+                goto cleanup;
+            }
+            srcs = new_srcs;
+            n_alloc = new_alloc;
         }
-        srcs = new_srcs;
 
         srcs[n_srcs].location = location;
         srcs[n_srcs].bits[0] = format << 2 | location_type;
@@ -205,13 +208,26 @@ font_face_parse_src(css_language *c, const parserutils_vector *vector, int32_t *
         token = parserutils_vector_iterate(vector, ctx);
     } while (token != NULL && tokenIsChar(token, ','));
 
+    if (n_alloc > n_srcs) {
+        new_srcs = realloc(srcs, n_srcs * sizeof(css_font_face_src));
+        if (new_srcs != NULL) {
+            srcs = new_srcs;
+        }
+    }
+
     error = css__font_face_set_srcs(font_face, srcs, n_srcs);
 
 cleanup:
     if (error != CSS_OK) {
         *ctx = orig_ctx;
-        if (srcs != NULL)
+        if (srcs != NULL) {
+            for (uint32_t i = 0; i < n_srcs; ++i) {
+                if (srcs[i].location != NULL) {
+                    lwc_string_unref(srcs[i].location);
+                }
+            }
             free(srcs);
+        }
     }
 
     return error;
