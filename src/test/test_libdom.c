@@ -457,6 +457,112 @@ START_TEST(test_node_is_active)
 }
 END_TEST
 
+START_TEST(test_node_is_lang)
+{
+    dom_document *doc = NULL;
+    dom_element *parent_el = NULL;
+    dom_element *child_el = NULL;
+    dom_element *empty_lang_el = NULL;
+    dom_string *str_div = NULL;
+    dom_string *str_span = NULL;
+    dom_string *str_lang_en = NULL;
+    dom_string *str_lang_fr = NULL;
+    dom_string *str_empty = NULL;
+    lwc_string *lwc_en = NULL;
+    lwc_string *lwc_fr = NULL;
+    lwc_string *lwc_de = NULL;
+    nscss_select_ctx ctx = { 0 };
+    bool match = false;
+    dom_exception exc;
+    css_error cserr;
+
+    exc = dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, NULL, NULL, NULL, NULL, &doc);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_string_create_interned((const uint8_t *)"div", 3, &str_div);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"span", 4, &str_span);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"en-US", 5, &str_lang_en);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"fr-CA", 5, &str_lang_fr);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_string_create_interned((const uint8_t *)"", 0, &str_empty);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    ck_assert_int_eq(lwc_intern_string("en", 2, &lwc_en), lwc_error_ok);
+    ck_assert_int_eq(lwc_intern_string("FR", 2, &lwc_fr), lwc_error_ok);
+    ck_assert_int_eq(lwc_intern_string("de", 2, &lwc_de), lwc_error_ok);
+
+    exc = dom_document_create_element(doc, str_div, &parent_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_element_set_attribute(parent_el, corestring_dom_lang, str_lang_en);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_document_create_element(doc, str_span, &child_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_node_append_child((dom_node *)parent_el, (dom_node *)child_el, NULL);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_document_create_element(doc, str_span, &empty_lang_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_element_set_attribute(empty_lang_el, corestring_dom_lang, str_empty);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_node_append_child((dom_node *)parent_el, (dom_node *)empty_lang_el, NULL);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    /* 1. NULL handling */
+    cserr = node_is_lang(&ctx, NULL, lwc_en, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    cserr = node_is_lang(&ctx, parent_el, NULL, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 2. Direct attribute matching with subtag prefix dashmatch ("en-US" matches "en") */
+    cserr = node_is_lang(&ctx, parent_el, lwc_en, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* 3. Direct attribute mismatch ("en-US" does not match "de") */
+    cserr = node_is_lang(&ctx, parent_el, lwc_de, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 4. Inherited language matching (child_el has no lang attribute, inherits "en-US" from parent_el) */
+    cserr = node_is_lang(&ctx, child_el, lwc_en, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* 5. Explicit empty lang="" attribute overrides inheritance (empty_lang_el should not match "en") */
+    cserr = node_is_lang(&ctx, empty_lang_el, lwc_en, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, false);
+
+    /* 6. Case insensitivity check ("fr-CA" matches "FR") */
+    exc = dom_element_set_attribute(child_el, corestring_dom_lang, str_lang_fr);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    cserr = node_is_lang(&ctx, child_el, lwc_fr, &match);
+    ck_assert_int_eq(cserr, CSS_OK);
+    ck_assert_int_eq(match, true);
+
+    /* Cleanup */
+    lwc_string_unref(lwc_en);
+    lwc_string_unref(lwc_fr);
+    lwc_string_unref(lwc_de);
+    dom_string_unref(str_div);
+    dom_string_unref(str_span);
+    dom_string_unref(str_lang_en);
+    dom_string_unref(str_lang_fr);
+    dom_string_unref(str_empty);
+    dom_node_unref(parent_el);
+    dom_node_unref(child_el);
+    dom_node_unref(empty_lang_el);
+    dom_node_unref(doc);
+}
+END_TEST
+
 START_TEST(test_node_is_checked)
 {
     dom_document *doc = NULL;
@@ -587,6 +693,7 @@ static Suite *libdom_suite(void)
     tcase_add_test(tc_core, test_node_is_target);
     tcase_add_test(tc_core, test_node_is_active);
     tcase_add_test(tc_core, test_node_is_checked);
+    tcase_add_test(tc_core, test_node_is_lang);
     suite_add_tcase(s, tc_core);
 
     return s;

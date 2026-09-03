@@ -850,7 +850,53 @@ static css_error snap_node_is_target(void *pw, void *node, bool *match) {
 }
 
 static css_error snap_node_is_lang(void *pw, void *node, lwc_string *lang, bool *match) {
+    style_snapshot_t *curr = node;
+
     *match = false;
+
+    if (node == NULL || lang == NULL) {
+        return CSS_OK;
+    }
+
+    size_t lang_len = lwc_string_length(lang);
+    if (lang_len == 0) {
+        return CSS_OK;
+    }
+
+    const char *lang_data = lwc_string_data(lang);
+
+    while (curr != NULL) {
+        for (uint32_t i = 0; i < curr->n_attrs; i++) {
+            bool is_lang_attr = dom_string_caseless_lwc_isequal(corestring_dom_lang, curr->attrs[i].name_lwc);
+            bool is_xml_lang_attr = false;
+
+            if (!is_lang_attr) {
+                is_xml_lang_attr = dom_string_caseless_lwc_isequal(corestring_dom_xml_lang, curr->attrs[i].name_lwc);
+            }
+
+            if (is_lang_attr || is_xml_lang_attr) {
+                const char *val_data = lwc_string_data(curr->attrs[i].value_lwc);
+                size_t val_len = lwc_string_length(curr->attrs[i].value_lwc);
+
+                if (val_len == 0) {
+                    /* An explicit empty lang="" attribute overrides inherited language */
+                    return CSS_OK;
+                }
+
+                if (val_len == lang_len && strncasecmp(val_data, lang_data, lang_len) == 0) {
+                    *match = true;
+                } else if (val_len > lang_len && val_data[lang_len] == '-' &&
+                           strncasecmp(val_data, lang_data, lang_len) == 0) {
+                    *match = true;
+                }
+
+                return CSS_OK;
+            }
+        }
+
+        curr = curr->parent;
+    }
+
     return CSS_OK;
 }
 

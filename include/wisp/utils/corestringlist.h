@@ -271,6 +271,7 @@ CORESTRING_DOM_STRING(id);
 CORESTRING_DOM_STRING(input);
 CORESTRING_DOM_STRING(invalid);
 CORESTRING_DOM_STRING(keydown);
+CORESTRING_DOM_STRING(lang);
 CORESTRING_DOM_STRING(keypress);
 CORESTRING_DOM_STRING(keyup);
 CORESTRING_DOM_STRING(link);
@@ -395,6 +396,7 @@ CORESTRING_DOM_STRING(__ns_key_style_cache_data);
 
 /* unusual DOM strings */
 CORESTRING_DOM_VALUE(text_javascript, "text/javascript");
+CORESTRING_DOM_VALUE(xml_lang, "xml:lang");
 CORESTRING_DOM_VALUE(http_equiv, "http-equiv");
 CORESTRING_DOM_VALUE(html_namespace, "http://www.w3.org/1999/xhtml");
 

@@ -1825,9 +1825,67 @@ css_error node_is_target(void *pw, void *node, bool *match)
  */
 css_error node_is_lang(void *pw, void *node, lwc_string *lang, bool *match)
 {
-    /** \todo Support languages */
+    dom_node *curr = NULL;
+    dom_exception err;
 
     *match = false;
+
+    if (node == NULL || lang == NULL) {
+        return CSS_OK;
+    }
+
+    size_t lang_len = lwc_string_length(lang);
+    if (lang_len == 0) {
+        return CSS_OK;
+    }
+
+    const char *lang_data = lwc_string_data(lang);
+
+    curr = dom_node_ref((dom_node *)node);
+    while (curr != NULL) {
+        dom_node_type type;
+
+        err = dom_node_get_node_type(curr, &type);
+        if (err == DOM_NO_ERR && type == DOM_ELEMENT_NODE) {
+            dom_string *atr_val = NULL;
+
+            err = dom_element_get_attribute(curr, corestring_dom_lang, &atr_val);
+            if (err != DOM_NO_ERR || atr_val == NULL) {
+                err = dom_element_get_attribute(curr, corestring_dom_xml_lang, &atr_val);
+            }
+
+            if (err == DOM_NO_ERR && atr_val != NULL) {
+                const char *val_data = (const char *)dom_string_data(atr_val);
+                size_t val_len = dom_string_byte_length(atr_val);
+
+                if (val_len == 0) {
+                    /* An explicit empty lang="" attribute overrides inherited language */
+                    dom_string_unref(atr_val);
+                    dom_node_unref(curr);
+                    return CSS_OK;
+                }
+
+                if (val_len == lang_len && strncasecmp(val_data, lang_data, lang_len) == 0) {
+                    *match = true;
+                } else if (val_len > lang_len && val_data[lang_len] == '-' &&
+                           strncasecmp(val_data, lang_data, lang_len) == 0) {
+                    *match = true;
+                }
+
+                dom_string_unref(atr_val);
+                dom_node_unref(curr);
+                return CSS_OK;
+            }
+        }
+
+        dom_node *parent = NULL;
+        err = dom_node_get_parent_node(curr, &parent);
+        dom_node_unref(curr);
+        if (err != DOM_NO_ERR) {
+            break;
+        }
+        curr = parent;
+    }
 
     return CSS_OK;
 }
