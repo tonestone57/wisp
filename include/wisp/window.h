@@ -80,10 +80,7 @@ enum gui_window_event {
 
     /**
      * Update the extent of the inside of a browser window to that of the
-     * current content.
-     *
-     * @todo this is used to update scroll bars does it need
-     * renaming? some frontends (windows) do not even implement it.
+     * current content (e.g. updating scrollbars/scroll bounds).
      */
     GW_EVENT_UPDATE_EXTENT,
 
