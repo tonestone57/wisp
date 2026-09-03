@@ -998,6 +998,23 @@ START_TEST(urldb_overlong_host_test)
 }
 END_TEST
 
+START_TEST(urldb_ipv6_addr_parse_test)
+{
+    /* Test normal IPv6 address detection */
+    ck_assert(urldb_host_is_ip_address("[2001:db8:85a3::8a2e:370:7334]") == true);
+
+    /* Test maximum-length valid IPv6 address in brackets (45 characters inside brackets, e.g. IPv4-mapped IPv6) */
+    ck_assert(urldb_host_is_ip_address("[0000:0000:0000:0000:0000:ffff:192.168.255.255]") == true);
+
+    /* Test overlong IPv6 string exceeding 64 bytes inside brackets */
+    char overlong_ipv6[128];
+    memset(overlong_ipv6, 'a', sizeof(overlong_ipv6));
+    overlong_ipv6[0] = '[';
+    overlong_ipv6[126] = ']';
+    overlong_ipv6[127] = '\0';
+    ck_assert(urldb_host_is_ip_address(overlong_ipv6) == false);
+}
+END_TEST
 
 static TCase *urldb_case_create(void)
 {
@@ -1021,6 +1038,7 @@ static TCase *urldb_case_create(void)
     tcase_add_test(tc, urldb_persistence_test);
     tcase_add_test(tc, urldb_hsts_preload_test);
     tcase_add_test(tc, urldb_overlong_host_test);
+    tcase_add_test(tc, urldb_ipv6_addr_parse_test);
 
     return tc;
 }

@@ -697,7 +697,7 @@ static bool urldb__host_is_ip_address(const char *host)
     if (ipv6_addr_len >= sizeof(ipv6_addr)) {
         ipv6_addr_len = sizeof(ipv6_addr) - 1;
     }
-    strncpy(ipv6_addr, host + 1, ipv6_addr_len);
+    memcpy(ipv6_addr, host + 1, ipv6_addr_len);
     ipv6_addr[ipv6_addr_len] = '\0';
 
     if (inet_pton(AF_INET6, ipv6_addr, &ipv6) == 1)
