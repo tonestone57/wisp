@@ -5269,6 +5269,130 @@ JSValue wisp_htmltimeelement_dateTime_set_impl(JSContext *ctx, QJSNodePrivate *p
 // HTMLLabelElement Implementation (4 stubs)
 // -----------------------------------------------------------------------------
 
+static uint32_t shm_find_first_labelable_descendant(shm_dom_t *shm, uint32_t parent_id)
+{
+    if (!shm) return 0;
+    WispCompactNode *nodes = shm_dom_get_nodes(shm);
+    WispNodeStrings *strings = shm_dom_get_node_strings(shm);
+    uint32_t curr = nodes[parent_id].first_child_id;
+    while (curr != 0) {
+        if (nodes[curr].node_type == 1) { // Element node
+            const char *tag = wisp_string_ref_data(shm, strings[curr].tag_name);
+            if (tag) {
+                bool is_labelable = false;
+                if (strcasecmp(tag, "input") == 0) {
+                    bool is_hidden = false;
+                    uint32_t limit = strings[curr].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings[curr].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                    for (uint32_t j = 0; j < limit; j++) {
+                        if (wisp_string_ref_caseeq(shm, strings[curr].attrs[j].name, "type")) {
+                            if (wisp_string_ref_caseeq(shm, strings[curr].attrs[j].value, "hidden")) {
+                                is_hidden = true;
+                            }
+                            break;
+                        }
+                    }
+                    if (!is_hidden) is_labelable = true;
+                } else if (strcasecmp(tag, "select") == 0 ||
+                           strcasecmp(tag, "textarea") == 0 ||
+                           strcasecmp(tag, "button") == 0) {
+                    is_labelable = true;
+                }
+                if (is_labelable) {
+                    return curr;
+                }
+            }
+            uint32_t descendant = shm_find_first_labelable_descendant(shm, curr);
+            if (descendant != 0) return descendant;
+        }
+        curr = nodes[curr].next_sibling_id;
+    }
+    return 0;
+}
+
+static dom_node *libdom_find_first_labelable_descendant(dom_node *parent)
+{
+    if (!parent) return NULL;
+    dom_node *child = NULL;
+    dom_node_get_first_child(parent, &child);
+    while (child) {
+        dom_node_type type;
+        dom_node_get_node_type(child, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            dom_string *tag_name = NULL;
+            dom_node_get_node_name(child, &tag_name);
+            if (tag_name) {
+                const char *tag_str = (const char *)dom_string_data(tag_name);
+                bool is_labelable = false;
+                if (strcasecmp(tag_str, "input") == 0) {
+                    dom_string *attr_name = NULL;
+                    dom_string *type_val = NULL;
+                    dom_string_create((const uint8_t *)"type", 4, &attr_name);
+                    dom_element_get_attribute((dom_element *)child, attr_name, &type_val);
+                    dom_string_unref(attr_name);
+                    if (type_val) {
+                        const char *t = (const char *)dom_string_data(type_val);
+                        if (strcasecmp(t, "hidden") != 0) {
+                            is_labelable = true;
+                        }
+                        dom_string_unref(type_val);
+                    } else {
+                        is_labelable = true;
+                    }
+                } else if (strcasecmp(tag_str, "select") == 0 ||
+                           strcasecmp(tag_str, "textarea") == 0 ||
+                           strcasecmp(tag_str, "button") == 0) {
+                    is_labelable = true;
+                }
+                dom_string_unref(tag_name);
+
+                if (is_labelable) {
+                    return child;
+                }
+            }
+            dom_node *descendant = libdom_find_first_labelable_descendant(child);
+            if (descendant) {
+                dom_node_unref(child);
+                return descendant;
+            }
+        }
+        dom_node *next = NULL;
+        dom_node_get_next_sibling(child, &next);
+        dom_node_unref(child);
+        child = next;
+    }
+    return NULL;
+}
+
+static void collect_labels_libdom(dom_node *parent, dom_node **list, int *count, int max_count)
+{
+    if (!parent) return;
+    dom_node *child = NULL;
+    dom_node_get_first_child(parent, &child);
+    while (child) {
+        dom_node_type type;
+        dom_node_get_node_type(child, &type);
+        if (type == DOM_ELEMENT_NODE) {
+            dom_string *tag_name = NULL;
+            dom_node_get_node_name(child, &tag_name);
+            if (tag_name) {
+                if (strcasecmp((const char *)dom_string_data(tag_name), "label") == 0) {
+                    if (list && *count < max_count) {
+                        dom_node_ref(child);
+                        list[*count] = child;
+                    }
+                    (*count)++;
+                }
+                dom_string_unref(tag_name);
+            }
+            collect_labels_libdom(child, list, count, max_count);
+        }
+        dom_node *next = NULL;
+        dom_node_get_next_sibling(child, &next);
+        dom_node_unref(child);
+        child = next;
+    }
+}
+
 static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
     if (!priv || !priv->node) return JS_NULL;
 
@@ -5288,75 +5412,97 @@ static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
     JSValue labels_arr = JS_NewArray(ctx);
     uint32_t idx = 0;
 
-    JSValue global = JS_GetGlobalObject(ctx);
-    JSValue doc_val = JS_GetPropertyStr(ctx, global, "document");
-    JSValue qsa = JS_GetPropertyStr(ctx, doc_val, "querySelectorAll");
+    JSValue id_val = wisp_element_getAttribute_impl(ctx, priv, "id");
+    const char *id_str = JS_IsString(id_val) ? JS_ToCString(ctx, id_val) : NULL;
 
-    if (JS_IsFunction(ctx, qsa)) {
-        JSValue sel_val = JS_NewString(ctx, "label");
-        JSValue matched = JS_Call(ctx, qsa, doc_val, 1, &sel_val);
-        JS_FreeValue(ctx, sel_val);
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            uint32_t our_id = (uint32_t)(uintptr_t)priv->node;
+            WispCompactNode *nodes = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings = shm_dom_get_node_strings(wisp_shm_dom);
 
-        if (!JS_IsException(matched) && JS_IsObject(matched)) {
-            JSValue len_val = JS_GetPropertyStr(ctx, matched, "length");
-            int32_t len = 0;
-            if (JS_IsNumber(len_val)) JS_ToInt32(ctx, &len, len_val);
-            JS_FreeValue(ctx, len_val);
-
-            JSValue id_val = get_element_str_attr(ctx, priv, "id", NULL);
-            const char *id_str = JS_IsString(id_val) ? JS_ToCString(ctx, id_val) : NULL;
-
-            for (int i = 0; i < len; i++) {
-                JSValue label_item = JS_GetPropertyUint32(ctx, matched, i);
-                if (JS_IsObject(label_item)) {
-                    QJSNodePrivate *lbl_priv = qjs_get_dom_priv(ctx, label_item);
-                    if (lbl_priv) {
-                        bool is_match = false;
-                        JSValue for_val = get_element_str_attr(ctx, lbl_priv, "for", NULL);
-                        if (JS_IsString(for_val)) {
-                            const char *for_str = JS_ToCString(ctx, for_val);
-                            if (for_str && id_str && strcmp(for_str, id_str) == 0) {
-                                is_match = true;
-                            }
-                            if (for_str) JS_FreeCString(ctx, for_str);
-                        } else {
-                            /* Implicit label association: check if label wraps our control */
-                            JSValue qs = JS_GetPropertyStr(ctx, label_item, "querySelector");
-                            if (JS_IsFunction(ctx, qs)) {
-                                JSValue inner_sel = JS_NewString(ctx, "input, select, textarea, button");
-                                JSValue inner_ctrl = JS_Call(ctx, qs, label_item, 1, &inner_sel);
-                                JS_FreeValue(ctx, inner_sel);
-                                JS_FreeValue(ctx, qs);
-                                if (!JS_IsException(inner_ctrl) && JS_IsObject(inner_ctrl)) {
-                                    QJSNodePrivate *ctrl_priv = qjs_get_dom_priv(ctx, inner_ctrl);
-                                    if (ctrl_priv && ctrl_priv->node == priv->node) {
-                                        is_match = true;
-                                    }
-                                }
-                                JS_FreeValue(ctx, inner_ctrl);
-                            } else {
-                                JS_FreeValue(ctx, qs);
-                            }
-                        }
-                        JS_FreeValue(ctx, for_val);
-
-                        if (is_match) {
-                            JS_SetPropertyUint32(ctx, labels_arr, idx++, JS_DupValue(ctx, label_item));
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
+                if (nodes[i].node_type != 1) continue;
+                const char *tag = wisp_string_ref_data(wisp_shm_dom, strings[i].tag_name);
+                if (tag && strcasecmp(tag, "label") == 0) {
+                    bool is_match = false;
+                    const char *for_str = NULL;
+                    uint32_t limit = strings[i].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings[i].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                    for (uint32_t j = 0; j < limit; j++) {
+                        if (wisp_string_ref_caseeq(wisp_shm_dom, strings[i].attrs[j].name, "for")) {
+                            for_str = wisp_string_ref_data(wisp_shm_dom, strings[i].attrs[j].value);
+                            break;
                         }
                     }
-                }
-                JS_FreeValue(ctx, label_item);
-            }
 
-            if (id_str) JS_FreeCString(ctx, id_str);
-            JS_FreeValue(ctx, id_val);
+                    if (for_str && for_str[0] != '\0') {
+                        if (id_str && id_str[0] != '\0' && strcmp(for_str, id_str) == 0) {
+                            is_match = true;
+                        }
+                    } else {
+                        uint32_t first_ctrl_id = shm_find_first_labelable_descendant(wisp_shm_dom, i);
+                        if (first_ctrl_id == our_id) {
+                            is_match = true;
+                        }
+                    }
+
+                    if (is_match) {
+                        JS_SetPropertyUint32(ctx, labels_arr, idx++, qjs_wrap_node(ctx, (dom_node *)(uintptr_t)i));
+                    }
+                }
+            }
         }
-        JS_FreeValue(ctx, matched);
+        if (id_str) JS_FreeCString(ctx, id_str);
+        JS_FreeValue(ctx, id_val);
+        return labels_arr;
     }
 
-    JS_FreeValue(ctx, qsa);
-    JS_FreeValue(ctx, doc_val);
-    JS_FreeValue(ctx, global);
+    dom_node *doc = NULL;
+    dom_node_get_owner_document((dom_node *)priv->node, (dom_document **)&doc);
+    dom_node *root = doc ? doc : (dom_node *)priv->node;
+    int label_count = 0;
+    int max_labels = 1024;
+    dom_node **labels = malloc(sizeof(dom_node *) * max_labels);
+    if (labels) {
+        collect_labels_libdom(root, labels, &label_count, max_labels);
+        int total = label_count < max_labels ? label_count : max_labels;
+        for (int i = 0; i < total; i++) {
+            dom_node *lbl_node = labels[i];
+            bool is_match = false;
+
+            dom_string *attr_for = NULL;
+            dom_string *for_dom = NULL;
+            dom_string_create((const uint8_t *)"for", 3, &attr_for);
+            dom_element_get_attribute((dom_element *)lbl_node, attr_for, &for_dom);
+            dom_string_unref(attr_for);
+
+            if (for_dom && dom_string_byte_length(for_dom) > 0) {
+                const char *for_str = (const char *)dom_string_data(for_dom);
+                if (id_str && id_str[0] != '\0' && strcmp(for_str, id_str) == 0) {
+                    is_match = true;
+                }
+            } else {
+                dom_node *first_ctrl = libdom_find_first_labelable_descendant(lbl_node);
+                if (first_ctrl) {
+                    if (first_ctrl == (dom_node *)priv->node) {
+                        is_match = true;
+                    }
+                    dom_node_unref(first_ctrl);
+                }
+            }
+            if (for_dom) dom_string_unref(for_dom);
+
+            if (is_match) {
+                JS_SetPropertyUint32(ctx, labels_arr, idx++, qjs_wrap_node(ctx, lbl_node));
+            }
+            dom_node_unref(lbl_node);
+        }
+        free(labels);
+    }
+    if (doc) dom_node_unref(doc);
+
+    if (id_str) JS_FreeCString(ctx, id_str);
+    JS_FreeValue(ctx, id_val);
 
     return labels_arr;
 }
@@ -5364,7 +5510,7 @@ static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
 JSValue wisp_htmllabelelement_control_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
     if (!priv || !priv->node) return JS_NULL;
-    JSValue for_val = get_element_str_attr(ctx, priv, "for", NULL);
+    JSValue for_val = wisp_element_getAttribute_impl(ctx, priv, "for");
     if (JS_IsString(for_val)) {
         const char *for_str = JS_ToCString(ctx, for_val);
         if (for_str && for_str[0] != '\0') {
@@ -5390,22 +5536,24 @@ JSValue wisp_htmllabelelement_control_get_impl(JSContext *ctx, QJSNodePrivate *p
     } else {
         JS_FreeValue(ctx, for_val);
     }
-    JSValue label_obj = qjs_wrap_node(ctx, (dom_node *)priv->node);
-    JSValue qs = JS_GetPropertyStr(ctx, label_obj, "querySelector");
-    if (JS_IsFunction(ctx, qs)) {
-        JSValue sel = JS_NewString(ctx, "input, select, textarea, button");
-        JSValue target = JS_Call(ctx, qs, label_obj, 1, &sel);
-        JS_FreeValue(ctx, sel);
-        JS_FreeValue(ctx, qs);
-        JS_FreeValue(ctx, label_obj);
-        if (!JS_IsException(target) && !JS_IsNull(target) && !JS_IsUndefined(target)) {
+
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            uint32_t lbl_id = (uint32_t)(uintptr_t)priv->node;
+            uint32_t ctrl_id = shm_find_first_labelable_descendant(wisp_shm_dom, lbl_id);
+            if (ctrl_id != 0) {
+                return qjs_wrap_node(ctx, (dom_node *)(uintptr_t)ctrl_id);
+            }
+        }
+    } else {
+        dom_node *ctrl_node = libdom_find_first_labelable_descendant((dom_node *)priv->node);
+        if (ctrl_node) {
+            JSValue target = qjs_wrap_node(ctx, ctrl_node);
+            dom_node_unref(ctrl_node);
             return target;
         }
-        JS_FreeValue(ctx, target);
-    } else {
-        JS_FreeValue(ctx, qs);
-        JS_FreeValue(ctx, label_obj);
     }
+
     return JS_NULL;
 }
 
