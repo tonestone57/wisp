@@ -970,12 +970,14 @@ START_TEST(urldb_overlong_host_test)
     nsurl *res_url = NULL;
     size_t i;
 
+    size_t len;
+
     /* Construct a hostname longer than 256 chars (e.g., ~300 chars domain) */
-    strcpy(long_host_url, "http://a");
-    for (i = 0; i < 28; i++) {
-        strcat(long_host_url, ".subdomain123");
+    len = snprintf(long_host_url, sizeof(long_host_url), "http://a");
+    for (i = 0; i < 28 && len < sizeof(long_host_url); i++) {
+        len += snprintf(long_host_url + len, sizeof(long_host_url) - len, ".subdomain123");
     }
-    strcat(long_host_url, ".com/");
+    snprintf(long_host_url + len, sizeof(long_host_url) - len, ".com/");
 
     ck_assert_int_eq(nsurl_create(long_host_url, &url), NSERROR_OK);
     /* Adding overlong host truncates host safely without buffer overflow */
@@ -983,11 +985,11 @@ START_TEST(urldb_overlong_host_test)
     nsurl_unref(url);
 
     /* Construct a hostname near 250 chars that fits in buf */
-    strcpy(long_host_url, "http://a");
-    for (i = 0; i < 18; i++) {
-        strcat(long_host_url, ".subdomain123");
+    len = snprintf(long_host_url, sizeof(long_host_url), "http://a");
+    for (i = 0; i < 18 && len < sizeof(long_host_url); i++) {
+        len += snprintf(long_host_url + len, sizeof(long_host_url) - len, ".subdomain123");
     }
-    strcat(long_host_url, ".com/");
+    snprintf(long_host_url + len, sizeof(long_host_url) - len, ".com/");
 
     ck_assert_int_eq(nsurl_create(long_host_url, &url), NSERROR_OK);
     ck_assert(urldb_add_url(url) == true);
