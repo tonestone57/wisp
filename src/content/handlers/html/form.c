@@ -907,9 +907,6 @@ static char *form_acceptable_charset(struct form *form)
  * appropriate for submission. Therefore, no utf8_to_* processing should be
  * performed upon them.
  *
- * \todo The chosen charset needs to be made available such that it can be
- * included in the submission request (e.g. in the fetch's Content-Type header)
- *
  * See HTML 4.01 section 17.13.2.
  *
  * \note care is taken to abort even if the error is recoverable as it
@@ -919,10 +916,13 @@ static char *form_acceptable_charset(struct form *form)
  * \param[in] submit_button control used to submit the form, if any
  * \param[out] fetch_data_out updated to point to linked list of
  *                             fetch_multipart_data, NULL if no controls
+ * \param[out] charset_out optional pointer updated to allocated charset string,
+ *                         caller should free (may be NULL if not needed)
  * \return NSERROR_OK on success or appropriate error code
  */
 static nserror
-form_dom_to_data(struct form *form, struct form_control *submit_control, struct fetch_multipart_data **fetch_data_out)
+form_dom_to_data(struct form *form, struct form_control *submit_control,
+    struct fetch_multipart_data **fetch_data_out, char **charset_out)
 {
     nserror res = NSERROR_OK;
     char *charset; /* form characterset */
@@ -947,6 +947,16 @@ form_dom_to_data(struct form *form, struct form_control *submit_control, struct 
     if (charset == NULL) {
         NSLOG(wisp, INFO, "failed to find charset");
         return NSERROR_NOMEM;
+    }
+
+    if (form->node == NULL) {
+        *fetch_data_out = NULL;
+        if (charset_out != NULL) {
+            *charset_out = charset;
+        } else {
+            free(charset);
+        }
+        return NSERROR_OK;
     }
 
     /* obtain the form elements and count */
@@ -1020,7 +1030,12 @@ form_dom_to_data(struct form *form, struct form_control *submit_control, struct 
 
     *fetch_data_out = fetch_data;
     dom_html_collection_unref(elements);
-    free(charset);
+
+    if (charset_out != NULL) {
+        *charset_out = charset;
+    } else {
+        free(charset);
+    }
 
     return NSERROR_OK;
 
@@ -1028,6 +1043,9 @@ form_dom_to_data_error:
     fetch_multipart_data_destroy(fetch_data);
     dom_html_collection_unref(elements);
     free(charset);
+    if (charset_out != NULL) {
+        *charset_out = NULL;
+    }
 
     return res;
 }
@@ -1849,6 +1867,7 @@ form_submit(nsurl *page_url, struct browser_window *target, struct form *form, s
 {
     nserror res;
     char *data = NULL; /* encoded form data */
+    char *charset = NULL; /* chosen form submission charset */
     struct fetch_multipart_data *success = NULL; /* gcc is incapable of correctly reasoning about use and
                                                 generates "maybe used uninitialised" warnings */
     nsurl *action_url;
@@ -1857,7 +1876,7 @@ form_submit(nsurl *page_url, struct browser_window *target, struct form *form, s
     assert(form != NULL);
 
     /* obtain list of controls from DOM */
-    res = form_dom_to_data(form, submit_button, &success);
+    res = form_dom_to_data(form, submit_button, &success, &charset);
     if (res != NSERROR_OK) {
         return res;
     }
@@ -1900,6 +1919,7 @@ form_submit(nsurl *page_url, struct browser_window *target, struct form *form, s
 
     nsurl_unref(action_url);
     fetch_multipart_data_destroy(success);
+    free(charset);
 
     return res;
 }
