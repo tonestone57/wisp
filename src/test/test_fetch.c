@@ -53,7 +53,6 @@ static const struct fetcher_operation_table test_fetcher_ops = {
     .finalise = test_fetcher_finalise
 };
 
-
 static bool test_callback_called = false;
 static fetch_msg_type test_callback_msg_type = FETCH_PROGRESS;
 
@@ -62,11 +61,15 @@ static void test_fetch_callback(const fetch_msg *msg, void *p) {
     test_callback_msg_type = msg->type;
 }
 
+static bool pipeline_callback_called = false;
+static void test_pipeline_callback(const struct fetch_response *res, void *p)
+{
+    pipeline_callback_called = true;
+}
+
 static void setup_test_fetcher() {
     static bool setup = false;
     if (setup) return;
-
-    // Corestrings and logging initialisation needed for messages?
 
     lwc_string *scheme;
     lwc_intern_string("http", 4, &scheme);
@@ -86,22 +89,18 @@ static void setup_mock_options(void) {
 START_TEST(test_fetch_free_failure)
 {
     setup_test_fetcher();
-    // Setup lwc and nsurl first
     nsurl *url;
     nsurl_create("http://example.com", &url);
 
-    // Create a fetch object
     struct fetch *f = NULL;
     nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
 
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_ptr_ne(f, NULL);
 
-    // Now test fetch_free when it didn't finish
     test_callback_called = false;
     test_fetcher_free_called = false;
 
-    // We are simulating an aborted or unfinished fetch
     fetch_remove_from_queues(f);
     fetch_free(f);
 
@@ -113,77 +112,33 @@ START_TEST(test_fetch_free_failure)
 }
 END_TEST
 
-START_TEST(test_fetch_abort_after_data)
-{
-    setup_test_fetcher();
-    nsurl *url;
-    nsurl_create("http://example.com/abort_after_data", &url);
-
-    struct fetch *f = NULL;
-    nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
-
-    ck_assert_int_eq(err, NSERROR_OK);
-    ck_assert_ptr_ne(f, NULL);
-
-    /* Simulate sending header and data messages prior to abort */
-    fetch_msg header_msg = { .type = FETCH_HEADER, .data = { .header_or_data = { .buf = (uint8_t *)"HTTP/1.1 200 OK\r\n", .len = 17 } } };
-    fetch_send_callback(&header_msg, f);
-    ck_assert_int_eq(test_callback_msg_type, FETCH_HEADER);
-
-    fetch_msg data_msg = { .type = FETCH_DATA, .data = { .header_or_data = { .buf = (uint8_t *)"data", .len = 4 } } };
-    fetch_send_callback(&data_msg, f);
-    ck_assert_int_eq(test_callback_msg_type, FETCH_DATA);
-
-    test_fetcher_abort_called = false;
-    test_fetcher_abort_handle = NULL;
-
-    /* Abort in-progress fetch */
-    fetch_abort(f);
-
-    ck_assert_int_eq(test_fetcher_abort_called, true);
-    ck_assert_ptr_eq(test_fetcher_abort_handle, (void *)0x1234);
-
-    fetch_remove_from_queues(f);
-    fetch_free(f);
-
-    nsurl_unref(url);
-}
-END_TEST
-
 START_TEST(test_fetch_free_success)
 {
     setup_test_fetcher();
-    // Setup lwc and nsurl first
     nsurl *url;
     nsurl_create("http://example.com/2", &url);
 
-    // Create a fetch object
     struct fetch *f = NULL;
     nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
 
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_ptr_ne(f, NULL);
 
-    // Mock completing the fetch
-    // FETCH_MIN_FINISHED_MSG is FETCH_FINISHED
     fetch_msg msg = { .type = FETCH_FINISHED };
-    // normally fetch_send_callback sets f->last_msg
     fetch_send_callback(&msg, f);
 
-    // Now test fetch_free when it did finish
     test_callback_called = false;
     test_fetcher_free_called = false;
 
     fetch_remove_from_queues(f);
     fetch_free(f);
 
-    ck_assert_int_eq(test_callback_called, false); // Shouldn't be called on free if finished
+    ck_assert_int_eq(test_callback_called, false);
     ck_assert_int_eq(test_fetcher_free_called, true);
 
     nsurl_unref(url);
 }
 END_TEST
-
 
 START_TEST(test_fetch_abort_success)
 {
@@ -248,12 +203,6 @@ START_TEST(test_fetch_abort_then_free)
 }
 END_TEST
 
-static bool pipeline_callback_called = false;
-static void test_pipeline_callback(const struct fetch_response *res, void *p)
-{
-    pipeline_callback_called = true;
-}
-
 START_TEST(test_fetch_abort_pipeline)
 {
     setup_test_fetcher();
@@ -277,6 +226,49 @@ START_TEST(test_fetch_abort_pipeline)
     ck_assert_ptr_ne(f, NULL);
 
     /* Abort the pipeline fetch directly */
+    fetch_abort(f);
+
+    ck_assert_int_eq(test_fetcher_abort_called, true);
+    ck_assert_ptr_eq(test_fetcher_abort_handle, (void *)0x1234);
+
+    /* Dispatch FETCH_ERROR callback as the fetcher does upon abort, cleaning up pipeline context */
+    fetch_msg msg = { .type = FETCH_ERROR, .data = { .error = "FetchAborted" } };
+    fetch_send_callback(&msg, f);
+
+    ck_assert_int_eq(pipeline_callback_called, true);
+
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+
+    nsurl_unref(url);
+}
+END_TEST
+
+START_TEST(test_fetch_abort_after_data)
+{
+    setup_test_fetcher();
+    nsurl *url;
+    nsurl_create("http://example.com/abort_after_data", &url);
+
+    struct fetch *f = NULL;
+    nserror err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
+
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    /* Simulate sending header and data messages prior to abort */
+    fetch_msg header_msg = { .type = FETCH_HEADER, .data = { .header_or_data = { .buf = (uint8_t *)"HTTP/1.1 200 OK\r\n", .len = 17 } } };
+    fetch_send_callback(&header_msg, f);
+    ck_assert_int_eq(test_callback_msg_type, FETCH_HEADER);
+
+    fetch_msg data_msg = { .type = FETCH_DATA, .data = { .header_or_data = { .buf = (uint8_t *)"data", .len = 4 } } };
+    fetch_send_callback(&data_msg, f);
+    ck_assert_int_eq(test_callback_msg_type, FETCH_DATA);
+
+    test_fetcher_abort_called = false;
+    test_fetcher_abort_handle = NULL;
+
+    /* Abort in-progress fetch */
     fetch_abort(f);
 
     ck_assert_int_eq(test_fetcher_abort_called, true);
