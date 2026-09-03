@@ -20,8 +20,28 @@
 
 static wisp_ipc_handle *ipc_network = NULL;
 static int wisp_network_pid = -1;
+static char ipc_dir[256] = "";
 static uint32_t next_fetch_id = 1;
 static pthread_mutex_t ipc_send_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static bool create_secure_ipc_path(char *ipc_path_buf, size_t path_len, char *dir_buf, size_t dir_len)
+{
+    const char *tmpdir = getenv("TMPDIR");
+    if (!tmpdir || tmpdir[0] == '\0') {
+        tmpdir = "/tmp";
+    }
+    char template[512];
+    snprintf(template, sizeof(template), "%s/wisp-network-XXXXXX", tmpdir);
+    char *dir_name = mkdtemp(template);
+    if (!dir_name) {
+        return false;
+    }
+    strncpy(dir_buf, dir_name, dir_len - 1);
+    dir_buf[dir_len - 1] = '\0';
+
+    snprintf(ipc_path_buf, path_len, "%s/ipc", dir_name);
+    return true;
+}
 
 struct ipc_fetch_info {
     uint32_t id;
@@ -36,13 +56,16 @@ static pthread_mutex_t active_fetches_mutex = PTHREAD_MUTEX_INITIALIZER;
 static bool fetch_ipc_initialise(lwc_string *scheme) {
     pthread_mutex_lock(&active_fetches_mutex);
     if (!ipc_network) {
-        char ipc_name[128];
-        const char *tmpdir = getenv("TMPDIR");
-        if (!tmpdir) tmpdir = "/tmp";
-        snprintf(ipc_name, sizeof(ipc_name), "%s/wisp-network-ipc-%d-%u", tmpdir, getpid(), (unsigned int)time(NULL));
+        char ipc_name[256];
+        if (!create_secure_ipc_path(ipc_name, sizeof(ipc_name), ipc_dir, sizeof(ipc_dir))) {
+            pthread_mutex_unlock(&active_fetches_mutex);
+            return false;
+        }
 
         wisp_ipc_handle *server = wisp_ipc_create_server(ipc_name);
         if (!server) {
+            rmdir(ipc_dir);
+            ipc_dir[0] = '\0';
             pthread_mutex_unlock(&active_fetches_mutex);
             return false;
         }
@@ -50,6 +73,9 @@ static bool fetch_ipc_initialise(lwc_string *scheme) {
         char exec_path[256];
         if (!wisp_ipc_find_executable("wisp-network", exec_path, sizeof(exec_path))) {
             wisp_ipc_destroy(server);
+            unlink(ipc_name);
+            rmdir(ipc_dir);
+            ipc_dir[0] = '\0';
             pthread_mutex_unlock(&active_fetches_mutex);
             return false;
         }
@@ -59,6 +85,10 @@ static bool fetch_ipc_initialise(lwc_string *scheme) {
         wisp_ipc_destroy(server);
         if (ipc_network) {
             wisp_ipc_set_blocking(ipc_network, false);
+        } else {
+            unlink(ipc_name);
+            rmdir(ipc_dir);
+            ipc_dir[0] = '\0';
         }
     }
     bool initialized = (ipc_network != NULL);
@@ -415,6 +445,14 @@ static void fetch_ipc_finalise(lwc_string *scheme) {
     if (ipc_network) {
         wisp_ipc_destroy(ipc_network);
         ipc_network = NULL;
+    }
+
+    if (ipc_dir[0] != '\0') {
+        char ipc_path[512];
+        snprintf(ipc_path, sizeof(ipc_path), "%s/ipc", ipc_dir);
+        unlink(ipc_path);
+        rmdir(ipc_dir);
+        ipc_dir[0] = '\0';
     }
 
     if (wisp_network_pid > 0) {
