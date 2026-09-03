@@ -298,7 +298,7 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 
 	int child_count_initial = 0;
 
-	/* Combined pass: count non-floated children, calculate content height, auto margins, and flex-grow */
+	/* Consolidated single-pass traversal: count non-floated children, calculate content height, auto margins, and flex-grow factor sum */
 	for (struct box *child = flex->children; child; child = child->next) {
 		if (child->type == BOX_FLOAT_LEFT || child->type == BOX_FLOAT_RIGHT) {
 			continue;
