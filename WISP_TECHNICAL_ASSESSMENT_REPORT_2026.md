@@ -15,6 +15,14 @@ As of 2026, Wisp achieves an **HTML5Test benchmark score of 573 / 588 points (97
 3. **QuickJS-ng v0.15.1 & Baseline Copy-Patch JIT**: Features a 2-tier execution framework (Interpreter + Baseline Copy-Patch JIT for hotspot functions $\ge 10$ invocations) on AMD64 POSIX platforms, accompanied by 3,008 strong manual C WebIDL symbol overrides.
 4. **SIMD-Accelerated Pipelines**: Dynamic CPU feature detection (SSE2 on x86, NEON on ARM, RVV 1.0 on RISC-V) accelerates UTF-8 validation/conversion, WebSocket frame masking, structural JSON pre-parsing, and CSP nonce string comparison.
 5. **Platform-Native First Plotting Strategy**: Prioritizes native platform renderers by default (Direct2D/DirectWrite on Windows, Cairo on GTK, QPainter on Qt, Cocoa on macOS, BView/AGG on Haiku), retaining Blend2D as an optional high-performance software fallback.
+6. **Recent Hardening & Feature Enhancements (2026)**:
+   - *`javascript:` Scheme Fetcher*: Full URL scheme fetcher with percent-decoding (`url_unescape`), HTTP 200 header construction (`Content-Type: text/html`), and `FETCH_DATA`/`FETCH_FINISHED` dispatches.
+   - *Win32 CoreWindow Scrolling*: Vertical (`nsw32_corewindow_vscroll`) and horizontal (`nsw32_corewindow_hscroll`) scrolling with `SetScrollInfo`, `GetScrollInfo`, and `ScrollWindowEx` damage invalidation.
+   - *Memory-Mapped Backing Store*: `mmap` retrieval (POSIX `mmap` / Windows `MapViewOfFile`) for entries >16KB in `fs_backing_store.c` with clean memory teardown (`entry_destroy_alloc`).
+   - *Table Border Conflict Resolution Across Row Groups*: CSS 2.1 §17.6.2.1 table border evaluation in `table.c` traversing row groups (`BOX_TABLE_ROW_GROUP`) for multi-row spanned cells.
+   - *Hardened LLCACHE Deserialization*: Strict `ns_strtoull`/`ns_strtoint` header metadata parsing enforcing `num_headers <= 10000` upper bounds to prevent integer overflow or cache poisoning.
+   - *Sensitive Data Redaction*: Automatic redaction of password components in `nsurl_dump` (`Password: [REDACTED]`) and safe `QString::arg()` substitution in Qt menu construction.
+   - *Form Control Encapsulation & String Optimizations*: Encapsulated select control inline text box retrieval (`form_select_get_inline_text_box`) in `form.c` and string length caching across `searchweb.c`, `save_complete.c`, `urldb`, and `vsnstrjoin`.
 
 ---
 

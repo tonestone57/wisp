@@ -51,5 +51,10 @@ All major rendering features identified in the previous audits have been impleme
 - **Details**: Direct2D path uses `ID2D1RadialGradientBrush` for hardware-accelerated radial gradients. Integration enabled via `DEFAULT_NATIVE_RADIAL=ON`.
 - **Reference**: `frontends/windows/plot_d2d.cpp`.
 
+### 10. CoreWindow Vertical & Horizontal Scrolling and Scrollbar Handling
+- **Status**: Completed.
+- **Details**: Implemented `nsw32_corewindow_vscroll` and `nsw32_corewindow_hscroll` to handle vertical and horizontal scrollbar events (`WM_VSCROLL`, `WM_HSCROLL`, `WM_MOUSEWHEEL`). Calculates page bounds (`max_pos = max(si.nMin, (int)si.nMax - (int)si.nPage + 1)`), updates position with `SetScrollInfo`, re-reads actual position with `GetScrollInfo`, and invalidates scrolled areas via `ScrollWindowEx` with `SW_INVALIDATE`.
+- **Reference**: `frontends/windows/corewindow.c`.
+
 ## Future Considerations
 - **Hardware Acceleration Tuning**: Completed. Direct2D device-loss recovery is fully implemented via global factory recreation and cache invalidation.
