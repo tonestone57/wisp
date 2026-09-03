@@ -922,6 +922,149 @@ int qjs_init_htmlanchorelement(JSContext *ctx)
 }
 
 // -----------------------------------------------------------------------------
+// ISO Date/Time Parsing & Validation Helpers
+// -----------------------------------------------------------------------------
+
+static bool is_valid_iso_date(const char *s, int *out_y, int *out_m, int *out_d)
+{
+    if (!s || strlen(s) != 10) return false;
+    for (int i = 0; i < 10; i++) {
+        if (i == 4 || i == 7) {
+            if (s[i] != '-') return false;
+        } else {
+            if (!isdigit((unsigned char)s[i])) return false;
+        }
+    }
+    int y = (s[0] - '0') * 1000 + (s[1] - '0') * 100 + (s[2] - '0') * 10 + (s[3] - '0');
+    int m = (s[5] - '0') * 10 + (s[6] - '0');
+    int d = (s[8] - '0') * 10 + (s[9] - '0');
+
+    if (y < 1 || m < 1 || m > 12 || d < 1 || d > 31) return false;
+
+    if (out_y) *out_y = y;
+    if (out_m) *out_m = m;
+    if (out_d) *out_d = d;
+    return true;
+}
+
+static bool is_valid_iso_month(const char *s, int *out_y, int *out_m)
+{
+    if (!s || strlen(s) != 7) return false;
+    for (int i = 0; i < 7; i++) {
+        if (i == 4) {
+            if (s[i] != '-') return false;
+        } else {
+            if (!isdigit((unsigned char)s[i])) return false;
+        }
+    }
+    int y = (s[0] - '0') * 1000 + (s[1] - '0') * 100 + (s[2] - '0') * 10 + (s[3] - '0');
+    int m = (s[5] - '0') * 10 + (s[6] - '0');
+
+    if (y < 1 || m < 1 || m > 12) return false;
+
+    if (out_y) *out_y = y;
+    if (out_m) *out_m = m;
+    return true;
+}
+
+static bool is_valid_iso_week(const char *s, int *out_y, int *out_w)
+{
+    if (!s || strlen(s) != 8) return false;
+    for (int i = 0; i < 8; i++) {
+        if (i == 4) {
+            if (s[i] != '-') return false;
+        } else if (i == 5) {
+            if (s[i] != 'W' && s[i] != 'w') return false;
+        } else {
+            if (!isdigit((unsigned char)s[i])) return false;
+        }
+    }
+    int y = (s[0] - '0') * 1000 + (s[1] - '0') * 100 + (s[2] - '0') * 10 + (s[3] - '0');
+    int w = (s[6] - '0') * 10 + (s[7] - '0');
+
+    if (y < 1 || w < 1 || w > 53) return false;
+
+    if (out_y) *out_y = y;
+    if (out_w) *out_w = w;
+    return true;
+}
+
+static bool is_valid_iso_time(const char *s, int *out_h, int *out_m, int *out_s, bool *out_has_sec)
+{
+    if (!s) return false;
+    size_t len = strlen(s);
+    if (len > 0 && (s[len - 1] == 'Z' || s[len - 1] == 'z')) {
+        len--;
+    }
+    if (len < 5) return false;
+
+    // Check HH:MM
+    if (!isdigit((unsigned char)s[0]) || !isdigit((unsigned char)s[1]) ||
+        s[2] != ':' ||
+        !isdigit((unsigned char)s[3]) || !isdigit((unsigned char)s[4])) {
+        return false;
+    }
+
+    int h = (s[0] - '0') * 10 + (s[1] - '0');
+    int m = (s[3] - '0') * 10 + (s[4] - '0');
+    int sec = 0;
+    bool has_sec = false;
+
+    if (len >= 8) {
+        if (s[5] != ':' || !isdigit((unsigned char)s[6]) || !isdigit((unsigned char)s[7])) {
+            return false;
+        }
+        sec = (s[6] - '0') * 10 + (s[7] - '0');
+        has_sec = true;
+
+        if (len > 8) {
+            if (s[8] != '.') return false;
+            for (size_t i = 9; i < len; i++) {
+                if (!isdigit((unsigned char)s[i])) return false;
+            }
+        }
+    } else if (len != 5) {
+        return false;
+    }
+
+    if (h < 0 || h > 23 || m < 0 || m > 59 || sec < 0 || sec > 59) return false;
+
+    if (out_h) *out_h = h;
+    if (out_m) *out_m = m;
+    if (out_s) *out_s = sec;
+    if (out_has_sec) *out_has_sec = has_sec;
+    return true;
+}
+
+static bool is_valid_iso_datetime(const char *s, int *out_y, int *out_mon, int *out_d,
+                                    int *out_h, int *out_min, int *out_s, bool *out_has_sec)
+{
+    if (!s) return false;
+    size_t len = strlen(s);
+    if (len > 0 && (s[len - 1] == 'Z' || s[len - 1] == 'z')) {
+        len--;
+    }
+    if (len < 16) return false;
+
+    if (s[10] != 'T' && s[10] != 't' && s[10] != ' ') return false;
+
+    char date_buf[11];
+    memcpy(date_buf, s, 10);
+    date_buf[10] = '\0';
+
+    char time_buf[64];
+    size_t time_len = len - 11;
+    if (time_len >= sizeof(time_buf)) return false;
+    memcpy(time_buf, s + 11, time_len);
+    time_buf[time_len] = '\0';
+
+    if (!is_valid_iso_date(date_buf, out_y, out_mon, out_d)) return false;
+    if (!is_valid_iso_time(time_buf, out_h, out_min, out_s, out_has_sec)) return false;
+
+    return true;
+}
+
+// -----------------------------------------------------------------------------
 // HTMLInputElement Implementation (10 stubs)
 // -----------------------------------------------------------------------------
 
@@ -949,52 +1092,36 @@ static char *sanitize_input_value_alloc(JSContext *ctx, QJSNodePrivate *priv, co
     }
 
     if (strcasecmp(type, "date") == 0) {
-        int year = 0, month = 0, day = 0;
-        if (sscanf(val, "%4d-%2d-%2d", &year, &month, &day) == 3) {
-            if (year >= 1 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-                return strdup(val);
-            }
+        if (is_valid_iso_date(val, NULL, NULL, NULL)) {
+            return strdup(val);
         }
         return strdup("");
     }
 
     if (strcasecmp(type, "month") == 0) {
-        int year = 0, month = 0;
-        if (sscanf(val, "%4d-%2d", &year, &month) == 2) {
-            if (year >= 1 && month >= 1 && month <= 12) {
-                return strdup(val);
-            }
+        if (is_valid_iso_month(val, NULL, NULL)) {
+            return strdup(val);
         }
         return strdup("");
     }
 
     if (strcasecmp(type, "week") == 0) {
-        int year = 0, week = 0;
-        if (sscanf(val, "%4d-W%2d", &year, &week) == 2) {
-            if (year >= 1 && week >= 1 && week <= 53) {
-                return strdup(val);
-            }
+        if (is_valid_iso_week(val, NULL, NULL)) {
+            return strdup(val);
         }
         return strdup("");
     }
 
     if (strcasecmp(type, "time") == 0) {
-        int hour = 0, min = 0, sec = 0;
-        int count = sscanf(val, "%2d:%2d:%2d", &hour, &min, &sec);
-        if (count >= 2) {
-            if (hour >= 0 && hour <= 23 && min >= 0 && min <= 59 && (count < 3 || (sec >= 0 && sec <= 59))) {
-                return strdup(val);
-            }
+        if (is_valid_iso_time(val, NULL, NULL, NULL, NULL)) {
+            return strdup(val);
         }
         return strdup("");
     }
 
-    if (strcasecmp(type, "datetime-local") == 0) {
-        int year = 0, month = 0, day = 0, hour = 0, min = 0;
-        if (sscanf(val, "%4d-%2d-%2dT%2d:%2d", &year, &month, &day, &hour, &min) == 5) {
-            if (year >= 1 && month >= 1 && month <= 12 && day >= 1 && day <= 31 && hour >= 0 && hour <= 23 && min >= 0 && min <= 59) {
-                return strdup(val);
-            }
+    if (strcasecmp(type, "datetime-local") == 0 || strcasecmp(type, "datetime") == 0) {
+        if (is_valid_iso_datetime(val, NULL, NULL, NULL, NULL, NULL, NULL, NULL)) {
+            return strdup(val);
         }
         return strdup("");
     }
@@ -6121,7 +6248,7 @@ JSValue wisp_htmlinputelement_valueAsDate_get_impl(JSContext *ctx, QJSNodePrivat
         return JS_NULL;
     }
     int year = 0, month = 0, day = 0;
-    if (sscanf(str, "%d-%d-%d", &year, &month, &day) == 3) {
+    if (is_valid_iso_date(str, &year, &month, &day)) {
         JS_FreeCString(ctx, str);
         JS_FreeValue(ctx, val);
         struct tm tm = {0};
@@ -6164,8 +6291,8 @@ JSValue wisp_htmlinputelement_valueAsNumber_get_impl(JSContext *ctx, QJSNodePriv
         const char *str = JS_ToCString(ctx, val);
         if (str && str[0] != '\0') {
             int year = 0, month = 0, day = 0, hour = 0, min = 0, sec = 0;
-            if (sscanf(str, "%d-%d-%dT%d:%d:%d", &year, &month, &day, &hour, &min, &sec) >= 5 ||
-                sscanf(str, "%d-%d-%d %d:%d:%d", &year, &month, &day, &hour, &min, &sec) >= 5) {
+            bool has_sec = false;
+            if (is_valid_iso_datetime(str, &year, &month, &day, &hour, &min, &sec, &has_sec)) {
                 struct tm tm = {0};
                 tm.tm_year = year - 1900;
                 tm.tm_mon = month - 1;
@@ -6175,7 +6302,7 @@ JSValue wisp_htmlinputelement_valueAsNumber_get_impl(JSContext *ctx, QJSNodePriv
                 tm.tm_sec = sec;
                 time_t t = timegm(&tm);
                 d = (double)t * 1000.0;
-            } else if (sscanf(str, "%d-%d-%d", &year, &month, &day) == 3) {
+            } else if (is_valid_iso_date(str, &year, &month, &day)) {
                 struct tm tm = {0};
                 tm.tm_year = year - 1900;
                 tm.tm_mon = month - 1;
