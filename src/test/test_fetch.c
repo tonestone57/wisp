@@ -515,6 +515,27 @@ START_TEST(test_fetch_curl_preconnect_valid)
 }
 END_TEST
 
+START_TEST(test_fetch_curl_security_options)
+{
+    nserror err = fetch_curl_register();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    nsurl *url;
+    nsurl_create("https://example.com/security_test", &url);
+
+    struct fetch *f = NULL;
+    err = fetch_start(url, NULL, test_fetch_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    fetch_msg msg = { .type = FETCH_FINISHED };
+    fetch_send_callback(&msg, f);
+    fetch_remove_from_queues(f);
+    fetch_free(f);
+    nsurl_unref(url);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -547,6 +568,7 @@ Suite *fetch_suite(void)
     TCase *tc_curl = tcase_create("cURL");
     tcase_add_test(tc_curl, test_fetch_curl_preconnect_null);
     tcase_add_test(tc_curl, test_fetch_curl_preconnect_valid);
+    tcase_add_test(tc_curl, test_fetch_curl_security_options);
     suite_add_tcase(s, tc_curl);
 
     return s;

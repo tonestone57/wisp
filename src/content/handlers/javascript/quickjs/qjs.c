@@ -299,6 +299,20 @@ static char *wisp_sync_fetch(const char *url, size_t *out_len)
         curl_easy_setopt(curl_handle, CURLOPT_NOSIGNAL, 1L);
         curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYPEER, 1L);
         curl_easy_setopt(curl_handle, CURLOPT_SSL_VERIFYHOST, 2L);
+#if LIBCURL_VERSION_NUM >= 0x073400 /* 7.52.0 */
+        curl_easy_setopt(curl_handle, CURLOPT_PROXY_SSL_VERIFYPEER, 1L);
+        curl_easy_setopt(curl_handle, CURLOPT_PROXY_SSL_VERIFYHOST, 2L);
+#endif
+#if LIBCURL_VERSION_NUM >= 0x072d00 /* 7.45.0 */
+        curl_easy_setopt(curl_handle, CURLOPT_DEFAULT_PROTOCOL, "https");
+#endif
+#if LIBCURL_VERSION_NUM >= 0x075500 /* 7.85.0 */
+        curl_easy_setopt(curl_handle, CURLOPT_PROTOCOLS_STR, "http,https");
+        curl_easy_setopt(curl_handle, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
+#elif LIBCURL_VERSION_NUM >= 0x071304 /* 7.19.4 */
+        curl_easy_setopt(curl_handle, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        curl_easy_setopt(curl_handle, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+#endif
         // Extend timeouts for synchronous fetches under debug or heavy loads
         curl_easy_setopt(curl_handle, CURLOPT_CONNECTTIMEOUT, 15L);
         curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, 45L);
