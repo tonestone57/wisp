@@ -6872,8 +6872,16 @@ JSValue wisp_htmlmediaelement_canPlayType_impl(JSContext *ctx, QJSNodePrivate *p
     bool is_vp9 = (strcmp(mime, "video/vp9") == 0 || strcmp(mime, "video/x-vp9") == 0);
     bool is_av1 = (strcmp(mime, "video/av1") == 0 || strcmp(mime, "video/x-av1") == 0);
     bool is_av2 = (strcmp(mime, "video/av2") == 0 || strcmp(mime, "video/x-av2") == 0);
+    bool is_mpeg = (strcmp(mime, "video/mpeg") == 0);
+    bool is_3gp = (strcmp(mime, "video/3gpp") == 0 || strcmp(mime, "video/3gpp2") == 0 || strcmp(mime, "audio/3gpp") == 0 || strcmp(mime, "audio/3gpp2") == 0);
+    bool is_hls = (strcmp(mime, "application/vnd.apple.mpegurl") == 0 || strcmp(mime, "application/x-mpegurl") == 0 || strcmp(mime, "audio/mpegurl") == 0);
+    bool is_aiff = (strcmp(mime, "audio/aiff") == 0 || strcmp(mime, "audio/x-aiff") == 0);
+    bool is_basic = (strcmp(mime, "audio/basic") == 0);
+    bool is_flv = (strcmp(mime, "video/x-flv") == 0 || strcmp(mime, "video/flv") == 0);
+    bool is_wmv = (strcmp(mime, "video/x-ms-wmv") == 0 || strcmp(mime, "audio/x-ms-wma") == 0);
+    bool is_avif = (strcmp(mime, "image/avif") == 0 || strcmp(mime, "image/avif-sequence") == 0);
 
-    if (!is_mp4 && !is_mov && !is_webm && !is_mkv && !is_avi && !is_ogg && !is_mp3 && !is_aac && !is_wav && !is_opus && !is_flac && !is_vp8 && !is_vp9 && !is_av1 && !is_av2) {
+    if (!is_mp4 && !is_mov && !is_webm && !is_mkv && !is_avi && !is_ogg && !is_mp3 && !is_aac && !is_wav && !is_opus && !is_flac && !is_vp8 && !is_vp9 && !is_av1 && !is_av2 && !is_mpeg && !is_3gp && !is_hls && !is_aiff && !is_basic && !is_flv && !is_wmv && !is_avif) {
         return JS_NewString(ctx, "");
     }
 
@@ -6905,21 +6913,31 @@ JSValue wisp_htmlmediaelement_canPlayType_impl(JSContext *ctx, QJSNodePrivate *p
         }
 
         bool ok = false;
-        if (strncmp(token, "avc1", 4) == 0 || strncmp(token, "avc3", 4) == 0 || strcmp(token, "h264") == 0 || strcmp(token, "h.264") == 0) ok = (is_mp4 || is_mov || is_mkv || is_avi || is_webm);
-        else if (strncmp(token, "hev1", 4) == 0 || strncmp(token, "hvc1", 4) == 0 || strcmp(token, "hevc") == 0 || strcmp(token, "h265") == 0 || strcmp(token, "h.265") == 0) ok = (is_mp4 || is_mov || is_mkv || is_avi);
-        else if (strncmp(token, "mp4v", 4) == 0) ok = (is_mp4 || is_mov || is_mkv || is_avi);
-        else if (strncmp(token, "mp4a", 4) == 0 || strcmp(token, "aac") == 0) ok = (is_mp4 || is_mov || is_mkv || is_avi || is_aac);
-        else if (strncmp(token, "vp8", 3) == 0 || strncmp(token, "vp08", 4) == 0) ok = (is_webm || is_ogg || is_mkv || is_vp8);
+        if (strncmp(token, "avc1", 4) == 0 || strncmp(token, "avc3", 4) == 0 || strcmp(token, "h264") == 0 || strcmp(token, "h.264") == 0) ok = (is_mp4 || is_mov || is_mkv || is_avi || is_webm || is_flv || is_3gp || is_hls);
+        else if (strncmp(token, "hev1", 4) == 0 || strncmp(token, "hvc1", 4) == 0 || strcmp(token, "hevc") == 0 || strcmp(token, "h265") == 0 || strcmp(token, "h.265") == 0) ok = (is_mp4 || is_mov || is_mkv || is_avi || is_hls);
+        else if (strncmp(token, "dvh1", 4) == 0 || strncmp(token, "dvhe", 4) == 0 || strncmp(token, "dva1", 4) == 0 || strncmp(token, "dvav", 4) == 0) ok = (is_mp4 || is_mkv);
+        else if (strncmp(token, "vvc1", 4) == 0 || strncmp(token, "vvi1", 4) == 0 || strcmp(token, "h266") == 0 || strcmp(token, "vvc") == 0) ok = (is_mp4 || is_mkv);
+        else if (strncmp(token, "mp1v", 4) == 0 || strncmp(token, "mp2v", 4) == 0 || strcmp(token, "mpeg2") == 0 || strcmp(token, "m2v") == 0) ok = (is_mpeg || is_mp4 || is_mkv || is_avi);
+        else if (strcmp(token, "mjpeg") == 0 || strcmp(token, "jpeg") == 0) ok = (is_avi || is_mov || is_mkv);
+        else if (strcmp(token, "wmv1") == 0 || strcmp(token, "wmv2") == 0 || strcmp(token, "wmv3") == 0 || strcmp(token, "vc1") == 0) ok = (is_wmv || is_avi || is_mkv);
+        else if (strncmp(token, "apch", 4) == 0 || strncmp(token, "apcn", 4) == 0 || strncmp(token, "apcs", 4) == 0 || strncmp(token, "apco", 4) == 0 || strncmp(token, "ap4h", 4) == 0 || strcmp(token, "prores") == 0) ok = (is_mov || is_mkv);
+        else if (strncmp(token, "mp4v", 4) == 0) ok = (is_mp4 || is_mov || is_mkv || is_avi || is_3gp);
+        else if (strncmp(token, "mp4a", 4) == 0 || strcmp(token, "aac") == 0) ok = (is_mp4 || is_mov || is_mkv || is_avi || is_aac || is_3gp || is_flv || is_hls);
+        else if (strcmp(token, "alac") == 0) ok = (is_mp4 || is_mov || is_mkv);
+        else if (strncmp(token, "amr", 3) == 0 || strcmp(token, "samr") == 0 || strcmp(token, "sawb") == 0) ok = (is_3gp || is_mp4);
+        else if (strncmp(token, "dts", 3) == 0) ok = (is_mp4 || is_mkv || is_avi);
+        else if (strcmp(token, "wma") == 0 || strcmp(token, "wmav1") == 0 || strcmp(token, "wmav2") == 0 || strcmp(token, "wmapro") == 0) ok = (is_wmv || is_avi || is_mkv);
+        else if (strncmp(token, "vp8", 3) == 0 || strncmp(token, "vp08", 4) == 0) ok = (is_webm || is_ogg || is_mkv || is_vp8 || is_flv);
         else if (strncmp(token, "vp9", 3) == 0 || strncmp(token, "vp09", 4) == 0) ok = (is_webm || is_mp4 || is_mkv || is_vp9);
-        else if (strncmp(token, "av01", 4) == 0 || strcmp(token, "av1") == 0) ok = (is_mp4 || is_webm || is_mkv || is_av1);
+        else if (strncmp(token, "av01", 4) == 0 || strcmp(token, "av1") == 0) ok = (is_mp4 || is_webm || is_mkv || is_av1 || is_avif);
         else if (strncmp(token, "av02", 4) == 0 || strcmp(token, "av2") == 0) ok = (is_mp4 || is_webm || is_mkv || is_av2);
         else if (strcmp(token, "theora") == 0) ok = (is_ogg || is_mkv);
         else if (strcmp(token, "vorbis") == 0) ok = (is_webm || is_ogg || is_mkv);
         else if (strcmp(token, "opus") == 0) ok = (is_webm || is_ogg || is_opus || is_mp4 || is_mkv);
         else if (strcmp(token, "flac") == 0) ok = (is_flac || is_ogg || is_mp4 || is_mkv);
-        else if (strcmp(token, "mp3") == 0 || strcmp(token, "mp3a") == 0) ok = (is_mp3 || is_mp4 || is_mov || is_mkv || is_avi);
-        else if (strcmp(token, "1") == 0 || strcmp(token, "pcm") == 0 || strcmp(token, "wav") == 0) ok = (is_wav || is_avi || is_mkv);
-        else if (strcmp(token, "ac-3") == 0 || strcmp(token, "ec-3") == 0 || strcmp(token, "ac-4") == 0 || strcmp(token, "ec+3") == 0 || strcmp(token, "mhm1") == 0 || strcmp(token, "mhm2") == 0 || strcmp(token, "mp4a.a5") == 0 || strcmp(token, "mp4a.a6") == 0 || strncmp(token, "mhm1.", 5) == 0 || strncmp(token, "mhm2.", 5) == 0 || strncmp(token, "ac-4.", 5) == 0) ok = (is_mp4 || is_mov);
+        else if (strcmp(token, "mp3") == 0 || strcmp(token, "mp3a") == 0) ok = (is_mp3 || is_mp4 || is_mov || is_mkv || is_avi || is_flv || is_mpeg);
+        else if (strcmp(token, "1") == 0 || strcmp(token, "pcm") == 0 || strcmp(token, "wav") == 0 || strcmp(token, "aiff") == 0 || strcmp(token, "ulaw") == 0 || strcmp(token, "alaw") == 0 || strcmp(token, "basic") == 0) ok = (is_wav || is_avi || is_mkv || is_aiff || is_basic || is_mov);
+        else if (strcmp(token, "ac-3") == 0 || strcmp(token, "ec-3") == 0 || strcmp(token, "ac-4") == 0 || strcmp(token, "ec+3") == 0 || strcmp(token, "mhm1") == 0 || strcmp(token, "mhm2") == 0 || strcmp(token, "mp4a.a5") == 0 || strcmp(token, "mp4a.a6") == 0 || strncmp(token, "mhm1.", 5) == 0 || strncmp(token, "mhm2.", 5) == 0 || strncmp(token, "ac-4.", 5) == 0) ok = (is_mp4 || is_mov || is_mkv);
 
         if (!ok) {
             all_codecs_ok = false;
