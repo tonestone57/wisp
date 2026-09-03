@@ -12,14 +12,8 @@
 #include "wisp/content/handlers/html/box.h"
 #include "wisp/css.h"
 #include "wisp/types.h"
+#include "wisp/content/handlers/html/private.h"
 #include "layout_margin_collapse_style.h"
-
-typedef struct html_content html_content;
-
-struct html_content {
-	struct css_unit_ctx unit_len_ctx;
-};
-
 #include "content/handlers/html/layout_internal.h"
 
 /* Helper to create a dummy box */
