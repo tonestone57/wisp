@@ -384,6 +384,16 @@ add_wisp_test(layout_inline_grid_test
 )
 target_compile_definitions(layout_inline_grid_test PRIVATE TESTING)
 
+add_wisp_test(test_table_benchmark
+  ${CMAKE_SOURCE_DIR}/src/test/test_table_benchmark.c
+  $<TARGET_OBJECTS:margin_collapse_style>
+)
+target_include_directories(test_table_benchmark PRIVATE
+  ${TEST_COMMON_INCLUDES}
+  ${CMAKE_SOURCE_DIR}/include
+)
+target_link_libraries(test_table_benchmark PRIVATE wisp ${CHECK_LIBRARIES})
+
 add_wisp_test(layout_vertical_align_test
   ${CMAKE_SOURCE_DIR}/src/test/layout_vertical_align_test.c
 )
