@@ -1039,8 +1039,7 @@ static nserror nsgtk_setup(int argc, char **argv, char **respath)
 
     struct stat statbuf;
     if (stat("/etc/mime.types", &statbuf) == 0 && S_ISREG(statbuf.st_mode)) {
-        strncpy(buf, "/etc/mime.types", PATH_MAX);
-        buf[PATH_MAX - 1] = '\0';
+        snprintf(buf, sizeof(buf), "%s", "/etc/mime.types");
     } else {
         filepath_sfinddef(respath, buf, "mime.types", "/etc/");
     }
