@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 static bool test_ensure(FILE *fptr) {
     if (fptr == NULL) return false;
@@ -130,6 +131,14 @@ START_TEST(test_nslog_init_split_logs)
 
     // Check if wisp-logs directory was created and contains files
     ck_assert_int_eq(access("wisp-logs/ns-info.txt", F_OK), 0);
+
+#ifndef _WIN32
+    struct stat st;
+    ck_assert_int_eq(stat("wisp-logs", &st), 0);
+    /* Verify group and other permission bits are cleared (0700 mode) */
+    ck_assert_int_eq(st.st_mode & 0077, 0);
+#endif
+
     cleanup_split_logs();
 }
 END_TEST

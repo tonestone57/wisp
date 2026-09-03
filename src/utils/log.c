@@ -531,7 +531,7 @@ nserror nslog_init(nslog_ensure_t *ensure, int *pargc, char **argv)
 #ifdef _WIN32
         _mkdir("wisp-logs");
 #else
-        mkdir("wisp-logs", 0777);
+        mkdir("wisp-logs", 0700);
 #endif
         split_log_files[0] = fopen("wisp-logs/ns-deepdebug.txt", "w");
         split_log_files[1] = fopen("wisp-logs/ns-debug.txt", "w");
