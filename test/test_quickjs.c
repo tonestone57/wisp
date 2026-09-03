@@ -1417,6 +1417,11 @@ START_TEST(test_quickjs_crypto)
     result = js_exec(thread, (const uint8_t *)code1, strlen(code1), "test_crypto_exists");
     ck_assert(result == true);
 
+    /* Test crypto.subtle.digest rejects SHA-1 (unsupported algorithm) */
+    const char *code2 = "var promise = crypto.subtle.digest('SHA-1', new Uint8Array([1, 2, 3])); typeof promise === 'object' && typeof promise.then === 'function';";
+    result = js_exec(thread, (const uint8_t *)code2, strlen(code2), "test_crypto_sha1_rejected");
+    ck_assert(result == true);
+
     js_closethread(thread);
     js_destroythread(thread);
     js_destroyheap(heap);
