@@ -1,4 +1,8 @@
 #include <check.h>
+#ifdef WISP_DISABLE_LOGGING
+#undef WISP_DISABLE_LOGGING
+#endif
+#define WISP_DISABLE_LOGGING 0
 #include <wisp/utils/log.h>
 #include <stdio.h>
 #include <stdbool.h>
