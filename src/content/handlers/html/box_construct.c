@@ -417,6 +417,7 @@ __attribute__((weak)) extern dom_string *corestring_dom_href;
 __attribute__((weak)) extern css_error node_is_visited(void *pw, void *node, bool *match);
 __attribute__((weak)) extern css_error node_is_checked(void *pw, void *node, bool *match);
 __attribute__((weak)) extern css_error node_is_target(void *pw, void *node, bool *match);
+__attribute__((weak)) extern css_error node_is_lang(void *pw, void *node, lwc_string *lang, bool *match);
 __attribute__((weak)) extern css_error node_presentational_hint(void *pw, void *node, uint32_t *nhints, css_hint **hints);
 __attribute__((weak)) extern css_error get_libcss_node_data(void *pw, void *node, void **libcss_node_data);
 __attribute__((weak)) extern css_error set_libcss_node_data(void *pw, void *node, void *libcss_node_data);
