@@ -359,6 +359,43 @@ static void *entries_hashmap_value_alloc(void *key)
     return ent;
 }
 
+/**
+ * Release any allocation for an entry element regardless of reference count.
+ */
+static void entry_destroy_alloc(struct store_entry_element *elem)
+{
+    if ((elem->flags & ENTRY_ELEM_FLAG_HEAP) != 0) {
+        if (elem->data != NULL) {
+            NSLOG(wisp, DEEPDEBUG, "freeing %p", elem->data);
+            free(elem->data);
+            elem->data = NULL;
+        }
+        elem->flags &= ~ENTRY_ELEM_FLAG_HEAP;
+        elem->ref = 0;
+    } else if ((elem->flags & ENTRY_ELEM_FLAG_MMAP) != 0) {
+        if (elem->data != NULL) {
+            NSLOG(wisp, DEEPDEBUG, "unmapping %p", elem->data);
+#ifdef _WIN32
+            SYSTEM_INFO sysInfo;
+            GetSystemInfo(&sysInfo);
+            DWORD dwSysGran = sysInfo.dwAllocationGranularity;
+            uint64_t aligned_offset = (elem->journal_offset / dwSysGran) * dwSysGran;
+            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+            UnmapViewOfFile(elem->data - offset_in_page);
+#else
+            long page_size = sysconf(_SC_PAGE_SIZE);
+            uint64_t aligned_offset = (elem->journal_offset / page_size) * page_size;
+            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+            uint32_t mapped_size = elem->size + offset_in_page;
+            munmap(elem->data - offset_in_page, mapped_size);
+#endif
+            elem->data = NULL;
+        }
+        elem->flags &= ~ENTRY_ELEM_FLAG_MMAP;
+        elem->ref = 0;
+    }
+}
+
 static void entries_hashmap_value_destroy(void *value)
 {
     struct store_entry *ent = value;
@@ -366,6 +403,9 @@ static void entries_hashmap_value_destroy(void *value)
      * invalidate_entry() prior to removing an entry from state->entries.
      * Therefore, value_destroy only needs to release in-memory resources.
      */
+    for (int i = 0; i < ENTRY_ELEM_COUNT; i++) {
+        entry_destroy_alloc(&ent->elem[i]);
+    }
     nsurl_unref(ent->url);
     free(ent);
 }
@@ -2525,9 +2565,6 @@ static nserror initialise(const struct llcache_store_parameters *parameters)
 /**
  * Finalise the backing store.
  *
- * \todo This will cause the backing store to leak any outstanding memory
- * allocations. This will probably best be done by a global use count.
- *
  * @return NSERROR_OK on success.
  */
 static nserror finalise(void)
@@ -2536,9 +2573,15 @@ static nserror finalise(void)
     unsigned int op_count;
 
     if (storestate != NULL) {
+        /* Cancel any scheduled maintenance */
+        guit->misc->schedule(-1, control_maintenance, storestate);
+
         write_entries(storestate);
         write_blocks(storestate);
         validate_entries_after_write(storestate);
+
+        /* Cancel any maintenance that validate_entries_after_write might have scheduled */
+        guit->misc->schedule(-1, control_maintenance, storestate);
 
         /* close journal */
         if (storestate->journal_fd != -1) {
@@ -2784,33 +2827,12 @@ static nserror store(nsurl *url, enum backing_store_flags bsflags, uint8_t *data
  */
 static nserror entry_release_alloc(struct store_entry_element *elem)
 {
-    if ((elem->flags & ENTRY_ELEM_FLAG_HEAP) != 0) {
-        elem->ref--;
-        if (elem->ref == 0) {
-            NSLOG(wisp, DEEPDEBUG, "freeing %p", elem->data);
-            free(elem->data);
-            elem->flags &= ~ENTRY_ELEM_FLAG_HEAP;
+    if ((elem->flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0) {
+        if (elem->ref > 0) {
+            elem->ref--;
         }
-    } else if ((elem->flags & ENTRY_ELEM_FLAG_MMAP) != 0) {
-        elem->ref--;
         if (elem->ref == 0) {
-            NSLOG(wisp, DEEPDEBUG, "unmapping %p", elem->data);
-#ifdef _WIN32
-            SYSTEM_INFO sysInfo;
-            GetSystemInfo(&sysInfo);
-            DWORD dwSysGran = sysInfo.dwAllocationGranularity;
-            uint64_t aligned_offset = (elem->journal_offset / dwSysGran) * dwSysGran;
-            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
-            UnmapViewOfFile(elem->data - offset_in_page);
-#else
-            long page_size = sysconf(_SC_PAGE_SIZE);
-            uint64_t aligned_offset = (elem->journal_offset / page_size) * page_size;
-            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
-            uint32_t mapped_size = elem->size + offset_in_page;
-            munmap(elem->data - offset_in_page, mapped_size);
-#endif
-            elem->data = NULL;
-            elem->flags &= ~ENTRY_ELEM_FLAG_MMAP;
+            entry_destroy_alloc(elem);
         }
     }
     return NSERROR_OK;
