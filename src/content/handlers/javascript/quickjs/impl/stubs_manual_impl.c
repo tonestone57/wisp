@@ -5368,13 +5368,11 @@ JSValue wisp_htmllabelelement_control_get_impl(JSContext *ctx, QJSNodePrivate *p
     if (JS_IsString(for_val)) {
         const char *for_str = JS_ToCString(ctx, for_val);
         if (for_str && for_str[0] != '\0') {
+            extern JSValue wisp_document_getElementById_impl(JSContext *ctx, QJSNodePrivate *priv, const char * elementId);
             JSValue global = JS_GetGlobalObject(ctx);
             JSValue doc_val = JS_GetPropertyStr(ctx, global, "document");
-            JSValue get_el = JS_GetPropertyStr(ctx, doc_val, "getElementById");
-            JSValue id_str = JS_NewString(ctx, for_str);
-            JSValue target = JS_Call(ctx, get_el, doc_val, 1, &id_str);
-            JS_FreeValue(ctx, id_str);
-            JS_FreeValue(ctx, get_el);
+            QJSNodePrivate *doc_priv = qjs_get_dom_priv(ctx, doc_val);
+            JSValue target = wisp_document_getElementById_impl(ctx, doc_priv, for_str);
             JS_FreeValue(ctx, doc_val);
             JS_FreeValue(ctx, global);
             JS_FreeCString(ctx, for_str);
@@ -5390,22 +5388,12 @@ JSValue wisp_htmllabelelement_control_get_impl(JSContext *ctx, QJSNodePrivate *p
     } else {
         JS_FreeValue(ctx, for_val);
     }
-    JSValue label_obj = qjs_wrap_node(ctx, (dom_node *)priv->node);
-    JSValue qs = JS_GetPropertyStr(ctx, label_obj, "querySelector");
-    if (JS_IsFunction(ctx, qs)) {
-        JSValue sel = JS_NewString(ctx, "input, select, textarea, button");
-        JSValue target = JS_Call(ctx, qs, label_obj, 1, &sel);
-        JS_FreeValue(ctx, sel);
-        JS_FreeValue(ctx, qs);
-        JS_FreeValue(ctx, label_obj);
-        if (!JS_IsException(target) && !JS_IsNull(target) && !JS_IsUndefined(target)) {
-            return target;
-        }
-        JS_FreeValue(ctx, target);
-    } else {
-        JS_FreeValue(ctx, qs);
-        JS_FreeValue(ctx, label_obj);
+
+    JSValue target = qjs_dom_query_selector_internal(ctx, (struct dom_node *)priv->node, "input, select, textarea, button", false);
+    if (!JS_IsException(target) && !JS_IsNull(target) && !JS_IsUndefined(target)) {
+        return target;
     }
+    JS_FreeValue(ctx, target);
     return JS_NULL;
 }
 

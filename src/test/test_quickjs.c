@@ -3673,6 +3673,9 @@ START_TEST(test_quickjs_node_stubs)
         "var childrenOk = children.length === 2 && children[0] === child1 && children[1] === child2;\n"
         "var baseURIOk = parent.baseURI !== null;\n"
         "var lookupOk = typeof parent.lookupPrefix === 'function' && typeof parent.lookupNamespaceURI === 'function' && typeof parent.isDefaultNamespace === 'function';\n"
+        "var lbl1 = document.createElement('label');\n"
+        "lbl1.setAttribute('for', 'target_input');\n"
+        "var ctrl1 = lbl1.control;\n"
         "childrenOk && baseURIOk && lookupOk;";
 
     result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_node_stubs");
