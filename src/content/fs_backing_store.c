@@ -25,11 +25,11 @@
  * \todo Consider improving eviction sorting to include objects size
  *         and remaining lifetime and other cost metrics.
  *
- * \todo Implement mmap retrieval where supported.
+ * \note Memory-mapped (mmap) retrieval is supported for both journal entries and
+ *       standalone cache files (>16KB).
  *
- * \todo Implement static retrieval for metadata objects as their heap
- *         lifetime is typically very short, though this may be obsoleted
- *         by a small object storage strategy.
+ * \note Metadata and small objects are efficiently managed using the small object
+ *       block allocation strategy (alloc_block) and low-overhead journaling.
  *
  */
 
@@ -375,20 +375,28 @@ static void entry_destroy_alloc(struct store_entry_element *elem)
     } else if ((elem->flags & ENTRY_ELEM_FLAG_MMAP) != 0) {
         if (elem->data != NULL) {
             NSLOG(wisp, DEEPDEBUG, "unmapping %p", elem->data);
+            if ((elem->flags & ENTRY_ELEM_FLAG_JOURNAL) != 0 || elem->journal_offset != 0) {
 #ifdef _WIN32
-            SYSTEM_INFO sysInfo;
-            GetSystemInfo(&sysInfo);
-            DWORD dwSysGran = sysInfo.dwAllocationGranularity;
-            uint64_t aligned_offset = (elem->journal_offset / dwSysGran) * dwSysGran;
-            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
-            UnmapViewOfFile(elem->data - offset_in_page);
+                SYSTEM_INFO sysInfo;
+                GetSystemInfo(&sysInfo);
+                DWORD dwSysGran = sysInfo.dwAllocationGranularity;
+                uint64_t aligned_offset = (elem->journal_offset / dwSysGran) * dwSysGran;
+                uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+                UnmapViewOfFile(elem->data - offset_in_page);
 #else
-            long page_size = sysconf(_SC_PAGE_SIZE);
-            uint64_t aligned_offset = (elem->journal_offset / page_size) * page_size;
-            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
-            uint32_t mapped_size = elem->size + offset_in_page;
-            munmap(elem->data - offset_in_page, mapped_size);
+                long page_size = sysconf(_SC_PAGE_SIZE);
+                uint64_t aligned_offset = (elem->journal_offset / page_size) * page_size;
+                uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+                uint32_t mapped_size = elem->size + offset_in_page;
+                munmap(elem->data - offset_in_page, mapped_size);
 #endif
+            } else {
+#ifdef _WIN32
+                UnmapViewOfFile(elem->data);
+#else
+                munmap(elem->data, elem->size);
+#endif
+            }
             elem->data = NULL;
         }
         elem->flags &= ~ENTRY_ELEM_FLAG_MMAP;
@@ -2963,21 +2971,57 @@ static nserror store_read_journal(struct store_state *state, struct store_entry 
  */
 static nserror store_read_file(struct store_state *state, struct store_entry *bse, int elem_idx)
 {
+    struct store_entry_element *elem = &bse->elem[elem_idx];
     int fd;
-    ssize_t rd; /* return from read */
-    int ret = NSERROR_OK;
-    size_t tot = 0; /* total size */
 
     /* separate file in backing store */
     fd = store_open(state, nsurl_hash(bse->url), elem_idx, O_RDONLY);
     if (fd < 0) {
         NSLOG(wisp, ERROR, "Open failed %d errno %d", fd, errno);
-        invalidate_entry(state, bse);
         return NSERROR_NOT_FOUND;
     }
 
-    while (tot < bse->elem[elem_idx].size) {
-        rd = read(fd, bse->elem[elem_idx].data + tot, bse->elem[elem_idx].size - tot);
+    if (elem->size > 16384) {
+#ifdef _WIN32
+        HANDLE hFile = (HANDLE)_get_osfhandle(fd);
+        HANDLE hMapping = CreateFileMapping(hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+        if (hMapping != NULL) {
+            elem->data = MapViewOfFile(hMapping, FILE_MAP_READ, 0, 0, elem->size);
+            CloseHandle(hMapping);
+            if (elem->data != NULL) {
+                close(fd);
+                elem->journal_offset = 0;
+                elem->journal_length = 0;
+                elem->flags |= ENTRY_ELEM_FLAG_MMAP;
+                elem->ref = 1;
+                return NSERROR_OK;
+            }
+        }
+#else
+        void *map = mmap(NULL, elem->size, PROT_READ, MAP_PRIVATE, fd, 0);
+        if (map != MAP_FAILED) {
+            close(fd);
+            elem->data = map;
+            elem->journal_offset = 0;
+            elem->journal_length = 0;
+            elem->flags |= ENTRY_ELEM_FLAG_MMAP;
+            elem->ref = 1;
+            return NSERROR_OK;
+        }
+#endif
+    }
+
+    /* Fallback to malloc + read */
+    elem->data = malloc(elem->size);
+    if (elem->data == NULL) {
+        close(fd);
+        return NSERROR_NOMEM;
+    }
+
+    size_t tot = 0;
+    int ret = NSERROR_OK;
+    while (tot < elem->size) {
+        ssize_t rd = read(fd, elem->data + tot, elem->size - tot);
         if (rd <= 0) {
             NSLOG(wisp, ERROR, "read error returned %" PRIssizet " errno %d", rd, errno);
             ret = NSERROR_NOT_FOUND;
@@ -2988,9 +3032,18 @@ static nserror store_read_file(struct store_state *state, struct store_entry *bs
 
     close(fd);
 
-    NSLOG(wisp, DEEPDEBUG, "Read %" PRIsizet " bytes into %p", tot, bse->elem[elem_idx].data);
+    if (ret != NSERROR_OK) {
+        free(elem->data);
+        elem->data = NULL;
+        return ret;
+    }
 
-    return ret;
+    elem->flags |= ENTRY_ELEM_FLAG_HEAP;
+    elem->ref = 1;
+
+    NSLOG(wisp, DEEPDEBUG, "Read %" PRIsizet " bytes into %p", tot, elem->data);
+
+    return NSERROR_OK;
 }
 
 /**
@@ -3055,14 +3108,6 @@ static nserror fetch(nsurl *url, enum backing_store_flags bsflags, uint8_t **dat
             elem->ref = 1;
             ret = store_read_block(storestate, bse, elem_idx);
         } else {
-            /* allocate from the heap */
-            elem->data = malloc(elem->size);
-            if (elem->data == NULL) {
-                NSLOG(wisp, ERROR, "Failed to create new heap allocation");
-                return NSERROR_NOMEM;
-            }
-            elem->flags |= ENTRY_ELEM_FLAG_HEAP;
-            elem->ref = 1;
             ret = store_read_file(storestate, bse, elem_idx);
         }
     }
@@ -3070,6 +3115,7 @@ static nserror fetch(nsurl *url, enum backing_store_flags bsflags, uint8_t **dat
     /* free the allocation if there is a read error */
     if (ret != NSERROR_OK) {
         entry_release_alloc(elem);
+        invalidate_entry(storestate, bse);
     } else {
         /* update stats and setup return pointers */
         storestate->hit_size += elem->size;
