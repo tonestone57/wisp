@@ -85,6 +85,7 @@ struct form_control {
     char *value; /**< Current value of control */
     char *initial_value; /**< Initial value of control */
     char *last_synced_value; /**< The last value sync'd to the DOM */
+    char *rawfile; /**< Unencoded filename for file input gadgets */
     bool disabled; /**< Whether control is disabled */
 
     struct box *box; /**< Box for control */
