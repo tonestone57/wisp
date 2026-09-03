@@ -359,6 +359,58 @@ START_TEST(test_getdims_options_defaults)
 }
 END_TEST
 
+START_TEST(test_browser_window_get_set_name)
+{
+    struct browser_window bw;
+    memset(&bw, 0, sizeof(bw));
+
+    const char *name = (const char *)0x1234;
+    nserror err = browser_window_get_name(&bw, &name);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_null(name);
+
+    err = browser_window_set_name(&bw, "my_frame");
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = browser_window_get_name(&bw, &name);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(name);
+    ck_assert_str_eq(name, "my_frame");
+
+    /* Update name */
+    err = browser_window_set_name(&bw, "updated_frame_name");
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = browser_window_get_name(&bw, &name);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(name);
+    ck_assert_str_eq(name, "updated_frame_name");
+
+    /* Clear name */
+    err = browser_window_set_name(&bw, NULL);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = browser_window_get_name(&bw, &name);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_null(name);
+
+    /* Test child frame browsing context */
+    struct browser_window child_bw;
+    memset(&child_bw, 0, sizeof(child_bw));
+    child_bw.parent = &bw;
+
+    err = browser_window_set_name(&child_bw, "child_iframe_1");
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    err = browser_window_get_name(&child_bw, &name);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_nonnull(name);
+    ck_assert_str_eq(name, "child_iframe_1");
+
+    browser_window_set_name(&child_bw, NULL);
+}
+END_TEST
+
 static Suite *browser_window_suite_create(void)
 {
     Suite *s = suite_create("Browser Window");
@@ -377,6 +429,12 @@ static Suite *browser_window_suite_create(void)
     tcase_add_test(tc, test_getdims_options_defaults);
 
     suite_add_tcase(s, tc);
+
+    TCase *tc_name = tcase_create("browser_window_name");
+    tcase_add_unchecked_fixture(tc_name, setup, teardown);
+    tcase_add_test(tc_name, test_browser_window_get_set_name);
+    suite_add_tcase(s, tc_name);
+
     return s;
 }
 
