@@ -166,8 +166,55 @@ int main(int argc, char **argv)
     nsurl_unref(url3);
     free(data3);
 
+    /* Test Finalisation with Outstanding (Unreleased) Allocations */
+    printf("Testing finalisation with outstanding allocations...\n");
+    wisp_recursive_rm("test_cache_unreleased");
+    mkdir("test_cache_unreleased", 0755);
+    struct llcache_store_parameters unreleased_params = {
+        .path = "test_cache_unreleased",
+        .limit = 1024 * 1024,
+        .hysteresis = 128 * 1024
+    };
+
+    ret = guit->llcache->initialise(&unreleased_params);
+    assert(ret == NSERROR_OK);
+
+    struct nsurl *url_u1, *url_u2;
+    nsurl_create("http://unreleased1.com", &url_u1);
+    nsurl_create("http://unreleased2.com", &url_u2);
+
+    size_t ulen1 = 500;
+    size_t ulen2 = 25000;
+    uint8_t *udata1 = malloc(ulen1);
+    uint8_t *udata2 = malloc(ulen2);
+    memset(udata1, 'X', ulen1);
+    memset(udata2, 'Y', ulen2);
+
+    ret = guit->llcache->store(url_u1, BACKING_STORE_NONE, udata1, ulen1);
+    assert(ret == NSERROR_OK);
+    ret = guit->llcache->store(url_u2, BACKING_STORE_NONE, udata2, ulen2);
+    assert(ret == NSERROR_OK);
+
+    /* Fetch assets into memory without calling release() before finalise() */
+    ret = guit->llcache->fetch(url_u1, BACKING_STORE_NONE, &fetched_data, &fetched_len);
+    assert(ret == NSERROR_OK);
+    assert(fetched_len == ulen1);
+
+    ret = guit->llcache->fetch(url_u2, BACKING_STORE_NONE, &fetched_data, &fetched_len);
+    assert(ret == NSERROR_OK);
+    assert(fetched_len == ulen2);
+
+    /* Finalise backing store with active/outstanding allocations to ensure clean teardown */
+    guit->llcache->finalise();
+
+    nsurl_unref(url_u1);
+    nsurl_unref(url_u2);
+    free(udata1);
+    free(udata2);
+
     wisp_recursive_rm("test_cache");
     wisp_recursive_rm("test_cache_no_journal");
+    wisp_recursive_rm("test_cache_unreleased");
 
     printf("Journal test passed!\n");
     return 0;
