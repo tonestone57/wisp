@@ -419,6 +419,12 @@ GtkWidget *nsgtk_dialog_get_content_area(GtkDialog *dialog)
 #include "gtk/scaffolding.h"
 #endif
 
+#if !GTK_CHECK_VERSION(2, 14, 0)
+#if GLIB_CHECK_VERSION(2, 16, 0)
+#include <gio/gio.h>
+#endif
+#endif
+
 gboolean nsgtk_show_uri(GdkScreen *screen, const gchar *uri, guint32 timestamp, GError **error)
 {
 #if GTK_CHECK_VERSION(2, 14, 0)
@@ -430,7 +436,51 @@ gboolean nsgtk_show_uri(GdkScreen *screen, const gchar *uri, guint32 timestamp, 
     return gtk_show_uri(screen, uri, timestamp, error);
 #endif
 #else
-    return FALSE; /** \todo add uri opening for before gtk 2.14 */
+    (void)screen;
+    (void)timestamp;
+
+    if (uri == NULL) {
+        return FALSE;
+    }
+
+#if GLIB_CHECK_VERSION(2, 16, 0)
+    if (g_app_info_launch_default_for_uri(uri, NULL, NULL)) {
+        return TRUE;
+    }
+#endif
+
+    GError *spawn_err = NULL;
+
+    gchar *argv_xdg[] = { "xdg-open", (gchar *)uri, NULL };
+    if (g_spawn_async(NULL, argv_xdg, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, &spawn_err)) {
+        return TRUE;
+    }
+    if (spawn_err != NULL) {
+        g_error_free(spawn_err);
+        spawn_err = NULL;
+    }
+
+    gchar *argv_gnome[] = { "gnome-open", (gchar *)uri, NULL };
+    if (g_spawn_async(NULL, argv_gnome, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, &spawn_err)) {
+        return TRUE;
+    }
+    if (spawn_err != NULL) {
+        g_error_free(spawn_err);
+        spawn_err = NULL;
+    }
+
+    gchar *argv_kfm[] = { "kfmclient", "exec", (gchar *)uri, NULL };
+    if (g_spawn_async(NULL, argv_kfm, NULL, G_SPAWN_SEARCH_PATH, NULL, NULL, NULL, &spawn_err)) {
+        return TRUE;
+    }
+
+    if (error != NULL) {
+        *error = spawn_err;
+    } else if (spawn_err != NULL) {
+        g_error_free(spawn_err);
+    }
+
+    return FALSE;
 #endif
 }
 
