@@ -375,28 +375,20 @@ static void entry_destroy_alloc(struct store_entry_element *elem)
     } else if ((elem->flags & ENTRY_ELEM_FLAG_MMAP) != 0) {
         if (elem->data != NULL) {
             NSLOG(wisp, DEEPDEBUG, "unmapping %p", elem->data);
-            if ((elem->flags & ENTRY_ELEM_FLAG_JOURNAL) != 0) {
 #ifdef _WIN32
-                SYSTEM_INFO sysInfo;
-                GetSystemInfo(&sysInfo);
-                DWORD dwSysGran = sysInfo.dwAllocationGranularity;
-                uint64_t aligned_offset = (elem->journal_offset / dwSysGran) * dwSysGran;
-                uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
-                UnmapViewOfFile(elem->data - offset_in_page);
+            SYSTEM_INFO sysInfo;
+            GetSystemInfo(&sysInfo);
+            DWORD dwSysGran = sysInfo.dwAllocationGranularity;
+            uint64_t aligned_offset = (elem->journal_offset / dwSysGran) * dwSysGran;
+            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+            UnmapViewOfFile(elem->data - offset_in_page);
 #else
-                long page_size = sysconf(_SC_PAGE_SIZE);
-                uint64_t aligned_offset = (elem->journal_offset / page_size) * page_size;
-                uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
-                uint32_t mapped_size = elem->size + offset_in_page;
-                munmap(elem->data - offset_in_page, mapped_size);
+            long page_size = sysconf(_SC_PAGE_SIZE);
+            uint64_t aligned_offset = (elem->journal_offset / page_size) * page_size;
+            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+            uint32_t mapped_size = elem->size + offset_in_page;
+            munmap(elem->data - offset_in_page, mapped_size);
 #endif
-            } else {
-#ifdef _WIN32
-                UnmapViewOfFile(elem->data);
-#else
-                munmap(elem->data, elem->size);
-#endif
-            }
             elem->data = NULL;
         }
         elem->flags &= ~ENTRY_ELEM_FLAG_MMAP;
@@ -2978,7 +2970,6 @@ static nserror store_read_file(struct store_state *state, struct store_entry *bs
     fd = store_open(state, nsurl_hash(bse->url), elem_idx, O_RDONLY);
     if (fd < 0) {
         NSLOG(wisp, ERROR, "Open failed %d errno %d", fd, errno);
-        invalidate_entry(state, bse);
         return NSERROR_NOT_FOUND;
     }
 
@@ -3112,6 +3103,7 @@ static nserror fetch(nsurl *url, enum backing_store_flags bsflags, uint8_t **dat
     /* free the allocation if there is a read error */
     if (ret != NSERROR_OK) {
         entry_release_alloc(elem);
+        invalidate_entry(storestate, bse);
     } else {
         /* update stats and setup return pointers */
         storestate->hit_size += elem->size;
