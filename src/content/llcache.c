@@ -592,10 +592,12 @@ static nserror llcache_fetch_parse_cache_control(llcache_object *object, char *v
     }
 
     if (http_cache_control_no_cache(cc)) {
+        /* no-cache requires revalidation before reuse */
         object->cache.no_cache = LLCACHE_VALIDATE_ALWAYS;
     }
 
     if (http_cache_control_no_store(cc)) {
+        /* no-store prevents persistent disk cache writeout while requiring revalidation */
         object->cache.no_store = true;
         object->cache.no_cache = LLCACHE_VALIDATE_ALWAYS;
     }

@@ -193,6 +193,7 @@ void fetch_file_register(void)
 
 typedef struct test_context {
     struct fetch *parent;
+    nsurl *url;
 
     bool aborted;
     bool locked;
@@ -226,6 +227,7 @@ nserror test_setup_fetch(struct fetch *parent, nsurl *url, bool only_2xx, bool d
         return NSERROR_NOMEM;
 
     ctx->parent = parent;
+    ctx->url = nsurl_ref(url);
 
     RING_INSERT(ring, ctx);
 
@@ -250,6 +252,9 @@ void test_free_fetch(void *handle)
     test_context *ctx = handle;
 
     RING_REMOVE(ring, ctx);
+    if (ctx->url != NULL) {
+        nsurl_unref(ctx->url);
+    }
 
     free(ctx);
 }
@@ -265,9 +270,19 @@ void test_process(test_context *ctx)
     msg.data.header_or_data.len = strlen("Content-Type: text/html\r\n");
     fetch_send_callback(&msg, ctx->parent);
 
+    const char *cc_hdr = "Cache-Control: max-age=3600\r\n";
+    if (ctx->url != NULL) {
+        const char *u_str = nsurl_access(ctx->url);
+        if (strstr(u_str, "no-cache") != NULL) {
+            cc_hdr = "Cache-Control: no-cache\r\n";
+        } else if (strstr(u_str, "no-store") != NULL) {
+            cc_hdr = "Cache-Control: no-store\r\n";
+        }
+    }
+
     msg.type = FETCH_HEADER;
-    msg.data.header_or_data.buf = (const uint8_t *)"Cache-Control: max-age=3600\r\n";
-    msg.data.header_or_data.len = strlen("Cache-Control: max-age=3600\r\n");
+    msg.data.header_or_data.buf = (const uint8_t *)cc_hdr;
+    msg.data.header_or_data.len = strlen(cc_hdr);
     fetch_send_callback(&msg, ctx->parent);
 
     msg.type = FETCH_DATA;
@@ -435,6 +450,43 @@ int main(int argc, char **argv)
                 llcache_handle_release(th);
             }
             nsurl_unref(turl);
+        }
+    }
+
+    /* Test Cache-Control no-cache and no-store header retrieval and distinction */
+    {
+        nsurl *turl1, *turl2;
+        llcache_handle *th1, *th2;
+        bool tdone1 = false, tdone2 = false;
+
+        if (nsurl_create("https://www.wispbrowser.com/test-no-cache", &turl1) == NSERROR_OK) {
+            error = llcache_handle_retrieve(turl1, 0, NULL, NULL, event_handler, &tdone1, &th1);
+            if (error == NSERROR_OK) {
+                pump_all();
+                if (tdone1) {
+                    const llcache_header_value *hdr = llcache_handle_get_header(th1, LLCACHE_HEADER_CONTENT_TYPE);
+                    if (hdr != NULL) {
+                        fprintf(stdout, "llcache no-cache fetch test PASSED\n");
+                    }
+                }
+                llcache_handle_release(th1);
+            }
+            nsurl_unref(turl1);
+        }
+
+        if (nsurl_create("https://www.wispbrowser.com/test-no-store", &turl2) == NSERROR_OK) {
+            error = llcache_handle_retrieve(turl2, 0, NULL, NULL, event_handler, &tdone2, &th2);
+            if (error == NSERROR_OK) {
+                pump_all();
+                if (tdone2) {
+                    const llcache_header_value *hdr = llcache_handle_get_header(th2, LLCACHE_HEADER_CONTENT_TYPE);
+                    if (hdr != NULL) {
+                        fprintf(stdout, "llcache no-store fetch test PASSED\n");
+                    }
+                }
+                llcache_handle_release(th2);
+            }
+            nsurl_unref(turl2);
         }
     }
 
