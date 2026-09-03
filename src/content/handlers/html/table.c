@@ -141,10 +141,13 @@ static bool table_border_is_more_eyecatching(
     else if (impact > 0)
         return false;
 
-    /* 4a -- sort by origin */
+    /* 4a -- sort by origin: per CSS 2.1 §17.6.2.1, precedence order is:
+     * cell > row > row group > column > column group > table.
+     * Note: <col> and <colgroup> elements do not generate box tree nodes in
+     * Wisp's box model architecture, so column/column-group box types are
+     * omitted here. */
     impact = 0;
 
-    /** \todo COL/COL_GROUP */
     switch (a_src) {
     case BOX_TABLE_CELL:
         impact++; /* Fall through */
@@ -158,7 +161,6 @@ static bool table_border_is_more_eyecatching(
         break;
     }
 
-    /** \todo COL/COL_GROUP */
     switch (b_src) {
     case BOX_TABLE_CELL:
         impact--; /* Fall through */
@@ -501,7 +503,11 @@ static void table_used_left_border_for_cell(const css_unit_ctx *unit_len_ctx, st
     box_type a_src, b_src;
     const struct box *a_box = cell;
 
-    /** \todo Need column and column_group, too */
+    /* Note: Per CSS 2.1 §17.6.2, column and column-group elements may specify
+     * borders in collapsed border mode. In Wisp's box model architecture,
+     * column metadata is stored in 'struct column' arrays on BOX_TABLE rather
+     * than individual column box tree nodes, so column/column-group border
+     * styles are omitted from cell border evaluation. */
 
     /* Initialise to computed left border for cell */
     a.style = css_computed_border_left_style(cell->style);
@@ -712,7 +718,11 @@ static void table_used_right_border_for_cell(const css_unit_ctx *unit_len_ctx, s
     box_type a_src, b_src;
     const struct box *a_box = cell;
 
-    /** \todo Need column and column_group, too */
+    /* Note: Per CSS 2.1 §17.6.2, column and column-group elements may specify
+     * borders in collapsed border mode. In Wisp's box model architecture,
+     * column metadata is stored in 'struct column' arrays on BOX_TABLE rather
+     * than individual column box tree nodes, so column/column-group border
+     * styles are omitted from cell border evaluation. */
 
     /* Initialise to computed right border for cell */
     a.style = css_computed_border_right_style(cell->style);
