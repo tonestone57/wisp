@@ -1396,6 +1396,20 @@ static CURLcode fetch_curl_set_options(struct curl_fetch_info *f)
      */
     SETOPT(CURLOPT_SSL_VERIFYPEER, 1L);
     SETOPT(CURLOPT_SSL_VERIFYHOST, 2L);
+#if LIBCURL_VERSION_NUM >= 0x073400 /* 7.52.0 */
+    SETOPT(CURLOPT_PROXY_SSL_VERIFYPEER, 1L);
+    SETOPT(CURLOPT_PROXY_SSL_VERIFYHOST, 2L);
+#endif
+#if LIBCURL_VERSION_NUM >= 0x072d00 /* 7.45.0 */
+    SETOPT(CURLOPT_DEFAULT_PROTOCOL, "https");
+#endif
+#if LIBCURL_VERSION_NUM >= 0x075500 /* 7.85.0 */
+    SETOPT(CURLOPT_PROTOCOLS_STR, "http,https");
+    SETOPT(CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
+#elif LIBCURL_VERSION_NUM >= 0x071304 /* 7.19.4 */
+    SETOPT(CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+    SETOPT(CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+#endif
 #ifdef WITH_OPENSSL
     if (curl_with_openssl) {
         SETOPT(CURLOPT_SSL_CTX_FUNCTION, fetch_curl_sslctxfun);
@@ -2115,7 +2129,7 @@ static size_t fetch_curl_header(char *data, size_t size, size_t nmemb, void *_f)
         }
         SKIP_ST(9);
         size_t loc_len = len - i;
-        strncpy(f->location, data + i, loc_len);
+        memcpy(f->location, data + i, loc_len);
         f->location[loc_len] = '\0';
         while (loc_len > 0 &&
                (f->location[loc_len - 1] == ' ' || f->location[loc_len - 1] == '\t' ||
@@ -2350,6 +2364,20 @@ nserror fetch_curl_register(void)
     /* Set baseline strict SSL/TLS verification on default template handle */
     SETOPT(CURLOPT_SSL_VERIFYPEER, 1L);
     SETOPT(CURLOPT_SSL_VERIFYHOST, 2L);
+#if LIBCURL_VERSION_NUM >= 0x073400 /* 7.52.0 */
+    SETOPT(CURLOPT_PROXY_SSL_VERIFYPEER, 1L);
+    SETOPT(CURLOPT_PROXY_SSL_VERIFYHOST, 2L);
+#endif
+#if LIBCURL_VERSION_NUM >= 0x072d00 /* 7.45.0 */
+    SETOPT(CURLOPT_DEFAULT_PROTOCOL, "https");
+#endif
+#if LIBCURL_VERSION_NUM >= 0x075500 /* 7.85.0 */
+    SETOPT(CURLOPT_PROTOCOLS_STR, "http,https");
+    SETOPT(CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
+#elif LIBCURL_VERSION_NUM >= 0x071304 /* 7.19.4 */
+    SETOPT(CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+    SETOPT(CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+#endif
 
     /* Enable HTTP/3 if available */
 #ifdef CURL_HTTP_VERSION_3
@@ -2530,6 +2558,20 @@ static void preconnect_worker(void *arg) {
         /* Enforce strict SSL/TLS verification on preconnect handle */
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
+#if LIBCURL_VERSION_NUM >= 0x073400 /* 7.52.0 */
+        curl_easy_setopt(curl, CURLOPT_PROXY_SSL_VERIFYPEER, 1L);
+        curl_easy_setopt(curl, CURLOPT_PROXY_SSL_VERIFYHOST, 2L);
+#endif
+#if LIBCURL_VERSION_NUM >= 0x072d00 /* 7.45.0 */
+        curl_easy_setopt(curl, CURLOPT_DEFAULT_PROTOCOL, "https");
+#endif
+#if LIBCURL_VERSION_NUM >= 0x075500 /* 7.85.0 */
+        curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "http,https");
+        curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
+#elif LIBCURL_VERSION_NUM >= 0x071304 /* 7.19.4 */
+        curl_easy_setopt(curl, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+        curl_easy_setopt(curl, CURLOPT_REDIR_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
+#endif
 
         /* Set CA path/bundle if they are configured */
         if (nsoption_charp(ca_bundle)) {
