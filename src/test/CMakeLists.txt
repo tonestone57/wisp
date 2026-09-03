@@ -541,6 +541,8 @@ if(NOT WIN32)
   )
   target_link_libraries(corestrings PRIVATE malloc_fig)
 
+  target_link_libraries(csp_test PRIVATE malloc_fig)
+
 add_wisp_test(journal_test
   ${CMAKE_SOURCE_DIR}/src/test/journal_test.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
