@@ -5369,12 +5369,26 @@ JSValue wisp_htmllabelelement_control_get_impl(JSContext *ctx, QJSNodePrivate *p
         const char *for_str = JS_ToCString(ctx, for_val);
         if (for_str && for_str[0] != '\0') {
             extern JSValue wisp_document_getElementById_impl(JSContext *ctx, QJSNodePrivate *priv, const char * elementId);
-            JSValue global = JS_GetGlobalObject(ctx);
-            JSValue doc_val = JS_GetPropertyStr(ctx, global, "document");
-            QJSNodePrivate *doc_priv = qjs_get_dom_priv(ctx, doc_val);
-            JSValue target = wisp_document_getElementById_impl(ctx, doc_priv, for_str);
-            JS_FreeValue(ctx, doc_val);
-            JS_FreeValue(ctx, global);
+            struct jsthread *t = JS_GetContextOpaque(ctx);
+            struct dom_document *doc = t ? qjs_thread_get_document(t) : NULL;
+            QJSNodePrivate doc_priv_stack = {0};
+            QJSNodePrivate *doc_priv = NULL;
+            JSValue global = JS_UNDEFINED;
+            JSValue doc_val = JS_UNDEFINED;
+
+            if (doc) {
+                doc_priv_stack.node = (void *)doc;
+                doc_priv = &doc_priv_stack;
+            } else {
+                global = JS_GetGlobalObject(ctx);
+                doc_val = JS_GetPropertyStr(ctx, global, "document");
+                doc_priv = qjs_get_dom_priv(ctx, doc_val);
+            }
+
+            JSValue target = doc_priv ? wisp_document_getElementById_impl(ctx, doc_priv, for_str) : JS_NULL;
+
+            if (!JS_IsUndefined(doc_val)) JS_FreeValue(ctx, doc_val);
+            if (!JS_IsUndefined(global)) JS_FreeValue(ctx, global);
             JS_FreeCString(ctx, for_str);
             JS_FreeValue(ctx, for_val);
             if (!JS_IsException(target) && !JS_IsNull(target) && !JS_IsUndefined(target)) {
