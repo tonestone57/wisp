@@ -340,6 +340,18 @@ START_TEST(test_get_context_core_polyfills)
 }
 END_TEST
 
+START_TEST(test_crypto_random_uuid)
+{
+    JSContext *ctx = get_context(1);
+    ck_assert_ptr_nonnull(ctx);
+
+    ck_assert(eval_js_bool(ctx, "typeof crypto.randomUUID() === 'string'"));
+    ck_assert(eval_js_bool(ctx, "/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(crypto.randomUUID())"));
+    ck_assert(eval_js_bool(ctx, "crypto.randomUUID() !== crypto.randomUUID()"));
+    ck_assert(eval_js_bool(ctx, "window.crypto.randomUUID() !== window.crypto.randomUUID()"));
+}
+END_TEST
+
 START_TEST(test_eval_js_when_shm_null)
 {
     wisp_shm_dom = NULL;
@@ -1494,6 +1506,7 @@ Suite *js_main_suite(void)
     tcase_add_test(tc_core, test_find_shm_doc_node_id_at_index);
     tcase_add_test(tc_core, test_global_document_get_with_shm);
     tcase_add_test(tc_core, test_get_context_core_polyfills);
+    tcase_add_test(tc_core, test_crypto_random_uuid);
     tcase_add_test(tc_core, test_eval_js_when_shm_null);
     tcase_add_test(tc_core, test_shm_dom_update_contexts);
     tcase_add_test(tc_core, test_js_process_main_invalid_args);
