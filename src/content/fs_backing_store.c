@@ -375,20 +375,28 @@ static void entry_destroy_alloc(struct store_entry_element *elem)
     } else if ((elem->flags & ENTRY_ELEM_FLAG_MMAP) != 0) {
         if (elem->data != NULL) {
             NSLOG(wisp, DEEPDEBUG, "unmapping %p", elem->data);
+            if ((elem->flags & ENTRY_ELEM_FLAG_JOURNAL) != 0 || elem->journal_offset != 0) {
 #ifdef _WIN32
-            SYSTEM_INFO sysInfo;
-            GetSystemInfo(&sysInfo);
-            DWORD dwSysGran = sysInfo.dwAllocationGranularity;
-            uint64_t aligned_offset = (elem->journal_offset / dwSysGran) * dwSysGran;
-            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
-            UnmapViewOfFile(elem->data - offset_in_page);
+                SYSTEM_INFO sysInfo;
+                GetSystemInfo(&sysInfo);
+                DWORD dwSysGran = sysInfo.dwAllocationGranularity;
+                uint64_t aligned_offset = (elem->journal_offset / dwSysGran) * dwSysGran;
+                uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+                UnmapViewOfFile(elem->data - offset_in_page);
 #else
-            long page_size = sysconf(_SC_PAGE_SIZE);
-            uint64_t aligned_offset = (elem->journal_offset / page_size) * page_size;
-            uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
-            uint32_t mapped_size = elem->size + offset_in_page;
-            munmap(elem->data - offset_in_page, mapped_size);
+                long page_size = sysconf(_SC_PAGE_SIZE);
+                uint64_t aligned_offset = (elem->journal_offset / page_size) * page_size;
+                uint32_t offset_in_page = (uint32_t)(elem->journal_offset - aligned_offset);
+                uint32_t mapped_size = elem->size + offset_in_page;
+                munmap(elem->data - offset_in_page, mapped_size);
 #endif
+            } else {
+#ifdef _WIN32
+                UnmapViewOfFile(elem->data);
+#else
+                munmap(elem->data, elem->size);
+#endif
+            }
             elem->data = NULL;
         }
         elem->flags &= ~ENTRY_ELEM_FLAG_MMAP;
@@ -2982,6 +2990,8 @@ static nserror store_read_file(struct store_state *state, struct store_entry *bs
             CloseHandle(hMapping);
             if (elem->data != NULL) {
                 close(fd);
+                elem->journal_offset = 0;
+                elem->journal_length = 0;
                 elem->flags |= ENTRY_ELEM_FLAG_MMAP;
                 elem->ref = 1;
                 return NSERROR_OK;
@@ -2992,6 +3002,8 @@ static nserror store_read_file(struct store_state *state, struct store_entry *bs
         if (map != MAP_FAILED) {
             close(fd);
             elem->data = map;
+            elem->journal_offset = 0;
+            elem->journal_length = 0;
             elem->flags |= ENTRY_ELEM_FLAG_MMAP;
             elem->ref = 1;
             return NSERROR_OK;
