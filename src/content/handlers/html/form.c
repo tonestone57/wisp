@@ -872,25 +872,33 @@ static char *form_acceptable_charset(struct form *form)
     /* dispense with temporary copy */
     free(temp);
 
-    /* according to RFC2070, the accept-charsets attribute of the
-     * form element contains a space and/or comma separated list */
-    c = (char *)accept_charsets;
+    /* According to RFC2070 / HTML spec, the accept-charset attribute of the
+     * form element contains a space and/or comma separated list of charsets.
+     * UTF-8 was checked above; here we extract the first acceptable charset
+     * token from the list.
+     */
+    const char *start = accept_charsets;
     const char *end = accept_charsets + accept_charsets_len;
 
-    /** \todo an improvement would be to choose an encoding
-     * acceptable to the server which covers as much of the input
-     * values as possible. Additionally, we need to handle the
-     * case where none of the acceptable encodings cover all the
-     * textual input values.  For now, we just extract the first
-     * element of the charset list
-     */
-    while (c < end && *c && !ascii_is_space(*c)) {
-        if (*c == ',')
-            break;
+    /* Skip leading whitespace and commas */
+    while (start < end && (*start == ',' || ascii_is_space(*start))) {
+        start++;
+    }
+
+    c = (char *)start;
+    while (c < end && *c && *c != ',' && !ascii_is_space(*c)) {
         c++;
     }
 
-    ret = strndup(accept_charsets, c - accept_charsets);
+    if (c > start) {
+        ret = strndup(start, c - start);
+    } else {
+        if (form->document_charset) {
+            ret = strdup(form->document_charset);
+        } else {
+            ret = strdup("ISO-8859-1");
+        }
+    }
 
     if (ds_charset != NULL) {
         dom_string_unref(ds_charset);
