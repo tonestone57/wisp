@@ -2773,58 +2773,69 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 		}
 
 		if (total_rows > 0) {
-			int *row_extras = malloc(total_rows * sizeof(int));
-			if (row_extras != NULL) {
-				int distributed_extra = 0;
-				int r = 0;
+			int distributed_extra = 0;
+			int rg_y = border_spacing_v + table->padding[TOP];
+			int r = 0;
 
-				for (row_group = table->children; row_group != NULL; row_group = row_group->next) {
-					for (row = row_group->children; row != NULL; row = row->next) {
-						int row_extra;
-						if (r == total_rows - 1) {
-							row_extra = extra_height - distributed_extra;
-						} else if (total_row_height > 0) {
-							row_extra = (int)((long long)extra_height * row->height / total_row_height);
-						} else {
-							row_extra = extra_height / total_rows;
-						}
-						row_extras[r] = row_extra;
-						distributed_extra += row_extra;
-						r++;
+			for (row_group = table->children; row_group != NULL; row_group = row_group->next) {
+				int row_y = 0;
+
+				for (row = row_group->children; row != NULL; row = row->next) {
+					int row_extra;
+					if (r == total_rows - 1) {
+						row_extra = extra_height - distributed_extra;
+					} else if (total_row_height > 0) {
+						row_extra = (int)((long long)extra_height * row->height / total_row_height);
+					} else {
+						row_extra = extra_height / total_rows;
 					}
-				}
+					distributed_extra += row_extra;
 
-				int rg_y = border_spacing_v + table->padding[TOP];
-				r = 0;
+					row->y = row_y;
+					row->height += row_extra;
 
-				for (row_group = table->children; row_group != NULL; row_group = row_group->next) {
-					int row_y = 0;
-
-					for (row = row_group->children; row != NULL; row = row->next) {
-						row->y = row_y;
-						row->height += row_extras[r];
-
-						for (c = row->children; c != NULL; c = c->next) {
-							if (!c || !c->style)
-								continue;
-							int cell_extra = 0;
+					for (c = row->children; c != NULL; c = c->next) {
+						if (!c || !c->style)
+							continue;
+						int cell_extra = row_extra;
+						if (c->rows > 1) {
+							int span_dist = distributed_extra;
+							struct box *span_rg = row_group;
+							struct box *span_row = row->next;
 							unsigned int k;
-							for (k = 0; k < c->rows && (r + k) < (unsigned int)total_rows; k++) {
-								cell_extra += row_extras[r + k];
+							for (k = 1; k < c->rows && (r + k) < (unsigned int)total_rows; k++) {
+								while (span_row == NULL && span_rg != NULL) {
+									span_rg = span_rg->next;
+									if (span_rg != NULL) {
+										span_row = span_rg->children;
+									}
+								}
+								if (span_row == NULL) {
+									break;
+								}
+								int span_extra;
+								if (r + k == (unsigned int)(total_rows - 1)) {
+									span_extra = extra_height - span_dist;
+								} else if (total_row_height > 0) {
+									span_extra = (int)((long long)extra_height * span_row->height / total_row_height);
+								} else {
+									span_extra = extra_height / total_rows;
+								}
+								span_dist += span_extra;
+								cell_extra += span_extra;
+								span_row = span_row->next;
 							}
-							c->height += cell_extra;
 						}
-
-						row_y += row->height + border_spacing_v;
-						r++;
+						c->height += cell_extra;
 					}
 
-					row_group->y = rg_y;
-					row_group->height = row_y;
-					rg_y += row_group->height;
+					row_y += row->height + border_spacing_v;
+					r++;
 				}
 
-				free(row_extras);
+				row_group->y = rg_y;
+				row_group->height = row_y;
+				rg_y += row_group->height;
 			}
 		}
 	}
