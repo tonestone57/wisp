@@ -2437,8 +2437,7 @@ static bool box_construct_element(struct box_construct_ctx *ctx, bool *convert_c
 			box->node = dom_node_ref(ctx->n);
 
 			if (box->styles != NULL) {
-				html_style_cache_add(ctx->content, ctx->n, box->styles);
-				box->styles = NULL; /* Transfer ownership to cache so they are freed */
+				box->styles = NULL; /* Styles were already cached by box_get_style; clear box reference */
 			}
 
 			/* Children conversion continues natively and finds the original layout-generating ancestors. */

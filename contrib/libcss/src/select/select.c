@@ -133,16 +133,29 @@ static css_error deserialize_tokens(lwc_string *serialized, parserutils_vector *
         p += sizeof(css_token);
         if (token.data.data != NULL) {
             size_t token_len = token.data.len;
-            if (p + token_len > end) break;
+            if (p + token_len > end) {
+                css__tokens_destroy(*vector);
+                *vector = NULL;
+                return CSS_INVALID;
+            }
             token.data.data = (uint8_t *)malloc(token_len);
-            if (token.data.data == NULL) return CSS_NOMEM;
+            if (token.data.data == NULL) {
+                css__tokens_destroy(*vector);
+                *vector = NULL;
+                return CSS_NOMEM;
+            }
             memcpy((void *)token.data.data, p, token_len);
             p += token_len;
         }
         if (token.idata != NULL) {
             if (token.data.data != NULL) {
                 lwc_error lerror = lwc_intern_string((char *)token.data.data, token.data.len, &token.idata);
-                if (lerror != lwc_error_ok) return css_error_from_lwc_error(lerror);
+                if (lerror != lwc_error_ok) {
+                    free((void *)token.data.data);
+                    css__tokens_destroy(*vector);
+                    *vector = NULL;
+                    return css_error_from_lwc_error(lerror);
+                }
             } else {
                 token.idata = NULL;
             }

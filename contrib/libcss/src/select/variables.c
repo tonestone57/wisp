@@ -28,9 +28,21 @@ parserutils_error css__tokens_clone(parserutils_vector *src, parserutils_vector 
         if (new_t.idata != NULL) lwc_string_ref(new_t.idata);
         if (new_t.data.data != NULL) {
             new_t.data.data = malloc(new_t.data.len);
+            if (new_t.data.data == NULL) {
+                if (new_t.idata != NULL) lwc_string_unref(new_t.idata);
+                css__tokens_destroy(*dst);
+                *dst = NULL;
+                return PARSERUTILS_NOMEM;
+            }
             memcpy(new_t.data.data, t->data.data, new_t.data.len);
         }
-        parserutils_vector_append(*dst, &new_t);
+        if (parserutils_vector_append(*dst, &new_t) != PARSERUTILS_OK) {
+            if (new_t.idata != NULL) lwc_string_unref(new_t.idata);
+            free(new_t.data.data);
+            css__tokens_destroy(*dst);
+            *dst = NULL;
+            return PARSERUTILS_NOMEM;
+        }
     }
     return PARSERUTILS_OK;
 }
