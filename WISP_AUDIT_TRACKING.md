@@ -73,8 +73,23 @@ For modern or hardware-level specifications that Wisp does not yet support (e.g.
 - [x] Categorize stubs into Tiers 1, 2, and 3
 - [x] Upgrade functional no-op stubs to full spec implementations:
   - [x] `wisp_canvasrenderingcontext2d_putImageData_1_impl` (Dirty bounds support)
+  - [x] `javascript:` URL scheme fetcher pipeline (`src/content/handlers/javascript/fetcher.c`)
 
 ### 2. JavaScript Engine / Web APIs
+- [x] Redact password credentials in `nsurl_dump` debug logs (`Password: [REDACTED]`)
+- [x] Refactor Qt search provider menu label construction to use positional `QString::arg()` substitution
+- [x] Add fallback error message resolution for `FETCH_ERROR` in `llcache` via `messages_get_errorcode()`
+
+### 3. Core Engine, Storage & Backing Store
+- [x] Implement memory-mapped (`mmap` / `MapViewOfFile`) retrieval for `fs_backing_store` cache elements >16KB
+- [x] Harden `llcache` metadata deserialization parsing with `ns_strtoull` / `ns_strtoint` and enforce `num_headers <= 10000` upper bounds
+- [x] Refactor form select control inline text box retrieval encapsulation in `form.c`
+- [x] Implement Win32 corewindow vertical/horizontal scrolling (`nsw32_corewindow_vscroll`, `nsw32_corewindow_hscroll`) with `SW_INVALIDATE` damage region handling
+
+### 4. CSS3 & HTML Layout Engine
+- [x] Extend table border conflict resolution in `table.c` across row groups (`BOX_TABLE_ROW_GROUP`) for cells spanning multiple rows
+- [x] Add defensive error handling for font width measurements (`font_func->width`), text splitting (`font_func->split`), and font style conversion in `layout_line` and `layout_minmax_line`
+- [x] Cache string lengths outside loops in `searchweb.c`, `save_complete.c`, `urldb`, and `vsnstrjoin` to optimize string manipulation routines
 - [x] Canvas 2D API parity check (ImageData dirty rects, CanvasGradient, CanvasPattern, style save/restore)
 - [x] Web Workers / EventLoop task queue audits
 

@@ -54,3 +54,9 @@ JSValue js_interface_method_custom(JSContext *ctx, JSValueConst this_val, int ar
 ## Global Scope
 
 The global object in Wisp QuickJS threads inherits from the `Window` prototype. This means any method defined in `Window.idl` is automatically available in the global scope (e.g., `alert()`, `setTimeout()`).
+
+## Fetch & Scheme Fetchers Integration
+
+The QuickJS subsystem integrates directly with Wisp's fetch pipeline (`src/content/fetch.c`) and specialized scheme fetchers.
+- **JavaScript Scheme Fetcher**: Located in `src/content/handlers/javascript/fetcher.c`, `fetch_javascript_handler` extracts script payloads from `javascript:` URLs, percent-decodes contents (`url_unescape`), constructs HTTP 200 response headers (`Content-Type: text/html`), and dispatches data and finished callback messages to the content pipeline.
+- **Microtask Execution**: QuickJS microtask queue draining (`qjs_execute_pending_all`) executes at the end of each tick, driving Promise resolutions for `fetch()`, `Headers`, `Request`, `Response`, and stream chunks (`ReadableStream`).
