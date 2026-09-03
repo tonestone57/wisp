@@ -703,6 +703,9 @@ nserror browser_window_debug(struct browser_window *bw, enum content_debug op);
 /**
  * Obtain a browsing context's name.
  *
+ * Browsing context names are maintained directly on both top-level browser
+ * windows and child frame or iframe browsing contexts (\p bw).
+ *
  * The returned pointer is owned by the browsing context and is only
  * valid until the next operation on that context.
  * The returned name may be NULL if no name has been set.
@@ -714,10 +717,10 @@ nserror browser_window_debug(struct browser_window *bw, enum content_debug op);
 nserror browser_window_get_name(struct browser_window *bw, const char **name);
 
 /**
- * Set a browsing contexts name.
+ * Set a browsing context's name.
  *
- * Changes a browsing contexts name to a copy of that passed and the
- *  value is not subsequently referenced.
+ * Changes a browsing context's name to a copy of that passed and the
+ * value is not subsequently referenced.
  *
  * \param bw The browser window.
  * \param name The name string to set.
