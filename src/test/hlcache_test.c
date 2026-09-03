@@ -512,6 +512,59 @@ START_TEST(test_content_reformat)
 }
 END_TEST
 
+START_TEST(test_hlcache_clean_stale_and_fresh)
+{
+    guit = &mock_gui_table;
+    guit->llcache = filesystem_llcache_table;
+    guit->file = default_file_table;
+
+    content_factory_register_handler("image/svg+xml", &dummy_handler);
+
+    struct hlcache_parameters params = {
+        .bg_clean_time = 10000,
+        .llcache = {
+            .limit = 1024 * 1024,
+        },
+    };
+
+    nserror error = hlcache_initialise(&params);
+    ck_assert_int_eq(error, NSERROR_OK);
+
+    uint8_t data[32] = "<svg><circle id='c'/></svg>";
+    hlcache_handle *handle = NULL;
+    hlcache_retrieve_options opts = {
+        .accepted_types = CONTENT_IMAGE
+    };
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", &opts, dummy_callback, NULL, &handle);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(handle);
+
+    pump_scheduled();
+
+    struct content *c = hlcache_handle_get_content(handle);
+    ck_assert_ptr_nonnull(c);
+
+    /* Release handle so content user count becomes 0 */
+    ck_assert_int_eq(hlcache_handle_release(handle), NSERROR_OK);
+
+    /* Trigger background cleanup (scheduled_cb = hlcache_clean, force_clean = false) */
+    pump_scheduled();
+
+    /* Buffer-retrieved synthetic object is uncached and considered stale/not fresh in background clean,
+     * so it gets cleaned up. Re-retrieving should create a new handle.
+     */
+    hlcache_handle *handle2 = NULL;
+    error = hlcache_handle_retrieve_buffer(data, strlen((char *)data), "image/svg+xml", &opts, dummy_callback, NULL, &handle2);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(handle2);
+
+    ck_assert_int_eq(hlcache_handle_release(handle2), NSERROR_OK);
+
+    hlcache_stop();
+    hlcache_finalise();
+}
+END_TEST
+
 static Suite *hlcache_suite(void)
 {
     Suite *s = suite_create("hlcache");
@@ -524,6 +577,7 @@ static Suite *hlcache_suite(void)
     tcase_add_test(tc_core, test_hlcache_sync_result_populated_during_catchup);
     tcase_add_test(tc_core, test_hlcache_finalise_with_pending_retrieval_ctx);
     tcase_add_test(tc_core, test_content_reformat);
+    tcase_add_test(tc_core, test_hlcache_clean_stale_and_fresh);
     suite_add_tcase(s, tc_core);
 
     return s;
