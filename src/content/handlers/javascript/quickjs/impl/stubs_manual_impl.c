@@ -3806,10 +3806,11 @@ JSValue wisp_htmlcollection_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint
         if (!list) return JS_ThrowOutOfMemory(ctx);
         collect_elements_libdom((dom_node *)priv->node, cpriv->type_name, list, &count, 1000);
         JSValue res = JS_NULL;
-        if (index < (uint32_t)count) {
+        int total = count < 1000 ? count : 1000;
+        if (index < (uint32_t)total) {
             res = qjs_wrap_node(ctx, list[index]);
         }
-        for (int i = 0; i < count; i++) {
+        for (int i = 0; i < total; i++) {
             dom_node_unref(list[i]);
         }
         free(list);
@@ -3853,7 +3854,8 @@ JSValue wisp_htmlcollection_namedItem_impl(JSContext *ctx, QJSNodePrivate *priv,
         if (!list) return JS_ThrowOutOfMemory(ctx);
         collect_elements_libdom((dom_node *)priv->node, cpriv->type_name, list, &count, 1000);
         JSValue res = JS_NULL;
-        for (int i = 0; i < count; i++) {
+        int total = count < 1000 ? count : 1000;
+        for (int i = 0; i < total; i++) {
             dom_string *id_dom = NULL;
             dom_string *name_dom = NULL;
             dom_string *attr_id = NULL;
@@ -3880,7 +3882,7 @@ JSValue wisp_htmlcollection_namedItem_impl(JSContext *ctx, QJSNodePrivate *priv,
                 break;
             }
         }
-        for (int i = 0; i < count; i++) {
+        for (int i = 0; i < total; i++) {
             dom_node_unref(list[i]);
         }
         free(list);
