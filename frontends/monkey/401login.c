@@ -226,6 +226,6 @@ void monkey_login_handle_command(int argc, char **argv)
     } else if (strcmp(argv[1], "GO") == 0) {
         monkey_login_handle_go(argc, argv);
     } else {
-        moutf(MOUT_ERROR, "LOGIN COMMAND UNKNOWN %s\n", argv[1]);
+        moutf(MOUT_ERROR, "LOGIN COMMAND UNKNOWN %s", argv[1]);
     }
 }

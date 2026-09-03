@@ -30,7 +30,13 @@ enum monkey_output_type {
     MOUT_PLOT,
 };
 
-int moutf(enum monkey_output_type mout_type, const char *fmt, ...);
+#ifdef __GNUC__
+#define MOUTF_FORMAT(a, b) __attribute__((format(printf, a, b)))
+#else
+#define MOUTF_FORMAT(a, b)
+#endif
+
+int moutf(enum monkey_output_type mout_type, const char *fmt, ...) MOUTF_FORMAT(2, 3);
 int monkey_get_critical_error_count(void);
 
 #endif

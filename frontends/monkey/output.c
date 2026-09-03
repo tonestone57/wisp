@@ -50,6 +50,10 @@ int moutf(enum monkey_output_type mout_type, const char *fmt, ...)
         mout_type = MOUT_GENERIC;
     }
 
+    if (fmt == NULL) {
+        return 0;
+    }
+
     res = fprintf(stdout, "%s ", type_text[mout_type]);
 
     va_start(ap, fmt);
