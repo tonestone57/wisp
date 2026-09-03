@@ -753,6 +753,19 @@ add_wisp_test(test_searchweb
 )
 target_link_libraries(test_searchweb PRIVATE wisp ${CHECK_LIBRARIES})
 
+if(GTK3_DETECT_FOUND OR WISP_BUILD_GTK_FRONTEND)
+  pkg_check_modules(GTK3 QUIET "gtk+-3.0>=3.2")
+  add_wisp_test(test_viewdata
+    ${CMAKE_SOURCE_DIR}/src/test/test_viewdata.c
+    ${CMAKE_SOURCE_DIR}/src/test/log.c
+  )
+  target_include_directories(test_viewdata PRIVATE
+    ${GTK3_INCLUDE_DIRS}
+    ${CMAKE_SOURCE_DIR}/frontends
+  )
+  target_link_libraries(test_viewdata PRIVATE wisp ${CHECK_LIBRARIES} ${GTK3_LIBRARIES})
+endif()
+
 add_wisp_test(hlcache_test
   ${CMAKE_SOURCE_DIR}/src/test/hlcache_test.c
   ${CMAKE_SOURCE_DIR}/src/test/log.c
