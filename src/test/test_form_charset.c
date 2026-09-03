@@ -129,6 +129,41 @@ START_TEST(test_form_dom_to_data_null_charset_out)
 }
 END_TEST
 
+START_TEST(test_form_encode_item_used_charset)
+{
+    const char *used_charset = NULL;
+    char *res;
+
+    /* 1. Primary charset success */
+    res = form_encode_item("hello", 5, "UTF-8", "ISO-8859-1", &used_charset);
+    ck_assert_ptr_nonnull(res);
+    ck_assert_ptr_nonnull(used_charset);
+    ck_assert_str_eq(used_charset, "UTF-8");
+    free(res);
+
+    /* 2. Primary invalid, fallback charset success */
+    used_charset = NULL;
+    res = form_encode_item("hello", 5, "INVALID-CHARSET-12345", "UTF-8", &used_charset);
+    ck_assert_ptr_nonnull(res);
+    ck_assert_ptr_nonnull(used_charset);
+    ck_assert_str_eq(used_charset, "UTF-8");
+    free(res);
+
+    /* 3. Primary & fallback invalid, ISO-8859-1 fallback success */
+    used_charset = NULL;
+    res = form_encode_item("hello", 5, "INVALID-CHARSET-12345", "INVALID-FALLBACK-67890", &used_charset);
+    ck_assert_ptr_nonnull(res);
+    ck_assert_ptr_nonnull(used_charset);
+    ck_assert_str_eq(used_charset, "ISO-8859-1");
+    free(res);
+
+    /* 4. NULL used_charset parameter does not crash */
+    res = form_encode_item("hello", 5, "UTF-8", "ISO-8859-1", NULL);
+    ck_assert_ptr_nonnull(res);
+    free(res);
+}
+END_TEST
+
 static Suite *form_charset_suite(void)
 {
     Suite *s = suite_create("Form Charset");
@@ -138,6 +173,7 @@ static Suite *form_charset_suite(void)
     tcase_add_test(tc_core, test_form_dom_to_data_doc_charset);
     tcase_add_test(tc_core, test_form_acceptable_charset_fallback);
     tcase_add_test(tc_core, test_form_dom_to_data_null_charset_out);
+    tcase_add_test(tc_core, test_form_encode_item_used_charset);
     suite_add_tcase(s, tc_core);
 
     return s;
