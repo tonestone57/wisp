@@ -451,6 +451,27 @@ int main(int argc, char **argv)
             }
             nsurl_unref(turl);
         }
+
+        /* Test format specifier security in MIME type string */
+        if (nsurl_create("wisp-inline://test-format-string-security", &turl) == NSERROR_OK) {
+            error = llcache_handle_retrieve_buffer(turl, (const uint8_t *)"test", 4,
+                "text/html; charset=%s%x%d%p%n", event_handler, &tdone, &th);
+            if (error == NSERROR_OK) {
+                const llcache_header_value *hdr = llcache_handle_get_header(th, LLCACHE_HEADER_CONTENT_TYPE);
+                if (hdr != NULL && hdr->count == 1 &&
+                    strcmp(hdr->entries[0].value, "text/html") == 0 &&
+                    hdr->entries[0].num_params == 1 &&
+                    strcmp(hdr->entries[0].params[0].key, "charset") == 0 &&
+                    strcmp(hdr->entries[0].params[0].value, "%s%x%d%p%n") == 0) {
+                    fprintf(stdout, "llcache format specifier security test PASSED\n");
+                } else {
+                    fprintf(stderr, "llcache format specifier security test FAILED\n");
+                    return 1;
+                }
+                llcache_handle_release(th);
+            }
+            nsurl_unref(turl);
+        }
     }
 
     /* Test Cache-Control no-cache and no-store header retrieval and distinction */
