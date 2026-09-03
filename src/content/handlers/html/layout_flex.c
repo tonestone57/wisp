@@ -549,21 +549,30 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 	if (total_demand > available && total_pct_demand > 0 && scaled_shrink_sum > 0) {
 		/* Need to shrink percentage items.
 		 * Algorithm: Items where content_min > resolved% are frozen at content_min.
-		 * Remaining space is distributed to shrinkable items. */
+		 * Remaining space is distributed to shrinkable items.
+		 * Fast-path: Use fixed-size stack buffers for containers with <= 32 items
+		 * to eliminate heap calloc/free dynamic allocation overhead on hot layout paths. */
 
 		bool frozen_stack[32];
 		int new_heights_stack[32];
-		bool *frozen = frozen_stack;
-		int *new_heights = new_heights_stack;
+		bool *frozen;
+		int *new_heights;
 		bool allocated = false;
 
-		if (ctx->item.count > 32) {
-			frozen = calloc(ctx->item.count, sizeof(bool));
-			new_heights = calloc(ctx->item.count, sizeof(int));
-			allocated = true;
-		} else {
+		if (ctx->item.count <= 32) {
+			frozen = frozen_stack;
+			new_heights = new_heights_stack;
 			memset(frozen_stack, 0, ctx->item.count * sizeof(bool));
 			memset(new_heights_stack, 0, ctx->item.count * sizeof(int));
+		} else {
+			frozen = calloc(ctx->item.count, sizeof(bool));
+			new_heights = calloc(ctx->item.count, sizeof(int));
+			if (frozen == NULL || new_heights == NULL) {
+				free(frozen);
+				free(new_heights);
+				return;
+			}
+			allocated = true;
 		}
 
 		if (frozen != NULL && new_heights != NULL) {
