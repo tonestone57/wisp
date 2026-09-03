@@ -52,6 +52,7 @@ void malloc_limit(unsigned int newcount)
 
 #ifdef __GLIBC__
 extern void *__libc_malloc(size_t size);
+extern void *__libc_calloc(size_t nmemb, size_t size);
 #endif
 
 void *malloc(size_t size)
@@ -82,6 +83,40 @@ void *malloc(size_t size)
 
     if (count > 0) {
         p = real_malloc(size);
+        count--;
+    }
+    return p;
+}
+
+void *calloc(size_t nmemb, size_t size)
+{
+    static void *(*real_calloc)(size_t, size_t) = NULL;
+    void *p = NULL;
+
+#ifdef __GLIBC__
+    real_calloc = __libc_calloc;
+#else
+    if (real_calloc == NULL) {
+        static int in_dlsym = 0;
+        if (in_dlsym) {
+            static char fallback_buf[8192];
+            static size_t fallback_ptr = 0;
+            size_t total = nmemb * size;
+            if (fallback_ptr + total > sizeof(fallback_buf)) {
+                return NULL;
+            }
+            void *ret = &fallback_buf[fallback_ptr];
+            fallback_ptr += (total + 7) & ~7;
+            return ret;
+        }
+        in_dlsym = 1;
+        real_calloc = dlsym(RTLD_NEXT, "calloc");
+        in_dlsym = 0;
+    }
+#endif
+
+    if (count > 0) {
+        p = real_calloc(nmemb, size);
         count--;
     }
     return p;

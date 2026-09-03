@@ -1,8 +1,18 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <limits.h>
 #include <wisp/content/csp.h>
 #include <wisp/utils/nsurl.h>
+#include "test/malloc_fig.h"
+
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
+#define WISP_SANITIZER_ENABLED
+#elif defined(__has_feature)
+  #if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer)
+  #define WISP_SANITIZER_ENABLED
+  #endif
+#endif
 
 void test_csp() {
     nsurl *base_url, *url_self, *url_other, *url_cdn;
@@ -252,6 +262,28 @@ void test_csp() {
     assert(csp_check_frame_ancestor(csp, url_other) == false);
     csp_destroy(csp);
     csp = NULL;
+
+#ifndef WISP_SANITIZER_ENABLED
+    // Test 18: strdup allocation failure testing in csp_parse
+    // Test case A: *csp_out is initially NULL when strdup fails
+    struct csp *csp_oom = NULL;
+    malloc_limit(1); // 1st allocation (calloc for struct csp) succeeds, 2nd allocation (strdup) fails
+    nserror err_oom1 = csp_parse("script-src 'self'", base_url, &csp_oom);
+    malloc_limit(UINT_MAX);
+    assert(err_oom1 == NSERROR_NOMEM);
+    assert(csp_oom == NULL);
+
+    // Test case B: *csp_out is non-NULL (with existing policies) when strdup fails
+    assert(csp_parse("default-src 'self'", base_url, &csp_oom) == NSERROR_OK);
+    assert(csp_oom != NULL);
+    malloc_limit(0); // 1st allocation (strdup) fails
+    nserror err_oom2 = csp_parse("script-src https://example.com", base_url, &csp_oom);
+    malloc_limit(UINT_MAX);
+    assert(err_oom2 == NSERROR_NOMEM);
+    assert(csp_oom != NULL);
+    csp_destroy(csp_oom);
+    csp_oom = NULL;
+#endif
 
     nsurl_unref(base_url);
     nsurl_unref(url_self);
