@@ -333,6 +333,14 @@ nsurl *llcache_handle_get_referer(const llcache_handle *handle);
 bool llcache_handle_references_same_object(const llcache_handle *a, const llcache_handle *b);
 
 /**
+ * Determine whether a low-level cache handle's object is stale based on RFC 2616.
+ *
+ * \param handle  Handle to check staleness of
+ * \return True if handle is NULL, has no object, or object is stale; false if fresh
+ */
+bool llcache_handle_is_stale(const llcache_handle *handle);
+
+/**
  * Create a low-level cache handle from a raw data buffer.
  *
  * Creates a synthetic llcache object pre-filled with the given data

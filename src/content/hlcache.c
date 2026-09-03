@@ -187,12 +187,15 @@ static void hlcache_clean(void *force_clean_flag)
                 continue;
         }
 
-        /** \todo This is over-zealous: all unused contents
-         * will be immediately destroyed. Ideally, we want to
-         * purge all unused contents that are using stale
-         * source data, and enough fresh contents such that
-         * the cache fits in the configured cache size limit.
+        /* If this is a background cleanup (not forced), retain unused content
+         * whose underlying low-level source object is still fresh.
          */
+        if (force_clean == false) {
+            const llcache_handle *llh = content_get_llcache_handle(entry->content);
+            if (llh != NULL && !llcache_handle_is_stale(llh)) {
+                continue;
+            }
+        }
 
         /* Remove entry from cache */
         if (entry->prev == NULL) {

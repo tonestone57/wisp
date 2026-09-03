@@ -4481,3 +4481,12 @@ bool llcache_handle_references_same_object(const llcache_handle *a, const llcach
     return a->object == b->object;
 }
 
+/* See llcache.h for documentation */
+bool llcache_handle_is_stale(const llcache_handle *handle)
+{
+    if (handle == NULL || handle->object == NULL) {
+        return true;
+    }
+
+    return (llcache_object_rfc2616_remaining_lifetime(&handle->object->cache) <= 0);
+}
