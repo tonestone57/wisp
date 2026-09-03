@@ -558,8 +558,21 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 		 * Algorithm: Items where content_min > resolved% are frozen at content_min.
 		 * Remaining space is distributed to shrinkable items. */
 
-		bool *frozen = calloc(ctx->item.count, sizeof(bool));
-		int *new_heights = calloc(ctx->item.count, sizeof(int));
+		bool frozen_stack[32];
+		int new_heights_stack[32];
+		bool *frozen = frozen_stack;
+		int *new_heights = new_heights_stack;
+		bool allocated = false;
+
+		if (ctx->item.count > 32) {
+			frozen = calloc(ctx->item.count, sizeof(bool));
+			new_heights = calloc(ctx->item.count, sizeof(int));
+			allocated = true;
+		} else {
+			memset(frozen_stack, 0, ctx->item.count * sizeof(bool));
+			memset(new_heights_stack, 0, ctx->item.count * sizeof(int));
+		}
+
 		if (frozen != NULL && new_heights != NULL) {
 			int frozen_total = 0;
 			int shrinkable_total = 0;
@@ -650,8 +663,10 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 				}
 			}
 		}
-		free(frozen);
-		free(new_heights);
+		if (allocated) {
+			free(frozen);
+			free(new_heights);
+		}
 	}
 
 	/* After adjusting heights, re-run redistribute on nested flex containers */
