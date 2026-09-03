@@ -1835,12 +1835,10 @@ static gboolean websearch_entry_activate_cb(GtkWidget *widget, gpointer data)
 /**
  * handler for web search tool bar item button press signal
  *
- * allows a click in the websearch entry field to clear the name of the
- * provider.
- *
- * \todo this does not work well, different behaviour wanted perhaps?
+ * selects all text and grabs focus when the web search entry field is clicked.
  *
  * \param widget The widget the signal is being delivered to.
+ * \param f Focus event data
  * \param data The toolbar context passed when the signal was connected
  * \return TRUE
  */
