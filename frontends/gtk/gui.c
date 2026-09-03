@@ -1038,11 +1038,15 @@ static nserror nsgtk_setup(int argc, char **argv, char **respath)
     });
 
     struct stat statbuf;
+    buf[0] = '\0';
     if (stat("/etc/mime.types", &statbuf) == 0 && S_ISREG(statbuf.st_mode)) {
         snprintf(buf, sizeof(buf), "%s", "/etc/mime.types");
     } else {
-        filepath_sfinddef(respath, buf, "mime.types", "/etc/");
+        if (filepath_sfinddef(respath, buf, "mime.types", "/etc/") == NULL) {
+            buf[0] = '\0';
+        }
     }
+    buf[sizeof(buf) - 1] = '\0';
     gtk_fetch_filetype_init(buf);
 
     save_complete_init();
