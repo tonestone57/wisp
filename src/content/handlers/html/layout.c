@@ -2774,9 +2774,12 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 
 		if (total_rows > 0) {
 			int *row_extras = malloc(total_rows * sizeof(int));
-			if (row_extras != NULL) {
+			int *prefix_extras = malloc((total_rows + 1) * sizeof(int));
+			if (row_extras != NULL && prefix_extras != NULL) {
 				int distributed_extra = 0;
 				int r = 0;
+
+				prefix_extras[0] = 0;
 
 				for (row_group = table->children; row_group != NULL; row_group = row_group->next) {
 					for (row = row_group->children; row != NULL; row = row->next) {
@@ -2790,6 +2793,7 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 						}
 						row_extras[r] = row_extra;
 						distributed_extra += row_extra;
+						prefix_extras[r + 1] = prefix_extras[r] + row_extra;
 						r++;
 					}
 				}
@@ -2807,11 +2811,11 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 						for (c = row->children; c != NULL; c = c->next) {
 							if (!c || !c->style)
 								continue;
-							int cell_extra = 0;
-							unsigned int k;
-							for (k = 0; k < c->rows && (r + k) < (unsigned int)total_rows; k++) {
-								cell_extra += row_extras[r + k];
+							unsigned int end_r = r + c->rows;
+							if (end_r > (unsigned int)total_rows) {
+								end_r = (unsigned int)total_rows;
 							}
+							int cell_extra = prefix_extras[end_r] - prefix_extras[r];
 							c->height += cell_extra;
 						}
 
@@ -2823,9 +2827,9 @@ bool layout_table(struct box *table, int available_width, html_content *content)
 					row_group->height = row_y;
 					rg_y += row_group->height;
 				}
-
-				free(row_extras);
 			}
+			free(row_extras);
+			free(prefix_extras);
 		}
 	}
 
