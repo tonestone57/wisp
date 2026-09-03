@@ -48,6 +48,12 @@ css_computed_style *create_block_style(void)
     /* font-size: 16px (needed for CSS unit conversions) */
     set_font_size(s, CSS_FONT_SIZE_DIMENSION, INTTOFIX(16), CSS_UNIT_PX);
 
+    /* border widths: 0px */
+    set_border_top_width(s, CSS_BORDER_WIDTH_WIDTH, 0, CSS_UNIT_PX);
+    set_border_right_width(s, CSS_BORDER_WIDTH_WIDTH, 0, CSS_UNIT_PX);
+    set_border_bottom_width(s, CSS_BORDER_WIDTH_WIDTH, 0, CSS_UNIT_PX);
+    set_border_left_width(s, CSS_BORDER_WIDTH_WIDTH, 0, CSS_UNIT_PX);
+
     return s;
 }
 
