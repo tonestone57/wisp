@@ -65,7 +65,7 @@ static css_error node_is_link(void *pw, void *node, bool *match);
 static css_error node_is_focus(void *pw, void *node, bool *match);
 static css_error node_is_enabled(void *pw, void *node, bool *match);
 static css_error node_is_disabled(void *pw, void *node, bool *match);
-static css_error node_is_lang(void *pw, void *node, lwc_string *lang, bool *match);
+css_error node_is_lang(void *pw, void *node, lwc_string *lang, bool *match);
 static css_error ua_default_for_property(void *pw, uint32_t property, css_hint *hint);
 static css_error set_libcss_node_data(void *pw, void *node, void *libcss_node_data);
 static css_error get_libcss_node_data(void *pw, void *node, void **libcss_node_data);

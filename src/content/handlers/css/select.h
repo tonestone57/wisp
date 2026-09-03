@@ -64,4 +64,6 @@ css_error node_is_checked(void *pw, void *node, bool *match);
 
 css_error node_is_target(void *pw, void *node, bool *match);
 
+css_error node_is_lang(void *pw, void *node, lwc_string *lang, bool *match);
+
 #endif
