@@ -21,7 +21,6 @@
  * GTK generic core window interface.
  *
  * Provides interface for core renderers to the gtk toolkit drawable area.
- * \todo should the interface really be called coredrawable?
  *
  * This module is an object that must be encapsulated. Client users
  * should embed a struct nsgtk_corewindow at the beginning of their
