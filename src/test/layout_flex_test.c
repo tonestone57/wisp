@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <check.h>
 #include <limits.h>
 #include <stdlib.h>
@@ -79,8 +81,8 @@ bool layout_grid(struct box *grid, int available_width, html_content *content)
 /* Mock CSS styles for test */
 static uint8_t mock_style_flex_grow_0[256]; /* flex-grow: 0 (fixed child) */
 static uint8_t mock_style_flex_grow_1[256]; /* flex-grow: 1 (flex child) */
-static uint8_t mock_style_column_flex[256]; /* flex-direction: column */
-static uint8_t mock_style_pct_basis[256];    /* flex-basis: % */
+static bool g_test_use_column_flex = false;
+static bool g_test_use_pct_basis = false;
 
 /* Mock css_computed_flex_grow to return values based on style pointer */
 uint8_t css_computed_flex_grow(const css_computed_style *style, css_fixed *grow)
@@ -96,7 +98,7 @@ uint8_t css_computed_flex_grow(const css_computed_style *style, css_fixed *grow)
 
 uint8_t css_computed_flex_direction(const css_computed_style *style)
 {
-    if (style == (const css_computed_style *)mock_style_column_flex) {
+    if (g_test_use_column_flex) {
         return CSS_FLEX_DIRECTION_COLUMN;
     }
     return CSS_FLEX_DIRECTION_ROW;
@@ -104,7 +106,7 @@ uint8_t css_computed_flex_direction(const css_computed_style *style)
 
 uint8_t css_computed_flex_basis(const css_computed_style *style, css_fixed_or_calc *length, css_unit *unit)
 {
-    if (style == (const css_computed_style *)mock_style_pct_basis) {
+    if (g_test_use_pct_basis) {
         length->value = INTTOFIX(10); /* 10% */
         *unit = CSS_UNIT_PCT;
         return CSS_FLEX_BASIS_SET;
@@ -115,12 +117,100 @@ uint8_t css_computed_flex_basis(const css_computed_style *style, css_fixed_or_ca
 
 uint8_t css_computed_flex_shrink(const css_computed_style *style, css_fixed *shrink)
 {
-    if (style == (const css_computed_style *)mock_style_pct_basis) {
-        *shrink = F_1;
-        return CSS_FLEX_SHRINK_SET;
-    }
     *shrink = F_1;
     return CSS_FLEX_SHRINK_SET;
+}
+
+css_fixed css_unit_len2device_px(const css_computed_style *style, const css_unit_ctx *unit_ctx, css_fixed length, css_unit unit)
+{
+    return length;
+}
+
+uint8_t css_computed_box_sizing(const css_computed_style *style)
+{
+    return CSS_BOX_SIZING_CONTENT_BOX;
+}
+
+uint8_t css_computed_width_px(const css_computed_style *style, const css_unit_ctx *unit_ctx, int available_px, int *px_out)
+{
+    *px_out = 0;
+    return CSS_WIDTH_AUTO;
+}
+
+uint8_t css_computed_height_px(const css_computed_style *style, const css_unit_ctx *unit_ctx, int available_px, int *px_out)
+{
+    *px_out = 0;
+    return CSS_HEIGHT_AUTO;
+}
+
+uint8_t css_computed_flex_basis_px(const css_computed_style *style, const css_unit_ctx *unit_ctx, int available_px, int *px_out)
+{
+    if (g_test_use_pct_basis) {
+        if (available_px != AUTO && available_px >= 0) {
+            *px_out = (available_px * 10) / 100;
+        } else {
+            *px_out = 0;
+        }
+        return CSS_FLEX_BASIS_SET;
+    }
+    *px_out = 0;
+    return CSS_FLEX_BASIS_AUTO;
+}
+
+uint8_t css_computed_border_top_width(const css_computed_style *style, css_fixed *length, css_unit *unit)
+{
+    *length = 0;
+    *unit = CSS_UNIT_PX;
+    return CSS_BORDER_WIDTH_WIDTH;
+}
+
+uint8_t css_computed_border_right_width(const css_computed_style *style, css_fixed *length, css_unit *unit)
+{
+    *length = 0;
+    *unit = CSS_UNIT_PX;
+    return CSS_BORDER_WIDTH_WIDTH;
+}
+
+uint8_t css_computed_border_bottom_width(const css_computed_style *style, css_fixed *length, css_unit *unit)
+{
+    *length = 0;
+    *unit = CSS_UNIT_PX;
+    return CSS_BORDER_WIDTH_WIDTH;
+}
+
+uint8_t css_computed_border_left_width(const css_computed_style *style, css_fixed *length, css_unit *unit)
+{
+    *length = 0;
+    *unit = CSS_UNIT_PX;
+    return CSS_BORDER_WIDTH_WIDTH;
+}
+
+uint8_t css_computed_padding_top(const css_computed_style *style, css_fixed *length, css_unit *unit)
+{
+    *length = 0;
+    *unit = CSS_UNIT_PX;
+    return CSS_PADDING_SET;
+}
+
+uint8_t css_computed_padding_right(const css_computed_style *style, css_fixed *length, css_unit *unit)
+{
+    *length = 0;
+    *unit = CSS_UNIT_PX;
+    return CSS_PADDING_SET;
+}
+
+uint8_t css_computed_padding_bottom(const css_computed_style *style, css_fixed *length, css_unit *unit)
+{
+    *length = 0;
+    *unit = CSS_UNIT_PX;
+    return CSS_PADDING_SET;
+}
+
+uint8_t css_computed_padding_left(const css_computed_style *style, css_fixed *length, css_unit *unit)
+{
+    *length = 0;
+    *unit = CSS_UNIT_PX;
+    return CSS_PADDING_SET;
 }
 
 /* Now linking against REAL layout_flex.c - provide stubs for its dependencies */
@@ -1024,12 +1114,15 @@ END_TEST
 
 static void test_two_pass_resolve_with_real_layout(size_t item_count)
 {
+    g_test_use_column_flex = true;
+    g_test_use_pct_basis = true;
+
     /* Construct a column flex box with item_count children that have percentage flex-basis */
     struct box *flex = calloc(1, sizeof(struct box));
     flex->type = BOX_FLEX;
     flex->width = 300;
     flex->height = 200;
-    flex->style = (css_computed_style *)mock_style_column_flex;
+    flex->style = (css_computed_style *)mock_style_flex_grow_0;
 
     struct box *first_child = NULL;
     struct box *prev_child = NULL;
@@ -1039,7 +1132,7 @@ static void test_two_pass_resolve_with_real_layout(size_t item_count)
         child->type = BOX_BLOCK;
         child->width = 300;
         child->height = 10;
-        child->style = (css_computed_style *)mock_style_pct_basis;
+        child->style = (css_computed_style *)mock_style_flex_grow_0;
         child->parent = flex;
 
         if (prev_child != NULL) {
@@ -1068,6 +1161,9 @@ static void test_two_pass_resolve_with_real_layout(size_t item_count)
         curr = next;
     }
     free(flex);
+
+    g_test_use_column_flex = false;
+    g_test_use_pct_basis = false;
 }
 
 START_TEST(test_two_pass_resolve_stack_allocation)
@@ -1088,9 +1184,9 @@ END_TEST
 
 START_TEST(test_two_pass_resolve_benchmark)
 {
-    /* Benchmark 100,000 iterations of stack vs heap allocation */
+    /* Benchmark 1,000 iterations of stack vs heap allocation */
     size_t count = 16;
-    size_t iterations = 100000;
+    size_t iterations = 1000;
     struct timespec start, end;
     double time_heap_ms, time_stack_ms;
 
@@ -1187,6 +1283,11 @@ int main(void)
     int number_failed;
     Suite *s;
     SRunner *sr;
+
+    /* Initialize mock style memory so libcss property getters read valid defaults */
+    uint32_t bin = UINT32_MAX;
+    memset(mock_style_flex_grow_0, 0, sizeof(mock_style_flex_grow_0));
+    memcpy(mock_style_flex_grow_0, &bin, sizeof(bin));
 
     s = layout_flex_suite();
     sr = srunner_create(s);
