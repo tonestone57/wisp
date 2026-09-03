@@ -19,12 +19,14 @@
 /**
  * \file
  * Implementation of HTML image maps
- *
- * \todo should this should use the general hashmap instead of its own
  */
 
 #include <assert.h>
+#include <ctype.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 
@@ -34,14 +36,13 @@
 #include <wisp/content/hlcache.h>
 #include <wisp/utils/corestrings.h>
 #include <wisp/utils/log.h>
+#include "utils/hashmap.h"
 
 #include <wisp/content/handlers/html/box.h>
 #include <wisp/content/handlers/html/private.h>
 #include <wisp/utils/utils.h>
 #include "content/handlers/html/box_construct.h"
 #include "content/handlers/html/imagemap.h"
-
-#define HASH_SIZE 31 /* fixed size hash table */
 
 typedef enum { IMAGEMAP_DEFAULT, IMAGEMAP_RECT, IMAGEMAP_CIRCLE, IMAGEMAP_POLY } imagemap_entry_type;
 
@@ -70,92 +71,6 @@ struct mapentry {
     struct mapentry *next; /**< next entry in list */
 };
 
-struct imagemap {
-    char *key; /**< key for this entry */
-    struct mapentry *list; /**< pointer to linked list of entries */
-    struct imagemap *next; /**< next entry in this hash chain */
-};
-
-/**
- * Create hashtable of imagemaps
- *
- * \param c The containing content
- * \return true on success, false otherwise
- */
-static bool imagemap_create(html_content *c)
-{
-    assert(c != NULL);
-
-    if (c->imagemaps == NULL) {
-        c->imagemaps = calloc(HASH_SIZE, sizeof(struct imagemap *));
-        if (c->imagemaps == NULL) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-/**
- * Hash function.
- *
- * \param key The key to hash.
- * \return The hashed value.
- */
-static unsigned int imagemap_hash(const char *key)
-{
-    unsigned int z = 0;
-
-    if (key == 0)
-        return 0;
-
-    for (; *key != 0; key++) {
-        z += *key & 0x1f;
-    }
-
-    return (z % (HASH_SIZE - 1)) + 1;
-}
-
-/**
- * Add an imagemap to the hashtable, creating it if it doesn't exist
- *
- * \param c The containing content
- * \param key The name of the imagemap
- * \param list List of map regions
- * \return true on succes, false otherwise
- */
-static bool imagemap_add(html_content *c, dom_string *key, struct mapentry *list)
-{
-    struct imagemap *map;
-    unsigned int slot;
-
-    assert(c != NULL);
-    assert(key != NULL);
-    assert(list != NULL);
-
-    if (imagemap_create(c) == false)
-        return false;
-
-    map = calloc(1, sizeof(*map));
-    if (map == NULL)
-        return false;
-
-    map->key = strndup(dom_string_data(key), dom_string_byte_length(key));
-    if (map->key == NULL) {
-        free(map);
-        return false;
-    }
-
-    map->list = list;
-
-    slot = imagemap_hash(map->key);
-
-    map->next = c->imagemaps[slot];
-    c->imagemaps[slot] = map;
-
-    return true;
-}
-
 /**
  * Free list of imagemap entries
  *
@@ -165,7 +80,8 @@ static void imagemap_freelist(struct mapentry *list)
 {
     struct mapentry *entry, *prev;
 
-    assert(list != NULL);
+    if (list == NULL)
+        return;
 
     entry = list;
 
@@ -187,6 +103,115 @@ static void imagemap_freelist(struct mapentry *list)
     }
 }
 
+/* Hashmap callbacks for key (char *) and value (struct mapentry **) */
+
+static void *imagemap_key_clone(void *key)
+{
+    const char *k = (const char *)key;
+    return k ? strdup(k) : NULL;
+}
+
+static uint32_t imagemap_key_hash(void *key)
+{
+    const char *k = (const char *)key;
+    uint32_t hash = 5381;
+    if (k == NULL)
+        return 0;
+
+    for (; *k != '\0'; k++) {
+        hash = ((hash << 5) + hash) + (uint32_t)tolower((unsigned char)*k);
+    }
+
+    return hash;
+}
+
+static bool imagemap_key_eq(void *key1, void *key2)
+{
+    const char *k1 = (const char *)key1;
+    const char *k2 = (const char *)key2;
+    if (k1 == NULL || k2 == NULL)
+        return k1 == k2;
+    return strcasecmp(k1, k2) == 0;
+}
+
+static void imagemap_key_destroy(void *key)
+{
+    free(key);
+}
+
+static void *imagemap_value_alloc(void *key)
+{
+    struct mapentry **val = malloc(sizeof(struct mapentry *));
+    if (val != NULL) {
+        *val = NULL;
+    }
+    return val;
+}
+
+static void imagemap_value_destroy(void *value)
+{
+    struct mapentry **val = (struct mapentry **)value;
+    if (val != NULL) {
+        if (*val != NULL) {
+            imagemap_freelist(*val);
+        }
+        free(val);
+    }
+}
+
+static hashmap_parameters_t imagemap_hashmap_params = {
+    .key_clone = imagemap_key_clone,
+    .key_hash = imagemap_key_hash,
+    .key_eq = imagemap_key_eq,
+    .key_destroy = imagemap_key_destroy,
+    .value_alloc = imagemap_value_alloc,
+    .value_destroy = imagemap_value_destroy,
+};
+
+/**
+ * Add an imagemap to the hashtable, creating it if it doesn't exist
+ *
+ * \param c The containing content
+ * \param key The name of the imagemap
+ * \param list List of map regions
+ * \return true on success, false otherwise
+ */
+static bool imagemap_add(html_content *c, dom_string *key, struct mapentry *list)
+{
+    struct mapentry **val;
+    char *key_str;
+
+    assert(c != NULL);
+    assert(key != NULL);
+    assert(list != NULL);
+
+    if (c->imagemaps == NULL) {
+        c->imagemaps = hashmap_create(&imagemap_hashmap_params);
+        if (c->imagemaps == NULL) {
+            return false;
+        }
+    }
+
+    key_str = strndup(dom_string_data(key), dom_string_byte_length(key));
+    if (key_str == NULL) {
+        return false;
+    }
+
+    val = (struct mapentry **)hashmap_insert(c->imagemaps, key_str);
+    free(key_str);
+
+    if (val == NULL) {
+        return false;
+    }
+
+    if (*val != NULL) {
+        imagemap_freelist(*val);
+    }
+    *val = list;
+
+    return true;
+}
+
 /**
  * Destroy hashtable of imagemaps
  *
@@ -194,28 +219,56 @@ static void imagemap_freelist(struct mapentry *list)
  */
 void imagemap_destroy(html_content *c)
 {
-    unsigned int i;
-
     assert(c != NULL);
 
-    /* no imagemaps -> return */
     if (c->imagemaps == NULL)
         return;
 
-    for (i = 0; i != HASH_SIZE; i++) {
-        struct imagemap *map, *next;
+    hashmap_destroy(c->imagemaps);
+    c->imagemaps = NULL;
+}
 
-        map = c->imagemaps[i];
-        while (map != NULL) {
-            next = map->next;
-            imagemap_freelist(map->list);
-            free(map->key);
-            free(map);
-            map = next;
+struct dump_ctx {
+    int unused;
+};
+
+static bool imagemap_dump_cb(void *key, void *value, void *ctx)
+{
+    const char *map_key = (const char *)key;
+    struct mapentry **val = (struct mapentry **)value;
+    struct mapentry *entry;
+    int j;
+
+    if (map_key == NULL || val == NULL || *val == NULL)
+        return false;
+
+    NSLOG(wisp, INFO, "Imagemap: %s", map_key);
+
+    for (entry = *val; entry; entry = entry->next) {
+        switch (entry->type) {
+        case IMAGEMAP_DEFAULT:
+            NSLOG(wisp, INFO, "\tDefault: %s", nsurl_access(entry->url));
+            break;
+        case IMAGEMAP_RECT:
+            NSLOG(wisp, INFO, "\tRectangle: %s: [(%d,%d),(%d,%d)]", nsurl_access(entry->url),
+                entry->bounds.rect.x0, entry->bounds.rect.y0, entry->bounds.rect.x1, entry->bounds.rect.y1);
+            break;
+        case IMAGEMAP_CIRCLE:
+            NSLOG(wisp, INFO, "\tCircle: %s: [(%d,%d),%d]", nsurl_access(entry->url), entry->bounds.circle.x,
+                entry->bounds.circle.y, entry->bounds.circle.r);
+            break;
+        case IMAGEMAP_POLY:
+            NSLOG(wisp, INFO, "\tPolygon: %s:", nsurl_access(entry->url));
+            for (j = 0; j != entry->bounds.poly.num; j++) {
+                fprintf(
+                    stderr, "(%d,%d) ", (int)entry->bounds.poly.xcoords[j], (int)entry->bounds.poly.ycoords[j]);
+            }
+            fprintf(stderr, "\n");
+            break;
         }
     }
 
-    free(c->imagemaps);
+    return false;
 }
 
 /**
@@ -225,49 +278,12 @@ void imagemap_destroy(html_content *c)
  */
 void imagemap_dump(html_content *c)
 {
-    unsigned int i;
-
-    int j;
-
     assert(c != NULL);
 
     if (c->imagemaps == NULL)
         return;
 
-    for (i = 0; i != HASH_SIZE; i++) {
-        struct imagemap *map;
-        struct mapentry *entry;
-
-        map = c->imagemaps[i];
-        while (map != NULL) {
-            NSLOG(wisp, INFO, "Imagemap: %s", map->key);
-
-            for (entry = map->list; entry; entry = entry->next) {
-                switch (entry->type) {
-                case IMAGEMAP_DEFAULT:
-                    NSLOG(wisp, INFO, "\tDefault: %s", nsurl_access(entry->url));
-                    break;
-                case IMAGEMAP_RECT:
-                    NSLOG(wisp, INFO, "\tRectangle: %s: [(%d,%d),(%d,%d)]", nsurl_access(entry->url),
-                        entry->bounds.rect.x0, entry->bounds.rect.y0, entry->bounds.rect.x1, entry->bounds.rect.y1);
-                    break;
-                case IMAGEMAP_CIRCLE:
-                    NSLOG(wisp, INFO, "\tCircle: %s: [(%d,%d),%d]", nsurl_access(entry->url), entry->bounds.circle.x,
-                        entry->bounds.circle.y, entry->bounds.circle.r);
-                    break;
-                case IMAGEMAP_POLY:
-                    NSLOG(wisp, INFO, "\tPolygon: %s:", nsurl_access(entry->url));
-                    for (j = 0; j != entry->bounds.poly.num; j++) {
-                        fprintf(
-                            stderr, "(%d,%d) ", (int)entry->bounds.poly.xcoords[j], (int)entry->bounds.poly.ycoords[j]);
-                    }
-                    fprintf(stderr, "\n");
-                    break;
-                }
-            }
-            map = map->next;
-        }
-    }
+    hashmap_iterate(c->imagemaps, imagemap_dump_cb, NULL);
 }
 
 /**
@@ -364,7 +380,6 @@ static bool imagemap_addtolist(
 
     if (new_map->type != IMAGEMAP_DEFAULT) {
         int x, y;
-        float *xcoords, *ycoords;
         /* coordinates are a comma-separated list of values */
         char *val = strtok((char *)dom_string_data(coords), ",");
         int num = 1;
@@ -701,8 +716,7 @@ static int imagemap_point_in_poly(
 nsurl *imagemap_get(struct html_content *c, const char *key, unsigned long x, unsigned long y, unsigned long click_x,
     unsigned long click_y, const char **target)
 {
-    unsigned int slot = 0;
-    struct imagemap *map;
+    struct mapentry **map_val;
     struct mapentry *entry;
     unsigned long cx, cy;
 
@@ -714,17 +728,12 @@ nsurl *imagemap_get(struct html_content *c, const char *key, unsigned long x, un
     if (c->imagemaps == NULL)
         return NULL;
 
-    slot = imagemap_hash(key);
+    map_val = (struct mapentry **)hashmap_lookup(c->imagemaps, (void *)key);
 
-    for (map = c->imagemaps[slot]; map != NULL; map = map->next) {
-        if (map->key != NULL && strcasecmp(map->key, key) == 0)
-            break;
-    }
-
-    if (map == NULL || map->list == NULL)
+    if (map_val == NULL || *map_val == NULL)
         return NULL;
 
-    for (entry = map->list; entry; entry = entry->next) {
+    for (entry = *map_val; entry; entry = entry->next) {
         switch (entry->type) {
         case IMAGEMAP_DEFAULT:
             /* just return the URL. no checks required */

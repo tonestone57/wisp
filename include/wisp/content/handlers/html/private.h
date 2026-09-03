@@ -582,7 +582,7 @@ typedef struct html_content {
     /** Forms, in reverse order to document. */
     struct form *forms;
     /** Hash table of imagemaps. */
-    struct imagemap **imagemaps;
+    struct hashmap_s *imagemaps;
 
     /** Browser window containing this document, or NULL if not open. */
     struct browser_window *bw;
