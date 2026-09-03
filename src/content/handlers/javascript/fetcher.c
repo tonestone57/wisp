@@ -24,13 +24,20 @@
  */
 
 #include <libwapcaplet/libwapcaplet.h>
+#include <stdarg.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <wisp/content/fetch.h>
+#include <wisp/ns_inttypes.h>
 #include <wisp/utils/corestrings.h>
+#include <wisp/utils/log.h>
 #include <wisp/utils/nsurl.h>
+#include <wisp/utils/utils.h>
 #include "utils/ring.h"
+#include "utils/url.h"
 #include "content/fetchers.h"
 
 #include "content/handlers/javascript/fetcher.h"
@@ -60,23 +67,85 @@ static inline bool fetch_javascript_send_callback(const fetch_msg *msg, struct f
     return ctx->aborted;
 }
 
+static bool fetch_javascript_send_header(struct fetch_javascript_context *ctx, const char *fmt, ...)
+{
+    fetch_msg msg;
+    char header[256];
+    va_list ap;
+    int len;
+
+    va_start(ap, fmt);
+    len = vsnprintf(header, sizeof(header), fmt, ap);
+    va_end(ap);
+
+    if (len >= (int)sizeof(header) || len < 0) {
+        return true; /* Treat format overflow as error/abort */
+    }
+
+    msg.type = FETCH_HEADER;
+    msg.data.header_or_data.buf = (const uint8_t *)header;
+    msg.data.header_or_data.len = len;
+
+    return fetch_javascript_send_callback(&msg, ctx);
+}
 
 /**
  * called from poll to progress fetch.
- *
- * \todo This is currently completely unimplemented and just returns 204
  */
 static bool fetch_javascript_handler(struct fetch_javascript_context *ctx)
 {
     fetch_msg msg;
-    int code = 204;
+    nserror res;
+    const char *url_str;
+    const char *script_code;
+    char *unescaped = NULL;
+    size_t unescaped_len = 0;
 
-    /* content is going to return error code */
-    fetch_set_http_code(ctx->fetchh, code);
+    url_str = nsurl_access(ctx->url);
+    if (url_str != NULL && strncasecmp(url_str, "javascript:", SLEN("javascript:")) == 0) {
+        script_code = url_str + SLEN("javascript:");
+    } else {
+        script_code = "";
+    }
 
-    msg.type = FETCH_FINISHED;
-    fetch_javascript_send_callback(&msg, ctx);
+    res = url_unescape(script_code, 0, &unescaped_len, &unescaped);
+    if (res != NSERROR_OK || unescaped == NULL) {
+        msg.type = FETCH_ERROR;
+        msg.data.error = "Unable to URL decode javascript: URL";
+        fetch_javascript_send_callback(&msg, ctx);
+        return false;
+    }
 
+    fetch_set_http_code(ctx->fetchh, 200);
+
+    if (fetch_javascript_send_header(ctx, "Content-Type: text/html; charset=utf-8")) {
+        free(unescaped);
+        return true;
+    }
+
+    if (fetch_javascript_send_header(ctx, "Content-Length: %" PRIsizet, unescaped_len)) {
+        free(unescaped);
+        return true;
+    }
+
+    if (fetch_javascript_send_header(ctx, "Cache-Control: no-cache")) {
+        free(unescaped);
+        return true;
+    }
+
+    if (ctx->aborted == false) {
+        msg.type = FETCH_DATA;
+        msg.data.header_or_data.buf = (const uint8_t *)unescaped;
+        msg.data.header_or_data.len = unescaped_len;
+        fetch_javascript_send_callback(&msg, ctx);
+    }
+
+    if (ctx->aborted == false) {
+        msg.type = FETCH_FINISHED;
+        fetch_javascript_send_callback(&msg, ctx);
+    }
+
+    free(unescaped);
     return true;
 }
 

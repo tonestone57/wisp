@@ -6,6 +6,7 @@
 #include "content/fetch.h"
 #include "content/fetchers.h"
 #include "content/fetchers/curl.h"
+#include "content/handlers/javascript/fetcher.h"
 #include "content/urldb.h"
 #include <unistd.h>
 #include "utils/log.h"
@@ -515,6 +516,111 @@ START_TEST(test_fetch_curl_preconnect_valid)
 }
 END_TEST
 
+static int js_fetch_header_count = 0;
+static bool js_fetch_data_received = false;
+static bool js_fetch_finished_received = false;
+static char js_fetch_data_buf[256];
+
+static void js_fetch_test_callback(const fetch_msg *msg, void *p)
+{
+    if (msg->type == FETCH_HEADER) {
+        js_fetch_header_count++;
+    } else if (msg->type == FETCH_DATA) {
+        js_fetch_data_received = true;
+        size_t copy_len = msg->data.header_or_data.len;
+        if (copy_len >= sizeof(js_fetch_data_buf)) {
+            copy_len = sizeof(js_fetch_data_buf) - 1;
+        }
+        memcpy(js_fetch_data_buf, msg->data.header_or_data.buf, copy_len);
+        js_fetch_data_buf[copy_len] = '\0';
+    } else if (msg->type == FETCH_FINISHED) {
+        js_fetch_finished_received = true;
+    }
+}
+
+START_TEST(test_fetch_javascript_success)
+{
+    nserror err = fetch_javascript_register();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    nsurl *url;
+    nsurl_create("javascript:hello%20world", &url);
+
+    struct fetch *f = NULL;
+    err = fetch_start(url, NULL, js_fetch_test_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    js_fetch_header_count = 0;
+    js_fetch_data_received = false;
+    js_fetch_finished_received = false;
+    memset(js_fetch_data_buf, 0, sizeof(js_fetch_data_buf));
+
+    fetch_poll_all();
+
+    ck_assert_int_gt(js_fetch_header_count, 0);
+    ck_assert_int_eq(js_fetch_data_received, true);
+    ck_assert_int_eq(js_fetch_finished_received, true);
+    ck_assert_str_eq(js_fetch_data_buf, "hello world");
+
+    nsurl_unref(url);
+}
+END_TEST
+
+START_TEST(test_fetch_javascript_empty_and_unescape)
+{
+    nserror err = fetch_javascript_register();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    nsurl *url;
+    nsurl_create("javascript:", &url);
+
+    struct fetch *f = NULL;
+    err = fetch_start(url, NULL, js_fetch_test_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    js_fetch_header_count = 0;
+    js_fetch_data_received = false;
+    js_fetch_finished_received = false;
+    memset(js_fetch_data_buf, 0, sizeof(js_fetch_data_buf));
+
+    fetch_poll_all();
+
+    ck_assert_int_gt(js_fetch_header_count, 0);
+    ck_assert_int_eq(js_fetch_data_received, true);
+    ck_assert_int_eq(js_fetch_finished_received, true);
+    ck_assert_str_eq(js_fetch_data_buf, "");
+
+    nsurl_unref(url);
+}
+END_TEST
+
+START_TEST(test_fetch_javascript_abort)
+{
+    nserror err = fetch_javascript_register();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    nsurl *url;
+    nsurl_create("javascript:alert(1)", &url);
+
+    struct fetch *f = NULL;
+    err = fetch_start(url, NULL, js_fetch_test_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    js_fetch_data_received = false;
+    js_fetch_finished_received = false;
+
+    fetch_abort(f);
+    fetch_poll_all();
+
+    ck_assert_int_eq(js_fetch_data_received, false);
+
+    nsurl_unref(url);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -548,6 +654,12 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_curl, test_fetch_curl_preconnect_null);
     tcase_add_test(tc_curl, test_fetch_curl_preconnect_valid);
     suite_add_tcase(s, tc_curl);
+
+    TCase *tc_js = tcase_create("JavaScript");
+    tcase_add_test(tc_js, test_fetch_javascript_success);
+    tcase_add_test(tc_js, test_fetch_javascript_empty_and_unescape);
+    tcase_add_test(tc_js, test_fetch_javascript_abort);
+    suite_add_tcase(s, tc_js);
 
     return s;
 }
