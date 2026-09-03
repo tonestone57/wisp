@@ -75,6 +75,23 @@ START_TEST(test_xdg_get_exec_cmd_valid)
 }
 END_TEST
 
+START_TEST(test_xdg_get_exec_cmd_path_traversal)
+{
+    char tmpdir[] = "/tmp/wisp_test_xdg_XXXXXX";
+    ck_assert_ptr_ne(mkdtemp(tmpdir), NULL);
+
+    /* xdg_get_exec_cmd must reject path traversal or path separators */
+    ck_assert_ptr_null(xdg_get_exec_cmd(tmpdir, "../../../etc/passwd"));
+    ck_assert_ptr_null(xdg_get_exec_cmd(tmpdir, "sub/dir.desktop"));
+    ck_assert_ptr_null(xdg_get_exec_cmd(tmpdir, "/etc/passwd"));
+    ck_assert_ptr_null(xdg_get_exec_cmd(tmpdir, ".."));
+    ck_assert_ptr_null(xdg_get_exec_cmd(tmpdir, ""));
+    ck_assert_ptr_null(xdg_get_exec_cmd(tmpdir, NULL));
+
+    rmdir(tmpdir);
+}
+END_TEST
+
 START_TEST(test_xdg_get_exec_cmd_spaces_around_equals)
 {
     char tmpdir[] = "/tmp/wisp_test_xdg_XXXXXX";
@@ -226,6 +243,7 @@ static Suite *viewdata_suite_create(void)
     tcase_add_test(tc, test_xdg_get_exec_cmd_spaces_around_equals);
     tcase_add_test(tc, test_xdg_get_exec_cmd_group_selection);
     tcase_add_test(tc, test_xdg_get_exec_cmd_missing_desktop_entry_group);
+    tcase_add_test(tc, test_xdg_get_exec_cmd_path_traversal);
     tcase_add_test(tc, test_xdg_get_default_app_valid);
     tcase_add_test(tc, test_build_exec_argv_parsing);
 
