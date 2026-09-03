@@ -149,6 +149,7 @@ typedef struct {
     int age; /**< Age: response header */
     int max_age; /**< Max-Age Cache-control parameter */
     llcache_validate no_cache; /**< No-Cache Cache-control parameter */
+    bool no_store; /**< No-Store Cache-control parameter */
     char *etag; /**< Etag: response header */
     time_t last_modified; /**< Last-Modified: response header */
 } llcache_cache_control;
@@ -590,11 +591,12 @@ static nserror llcache_fetch_parse_cache_control(llcache_object *object, char *v
         return NSERROR_OK;
     }
 
-    if (http_cache_control_no_cache(cc) || http_cache_control_no_store(cc)) {
-        /**
-         * \todo When we get a disk cache we should
-         *  distinguish between these two.
-         */
+    if (http_cache_control_no_cache(cc)) {
+        object->cache.no_cache = LLCACHE_VALIDATE_ALWAYS;
+    }
+
+    if (http_cache_control_no_store(cc)) {
+        object->cache.no_store = true;
         object->cache.no_cache = LLCACHE_VALIDATE_ALWAYS;
     }
 
@@ -1281,6 +1283,9 @@ static nserror llcache_object_clone_cache_data(llcache_object *source, llcache_o
 
     if (source->cache.no_cache != LLCACHE_VALIDATE_FRESH)
         destination->cache.no_cache = source->cache.no_cache;
+
+    if (source->cache.no_store)
+        destination->cache.no_store = true;
 
     if (source->cache.last_modified != 0)
         destination->cache.last_modified = source->cache.last_modified;
@@ -2851,11 +2856,13 @@ static nserror build_candidate_list(struct llcache_object ***lst_out, int *lst_l
         remaining_lifetime = llcache_object_rfc2616_remaining_lifetime(&object->cache);
 
         /* cacehable objects with no pending fetches, not
+         * forbidden from persistent storage (no-store), not
          * already on disc and with sufficient lifetime to
          * make disc cache worthwhile
          */
-        if ((object->candidate_count == 0) && (object->fetch.fetch == NULL) &&
-            (object->store_state == LLCACHE_STATE_RAM) && (remaining_lifetime > llcache->minimum_lifetime)) {
+        if (!object->cache.no_store && (object->candidate_count == 0) &&
+            (object->fetch.fetch == NULL) && (object->store_state == LLCACHE_STATE_RAM) &&
+            (remaining_lifetime > llcache->minimum_lifetime)) {
             lst[lst_len] = object;
             lst_len++;
             if (lst_len == MAX_PERSIST_PER_RUN)
