@@ -701,15 +701,14 @@ nserror browser_window_debug_dump(struct browser_window *bw, FILE *f, enum conte
 nserror browser_window_debug(struct browser_window *bw, enum content_debug op);
 
 /**
- * Obtain a browsing contexts name.
+ * Obtain a browsing context's name.
  *
- * The returned pointer is owned bu the browsing context and is only
- *  valid untill the next operation on that context.
+ * The returned pointer is owned by the browsing context and is only
+ * valid until the next operation on that context.
  * The returned name may be NULL if no name has been set.
- * \todo This does not consider behaviour wrt frames
  *
- * \param bw The browser window.
- * \param name recives result string.
+ * \param bw The browser window or frame browsing context.
+ * \param name Receives result string pointer.
  * \return NSERROR_OK
  */
 nserror browser_window_get_name(struct browser_window *bw, const char **name);
