@@ -449,7 +449,7 @@ bool nscss_parse_colour(const char *data, css_color *result)
 static bool parse_font_size(const char *size, uint8_t *val, css_fixed *len, css_unit *unit)
 {
     static const uint8_t size_map[] = {
-        CSS_FONT_SIZE_XX_SMALL, CSS_FONT_SIZE_SMALL, CSS_FONT_SIZE_MEDIUM, CSS_FONT_SIZE_LARGE, CSS_FONT_SIZE_X_LARGE,
+        CSS_FONT_SIZE_X_SMALL, CSS_FONT_SIZE_SMALL, CSS_FONT_SIZE_MEDIUM, CSS_FONT_SIZE_LARGE, CSS_FONT_SIZE_X_LARGE,
         CSS_FONT_SIZE_XX_LARGE, CSS_FONT_SIZE_DIMENSION /* xxx-large (see below) */
     };
 
