@@ -6432,8 +6432,6 @@ static void layout_position_relative(struct html_content *content, struct box *r
 	int fnx, fny; /* for affsets which apply to flat children of "box" */
 	const css_unit_ctx *unit_len_ctx = &content->unit_len_ctx;
 
-	/**\todo ensure containing box is large enough after moving boxes */
-
 	assert(root);
 
 	/* Normal children */
