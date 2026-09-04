@@ -169,11 +169,13 @@ typedef enum {
 /**
  * Low-level cache object
  *
- * Intrusive doubly-linked lists (`cached_objects` and `uncached_objects`) are
- * used as containers for cache objects. This provides O(1) element removal,
- * insertion, and list-transfer operations (e.g., streaming or uncaching forced
- * fetches) without dynamic memory allocation overhead, alongside simple linear
- * traversal during cache cleaning, candidate writeout, and user notifications.
+ * Doubly-linked lists (embedded prev/next pointers) are used to manage
+ * low-level cache objects across cached_objects and uncached_objects lists.
+ * A doubly-linked list is a sane container because object removals and
+ * insertions occur in O(1) time without extra dynamic container node
+ * allocations during fetch lifecycle state transitions, streaming toggles, and
+ * cache cleaning passes, while sequential iteration across the small set of
+ * objects held in RAM is simple and efficient.
  */
 struct llcache_object {
     llcache_object *prev; /**< Previous in list */
