@@ -2151,6 +2151,23 @@ JSValue wisp_htmlselectelement_value_get_impl(JSContext *ctx, QJSNodePrivate *pr
         return JS_NewString(ctx, "");
     }
 
+    dom_string *attr_selected_name = corestring_dom_selected;
+    if (attr_selected_name) {
+        dom_string_ref(attr_selected_name);
+    } else {
+        dom_string_create((const uint8_t *)"selected", 8, &attr_selected_name);
+    }
+
+    dom_string *attr_value_name = corestring_dom_value;
+    if (attr_value_name) {
+        dom_string_ref(attr_value_name);
+    } else {
+        dom_string_create((const uint8_t *)"value", 5, &attr_value_name);
+    }
+
+    JSValue res = JS_NULL;
+    bool found_selected = false;
+
     dom_node *child = NULL;
     dom_node_get_first_child((dom_node *)priv->node, &child);
     while (child) {
@@ -2159,32 +2176,33 @@ JSValue wisp_htmlselectelement_value_get_impl(JSContext *ctx, QJSNodePrivate *pr
         if (tag_name) {
             if (strcasecmp((const char *)dom_string_data(tag_name), "option") == 0) {
                 dom_string_unref(tag_name);
-                dom_string *attr_name = NULL;
-                dom_string_create((const uint8_t *)"selected", 8, &attr_name);
                 bool has_sel = false;
-                dom_element_has_attribute((dom_element *)child, attr_name, &has_sel);
-                dom_string_unref(attr_name);
+                if (attr_selected_name) {
+                    dom_element_has_attribute((dom_element *)child, attr_selected_name, &has_sel);
+                }
                 if (has_sel) {
+                    found_selected = true;
                     dom_string *val_dom = NULL;
-                    dom_string_create((const uint8_t *)"value", 5, &attr_name);
-                    dom_element_get_attribute((dom_element *)child, attr_name, &val_dom);
-                    dom_string_unref(attr_name);
+                    if (attr_value_name) {
+                        dom_element_get_attribute((dom_element *)child, attr_value_name, &val_dom);
+                    }
                     if (val_dom) {
-                        JSValue res = JS_NewStringLen(ctx, (const char *)dom_string_data(val_dom), dom_string_byte_length(val_dom));
+                        res = JS_NewStringLen(ctx, (const char *)dom_string_data(val_dom), dom_string_byte_length(val_dom));
                         dom_string_unref(val_dom);
                         dom_node_unref(child);
-                        return res;
+                        break;
                     }
                     dom_string *text = NULL;
                     dom_node_get_text_content(child, &text);
                     if (text) {
-                        JSValue res = JS_NewStringLen(ctx, (const char *)dom_string_data(text), dom_string_byte_length(text));
+                        res = JS_NewStringLen(ctx, (const char *)dom_string_data(text), dom_string_byte_length(text));
                         dom_string_unref(text);
                         dom_node_unref(child);
-                        return res;
+                        break;
                     }
                     dom_node_unref(child);
-                    return JS_NewString(ctx, "");
+                    res = JS_NewString(ctx, "");
+                    break;
                 }
             } else {
                 dom_string_unref(tag_name);
@@ -2194,6 +2212,17 @@ JSValue wisp_htmlselectelement_value_get_impl(JSContext *ctx, QJSNodePrivate *pr
         dom_node_get_next_sibling(child, &next);
         dom_node_unref(child);
         child = next;
+    }
+
+    if (attr_selected_name) {
+        dom_string_unref(attr_selected_name);
+    }
+    if (attr_value_name) {
+        dom_string_unref(attr_value_name);
+    }
+
+    if (found_selected) {
+        return res;
     }
     return JS_NewString(ctx, "");
 }
