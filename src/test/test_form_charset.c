@@ -129,6 +129,101 @@ START_TEST(test_form_dom_to_data_null_charset_out)
 }
 END_TEST
 
+START_TEST(test_form_acceptable_charset_tokens)
+{
+    dom_document *doc = NULL;
+    dom_node *form_el = NULL;
+    dom_string *form_name = NULL;
+    dom_string *accept_cs = NULL;
+    dom_string *attr_name = NULL;
+    dom_exception exc;
+
+    exc = dom_implementation_create_document(DOM_IMPLEMENTATION_HTML, NULL, "html", NULL, NULL, NULL, &doc);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_ptr_nonnull(doc);
+
+    exc = dom_string_create_interned((const uint8_t *)"FORM", 4, &form_name);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    exc = dom_document_create_element(doc, form_name, (dom_element **)&form_el);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    ck_assert_ptr_nonnull(form_el);
+
+    exc = dom_string_create_interned((const uint8_t *)"accept-charset", 14, &attr_name);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+
+    /* Test 1: accept-charset contains UTF-8 in list */
+    exc = dom_string_create((const uint8_t *)"ISO-8859-1, UTF-8, Shift_JIS", 28, &accept_cs);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_element_set_attribute((dom_element *)form_el, attr_name, accept_cs);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    dom_string_unref(accept_cs);
+
+    struct form *f1 = form_new(form_el, "http://example.com/submit", NULL, method_GET, "ISO-8859-1");
+    ck_assert_ptr_nonnull(f1);
+    char *c1 = form_acceptable_charset(f1);
+    ck_assert_ptr_nonnull(c1);
+    ck_assert_str_eq(c1, "UTF-8");
+    free(c1);
+    form_free(f1);
+
+    /* Test 2: accept-charset with leading spaces and comma, no UTF-8 */
+    exc = dom_string_create((const uint8_t *)" ,  ISO-8859-1, Shift_JIS", 25, &accept_cs);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_element_set_attribute((dom_element *)form_el, attr_name, accept_cs);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    dom_string_unref(accept_cs);
+
+    struct form *f2 = form_new(form_el, "http://example.com/submit", NULL, method_GET, "UTF-8");
+    ck_assert_ptr_nonnull(f2);
+    char *c2 = form_acceptable_charset(f2);
+    ck_assert_ptr_nonnull(c2);
+    ck_assert_str_eq(c2, "ISO-8859-1");
+    free(c2);
+    form_free(f2);
+
+    /* Test 3: accept-charset with empty/whitespace tokens falling back to document charset */
+    exc = dom_string_create((const uint8_t *)" ,  , ", 6, &accept_cs);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    exc = dom_element_set_attribute((dom_element *)form_el, attr_name, accept_cs);
+    ck_assert_int_eq(exc, DOM_NO_ERR);
+    dom_string_unref(accept_cs);
+
+    struct form *f3 = form_new(form_el, "http://example.com/submit", NULL, method_GET, "Windows-1252");
+    ck_assert_ptr_nonnull(f3);
+    char *c3 = form_acceptable_charset(f3);
+    ck_assert_ptr_nonnull(c3);
+    ck_assert_str_eq(c3, "Windows-1252");
+    free(c3);
+    form_free(f3);
+
+    dom_string_unref(attr_name);
+    dom_node_unref(form_el);
+    dom_string_unref(form_name);
+    dom_node_unref((dom_node *)doc);
+}
+END_TEST
+
+START_TEST(test_form_encode_item_fallback)
+{
+    const char *used_cs = NULL;
+
+    /* Input with ASCII text encodes directly with charset */
+    char *res1 = form_encode_item("hello", 5, "UTF-8", "ISO-8859-1", &used_cs);
+    ck_assert_ptr_nonnull(res1);
+    ck_assert_ptr_nonnull(used_cs);
+    ck_assert_str_eq(used_cs, "UTF-8");
+    free(res1);
+
+    /* Input with non-ASCII text unconvertible to invalid charset uses fallback */
+    char *res2 = form_encode_item("\xC2\xA2", 2, "INVALID-CHARSET-NAME-12345", "ISO-8859-1", &used_cs);
+    ck_assert_ptr_nonnull(res2);
+    ck_assert_ptr_nonnull(used_cs);
+    ck_assert_str_eq(used_cs, "ISO-8859-1");
+    free(res2);
+}
+END_TEST
+
 static Suite *form_charset_suite(void)
 {
     Suite *s = suite_create("Form Charset");
@@ -138,6 +233,8 @@ static Suite *form_charset_suite(void)
     tcase_add_test(tc_core, test_form_dom_to_data_doc_charset);
     tcase_add_test(tc_core, test_form_acceptable_charset_fallback);
     tcase_add_test(tc_core, test_form_dom_to_data_null_charset_out);
+    tcase_add_test(tc_core, test_form_acceptable_charset_tokens);
+    tcase_add_test(tc_core, test_form_encode_item_fallback);
     suite_add_tcase(s, tc_core);
 
     return s;
