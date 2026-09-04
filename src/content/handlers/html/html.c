@@ -698,20 +698,22 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 
 	c->sel = selection_create((struct content *)c);
 
-	nerror = http_parameter_list_find_item(params, corestring_lwc_charset, &charset);
-	if (nerror == NSERROR_OK) {
-		c->encoding = strdup(lwc_string_data(charset));
+	if (c->encoding == NULL && params != NULL) {
+		nerror = http_parameter_list_find_item(params, corestring_lwc_charset, &charset);
+		if (nerror == NSERROR_OK) {
+			c->encoding = strdup(lwc_string_data(charset));
 
-		lwc_string_unref(charset);
+			lwc_string_unref(charset);
 
-		if (c->encoding == NULL) {
-			lwc_string_unref(c->universal);
-			c->universal = NULL;
-			lwc_string_unref(c->media.prefers_color_scheme);
-			c->media.prefers_color_scheme = NULL;
-			return NSERROR_NOMEM;
+			if (c->encoding == NULL) {
+				lwc_string_unref(c->universal);
+				c->universal = NULL;
+				lwc_string_unref(c->media.prefers_color_scheme);
+				c->media.prefers_color_scheme = NULL;
+				return NSERROR_NOMEM;
+			}
+			c->encoding_source = DOM_HUBBUB_ENCODING_SOURCE_HEADER;
 		}
-		c->encoding_source = DOM_HUBBUB_ENCODING_SOURCE_HEADER;
 	}
 
 	/* Create the parser binding */
@@ -2031,16 +2033,8 @@ static nserror html_clone(const struct content *old, struct content **newc)
 		return error;
 	}
 
-	/* Copy HTML specifics */
-	html->enable_scripting = old_html->enable_scripting;
-	html->background_colour = old_html->background_colour;
-	html->media = old_html->media;
-	memcpy(&html->unit_len_ctx, &old_html->unit_len_ctx, sizeof(html->unit_len_ctx));
-
-	if (old_html->encoding != NULL) {
-		if (html->encoding != NULL) {
-			free(html->encoding);
-		}
+	/* Pre-populate encoding from old_html before creating parser if known */
+	if (old_html->encoding != NULL && html->encoding == NULL) {
 		html->encoding = strdup(old_html->encoding);
 		if (html->encoding == NULL) {
 			content_destroy(&html->base);
@@ -2048,6 +2042,21 @@ static nserror html_clone(const struct content *old, struct content **newc)
 		}
 		html->encoding_source = old_html->encoding_source;
 	}
+
+	/* Copy HTML specifics */
+	html->enable_scripting = old_html->enable_scripting;
+	html->background_colour = old_html->background_colour;
+
+	if (html->media.prefers_color_scheme != NULL) {
+		lwc_string_unref(html->media.prefers_color_scheme);
+		html->media.prefers_color_scheme = NULL;
+	}
+	html->media = old_html->media;
+	if (html->media.prefers_color_scheme != NULL) {
+		html->media.prefers_color_scheme = lwc_string_ref(old_html->media.prefers_color_scheme);
+	}
+
+	memcpy(&html->unit_len_ctx, &old_html->unit_len_ctx, sizeof(html->unit_len_ctx));
 
 	/* Replay source data */
 	data = content__get_source_data(&html->base, &size);
