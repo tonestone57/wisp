@@ -311,23 +311,20 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 		int child_outer_height = child_height + child->padding[TOP] + child->padding[BOTTOM] +
 			child->border[TOP].width + child->border[BOTTOM].width;
 
-		/* Check CSS computed style for auto margins - box margin is already resolved to 0 */
-		bool margin_top_auto = false;
-		bool margin_bottom_auto = false;
+		/* Check CSS computed style for auto margins and store sentinel in box margin */
+		bool margin_top_auto = (child->margin[TOP] == AUTO);
+		bool margin_bottom_auto = (child->margin[BOTTOM] == AUTO);
 		if (child->style) {
 			css_fixed len;
 			css_unit unit;
-			uint8_t margin_type = css_computed_margin_top(child->style, &len, &unit);
-			margin_top_auto = (margin_type == CSS_MARGIN_AUTO);
-			margin_type = css_computed_margin_bottom(child->style, &len, &unit);
-			margin_bottom_auto = (margin_type == CSS_MARGIN_AUTO);
-		}
-		/* Also check for AUTO sentinel in box margin (used when style is unavailable) */
-		if (child->margin[TOP] == AUTO) {
-			margin_top_auto = true;
-		}
-		if (child->margin[BOTTOM] == AUTO) {
-			margin_bottom_auto = true;
+			if (!margin_top_auto && css_computed_margin_top(child->style, &len, &unit) == CSS_MARGIN_AUTO) {
+				margin_top_auto = true;
+				child->margin[TOP] = AUTO;
+			}
+			if (!margin_bottom_auto && css_computed_margin_bottom(child->style, &len, &unit) == CSS_MARGIN_AUTO) {
+				margin_bottom_auto = true;
+				child->margin[BOTTOM] = AUTO;
+			}
 		}
 
 		if (!margin_top_auto) {
@@ -436,24 +433,9 @@ bool layout_flex_redistribute_auto_margins_vertical(struct box *flex)
 		}
 		first_child = false;
 
-		/* Check CSS computed style for auto margins - box margin is already resolved to 0 */
-		bool margin_top_auto = false;
-		bool margin_bottom_auto = false;
-		if (child->style) {
-			css_fixed len;
-			css_unit unit;
-			uint8_t margin_type = css_computed_margin_top(child->style, &len, &unit);
-			margin_top_auto = (margin_type == CSS_MARGIN_AUTO);
-			margin_type = css_computed_margin_bottom(child->style, &len, &unit);
-			margin_bottom_auto = (margin_type == CSS_MARGIN_AUTO);
-		}
-		/* Also check for AUTO sentinel in box margin (used when style is unavailable) */
-		if (child->margin[TOP] == AUTO) {
-			margin_top_auto = true;
-		}
-		if (child->margin[BOTTOM] == AUTO) {
-			margin_bottom_auto = true;
-		}
+		/* Check stored AUTO sentinel in box margin */
+		bool margin_top_auto = (child->margin[TOP] == AUTO);
+		bool margin_bottom_auto = (child->margin[BOTTOM] == AUTO);
 
 		/* Add margin-top (resolved or auto) */
 		if (margin_top_auto) {
@@ -524,6 +506,7 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 			/* Re-resolve percentage against definite height */
 			int pct = FIXTOINT(item->basis_length.value);
 			int resolved = (definite_height * pct) / 100;
+			item->target_main_size = resolved;
 			total_pct_demand += resolved;
 			scaled_shrink_sum += FMUL(item->shrink, INTTOFIX(resolved));
 
@@ -577,8 +560,7 @@ static void layout_flex__two_pass_resolve(struct flex_ctx *ctx, struct box *flex
 				struct box *b = item->box;
 
 				if (item->has_pct_basis) {
-					int pct = FIXTOINT(item->basis_length.value);
-					int resolved = (definite_height * pct) / 100;
+					int resolved = item->target_main_size;
 					int content_min = b->height;
 
 					if (content_min >= resolved) {
