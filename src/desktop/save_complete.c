@@ -33,7 +33,6 @@
 #include <wisp/content/handlers/css/css.h>
 #include <wisp/content/handlers/html/box.h>
 #include <wisp/content/handlers/html/html.h>
-#include <wisp/content/handlers/html/html_save.h>
 #include <wisp/content/hlcache.h>
 #include <wisp/utils/ascii.h>
 #include <wisp/utils/config.h>
