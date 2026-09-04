@@ -2043,6 +2043,10 @@ static nserror html_clone(const struct content *old, struct content **newc)
 			free(html->encoding);
 		}
 		html->encoding = strdup(old_html->encoding);
+		if (html->encoding == NULL) {
+			content_destroy(&html->base);
+			return NSERROR_NOMEM;
+		}
 		html->encoding_source = old_html->encoding_source;
 	}
 
