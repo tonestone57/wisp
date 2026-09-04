@@ -6,6 +6,7 @@
 #include "content/fetch.h"
 #include "content/fetchers.h"
 #include "content/fetchers/curl.h"
+#include "content/handlers/javascript/fetcher.h"
 #include "content/urldb.h"
 #include <unistd.h>
 #include "utils/log.h"
@@ -592,6 +593,90 @@ START_TEST(test_fetch_get_referer_with_referer)
 }
 END_TEST
 
+static int js_test_header_count = 0;
+static int js_test_data_count = 0;
+static bool js_test_finished = false;
+static char js_test_data_buf[256] = {0};
+static size_t js_test_data_len = 0;
+
+static void js_fetch_test_callback(const fetch_msg *msg, void *p)
+{
+    if (msg->type == FETCH_HEADER) {
+        js_test_header_count++;
+    } else if (msg->type == FETCH_DATA) {
+        js_test_data_count++;
+        js_test_data_len = msg->data.header_or_data.len;
+        if (js_test_data_len < sizeof(js_test_data_buf)) {
+            memcpy(js_test_data_buf, msg->data.header_or_data.buf, js_test_data_len);
+            js_test_data_buf[js_test_data_len] = '\0';
+        }
+    } else if (msg->type == FETCH_FINISHED) {
+        js_test_finished = true;
+    }
+}
+
+START_TEST(test_fetch_javascript_simple)
+{
+    nserror err = fetch_javascript_register();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    nsurl *url;
+    nsurl_create("javascript:alert(%22hello%22)", &url);
+
+    struct fetch *f = NULL;
+    err = fetch_start(url, NULL, js_fetch_test_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    js_test_header_count = 0;
+    js_test_data_count = 0;
+    js_test_finished = false;
+    memset(js_test_data_buf, 0, sizeof(js_test_data_buf));
+    js_test_data_len = 0;
+
+    fetch_poll_all();
+
+    ck_assert_int_eq(js_test_header_count, 2); /* Content-Type & Content-Length */
+    ck_assert_int_eq(js_test_data_count, 1);
+    ck_assert_int_eq(js_test_finished, true);
+    ck_assert_str_eq(js_test_data_buf, "alert(\"hello\")");
+    ck_assert_int_eq(js_test_data_len, strlen("alert(\"hello\")"));
+
+    nsurl_unref(url);
+}
+END_TEST
+
+START_TEST(test_fetch_javascript_empty)
+{
+    nserror err = fetch_javascript_register();
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    nsurl *url;
+    nsurl_create("javascript:", &url);
+
+    struct fetch *f = NULL;
+    err = fetch_start(url, NULL, js_fetch_test_callback, NULL, false, NULL, true, false, NULL, &f);
+    ck_assert_int_eq(err, NSERROR_OK);
+    ck_assert_ptr_ne(f, NULL);
+
+    js_test_header_count = 0;
+    js_test_data_count = 0;
+    js_test_finished = false;
+    memset(js_test_data_buf, 0, sizeof(js_test_data_buf));
+    js_test_data_len = 0;
+
+    fetch_poll_all();
+
+    ck_assert_int_eq(js_test_header_count, 2);
+    ck_assert_int_eq(js_test_data_count, 1);
+    ck_assert_int_eq(js_test_finished, true);
+    ck_assert_str_eq(js_test_data_buf, "");
+    ck_assert_int_eq(js_test_data_len, 0);
+
+    nsurl_unref(url);
+}
+END_TEST
+
 Suite *fetch_suite(void)
 {
     Suite *s = suite_create("Fetch");
@@ -632,6 +717,11 @@ Suite *fetch_suite(void)
     tcase_add_test(tc_referer, test_fetch_get_referer_no_referer);
     tcase_add_test(tc_referer, test_fetch_get_referer_with_referer);
     suite_add_tcase(s, tc_referer);
+
+    TCase *tc_js = tcase_create("JavaScript");
+    tcase_add_test(tc_js, test_fetch_javascript_simple);
+    tcase_add_test(tc_js, test_fetch_javascript_empty);
+    suite_add_tcase(s, tc_js);
 
     return s;
 }
