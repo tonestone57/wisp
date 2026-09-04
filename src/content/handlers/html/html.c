@@ -1999,14 +1999,73 @@ static void html_destroy(struct content *c)
 
 static nserror html_clone(const struct content *old, struct content **newc)
 {
-	/** \todo Clone HTML specifics */
+	const html_content *old_html = (const html_content *)old;
+	html_content *html;
+	nserror error;
+	const uint8_t *data;
+	size_t size;
 
-	/* In the meantime, we should never be called, as HTML contents
-	 * cannot be shared and we're not intending to fix printing's
-	 * cloning of documents. */
-	assert(0 && "html_clone should never be called");
+	html = calloc(1, sizeof(html_content));
+	if (html == NULL)
+		return NSERROR_NOMEM;
 
-	return true;
+	html->conversion_restart_pending = false;
+
+	error = content__clone(old, &html->base);
+	if (error != NSERROR_OK) {
+		free(html);
+		return error;
+	}
+
+	/* Reset status to LOADING so conversion lifecycle operates cleanly */
+	html->base.status = CONTENT_STATUS_LOADING;
+
+	error = html_create_html_data(html, NULL);
+	if (error != NSERROR_OK) {
+		content_destroy(&html->base);
+		return error;
+	}
+
+	error = html_css_new_stylesheets(html);
+	if (error != NSERROR_OK) {
+		content_destroy(&html->base);
+		return error;
+	}
+
+	/* Copy HTML specifics */
+	html->enable_scripting = old_html->enable_scripting;
+	html->background_colour = old_html->background_colour;
+	html->media = old_html->media;
+	memcpy(&html->unit_len_ctx, &old_html->unit_len_ctx, sizeof(html->unit_len_ctx));
+
+	if (old_html->encoding != NULL) {
+		if (html->encoding != NULL) {
+			free(html->encoding);
+		}
+		html->encoding = strdup(old_html->encoding);
+		html->encoding_source = old_html->encoding_source;
+	}
+
+	/* Replay source data */
+	data = content__get_source_data(&html->base, &size);
+	if (size > 0) {
+		error = html_process_data(&html->base, (const char *)data, (unsigned int)size);
+		if (error != NSERROR_OK) {
+			content_destroy(&html->base);
+			return error;
+		}
+	}
+
+	if (old->status == CONTENT_STATUS_READY || old->status == CONTENT_STATUS_DONE) {
+		if (html_convert(&html->base) == false) {
+			content_destroy(&html->base);
+			return NSERROR_CLONE_FAILED;
+		}
+	}
+
+	*newc = (struct content *)html;
+
+	return NSERROR_OK;
 }
 
 
