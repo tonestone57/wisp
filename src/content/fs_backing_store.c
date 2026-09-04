@@ -22,8 +22,8 @@
  *
  * file based backing store.
  *
- * \todo Consider improving eviction sorting to include objects size
- *         and remaining lifetime and other cost metrics.
+ * \note Eviction sorting includes object size, use count, and last used time.
+ *       Future work may consider remaining lifetime and other cost metrics.
  *
  * \note Memory-mapped (mmap) retrieval is supported for both journal entries and
  *       standalone cache files (>16KB).
@@ -642,6 +642,7 @@ static int compar(const void *va, const void *vb)
 {
     const struct store_entry *a = *(const struct store_entry **)va;
     const struct store_entry *b = *(const struct store_entry **)vb;
+    uint32_t size_a, size_b;
 
     /* consider the allocation flags - if an entry has an
      * allocation it is considered more valuable as it cannot be
@@ -676,6 +677,18 @@ static int compar(const void *va, const void *vb)
         return 1;
     }
 
+    /* use count and last used are the same - consider object size.
+     * Larger entries are placed earlier in eviction order (-1) to reclaim space faster.
+     */
+    size_a = a->elem[ENTRY_ELEM_DATA].size + a->elem[ENTRY_ELEM_META].size;
+    size_b = b->elem[ENTRY_ELEM_DATA].size + b->elem[ENTRY_ELEM_META].size;
+
+    if (size_a > size_b) {
+        return -1;
+    } else if (size_a < size_b) {
+        return 1;
+    }
+
     /* they are the same */
     return 0;
 }
@@ -704,8 +717,9 @@ static bool entry_eviction_iterator_cb(void *key, void *value, void *ctx)
  *
  * The approach is to check if the cache limits have been exceeded and
  * if so build and sort list of entries to evict. The list is sorted
- * by use count and then by age, so oldest object with least number of uses
- * get evicted first.
+ * by use count, then by age, and then by total object size (larger objects
+ * evicted first), so oldest objects with least uses and larger size get
+ * evicted first.
  *
  * @param state The store state to use.
  * @return NSERROR_OK on success or error code on failure.

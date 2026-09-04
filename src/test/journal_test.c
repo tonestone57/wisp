@@ -216,6 +216,71 @@ int main(int argc, char **argv)
     wisp_recursive_rm("test_cache_no_journal");
     wisp_recursive_rm("test_cache_unreleased");
 
+    /* Test Size-based Eviction Sorting */
+    printf("Testing size-based eviction sorting...\n");
+    wisp_recursive_rm("test_cache_eviction");
+    mkdir("test_cache_eviction", 0755);
+    /* Small cache limit so adding items triggers store_evict */
+    struct llcache_store_parameters evict_params = {
+        .path = "test_cache_eviction",
+        .limit = 1000,
+        .hysteresis = 200
+    };
+
+    ret = guit->llcache->initialise(&evict_params);
+    assert(ret == NSERROR_OK);
+
+    struct nsurl *url_e1, *url_e2, *url_e3;
+    nsurl_create("http://evict1.com", &url_e1);
+    nsurl_create("http://evict2.com", &url_e2);
+    nsurl_create("http://evict3.com", &url_e3);
+
+    /* Store small item first (400 bytes) */
+    size_t elen1 = 400;
+    uint8_t *edata1 = malloc(elen1);
+    memset(edata1, '1', elen1);
+    ret = guit->llcache->store(url_e1, BACKING_STORE_NONE, edata1, elen1);
+    assert(ret == NSERROR_OK);
+
+    /* Store larger item second (500 bytes). Both url_e1 and url_e2 have same use_count (1) and last_used time.
+     * Total allocated = 900 <= limit 1000.
+     */
+    size_t elen2 = 500;
+    uint8_t *edata2 = malloc(elen2);
+    memset(edata2, '2', elen2);
+    ret = guit->llcache->store(url_e2, BACKING_STORE_NONE, edata2, elen2);
+    assert(ret == NSERROR_OK);
+
+    /* Store third item (300 bytes). Total allocation would become 1200 > limit (1000).
+     * store_evict() will sort entries: url_e2 (size 500) sorted before url_e1 (size 400).
+     * url_e2 gets evicted first.
+     */
+    size_t elen3 = 300;
+    uint8_t *edata3 = malloc(elen3);
+    memset(edata3, '3', elen3);
+    ret = guit->llcache->store(url_e3, BACKING_STORE_NONE, edata3, elen3);
+    assert(ret == NSERROR_OK);
+
+    /* Verify url_e2 (larger item) was evicted while url_e1 (smaller item) remains in cache */
+    ret = guit->llcache->fetch(url_e2, BACKING_STORE_NONE, &fetched_data, &fetched_len);
+    assert(ret == NSERROR_NOT_FOUND);
+
+    ret = guit->llcache->fetch(url_e1, BACKING_STORE_NONE, &fetched_data, &fetched_len);
+    assert(ret == NSERROR_OK);
+    assert(fetched_len == elen1);
+    guit->llcache->release(url_e1, BACKING_STORE_NONE);
+
+    guit->llcache->finalise();
+
+    nsurl_unref(url_e1);
+    nsurl_unref(url_e2);
+    nsurl_unref(url_e3);
+    free(edata1);
+    free(edata2);
+    free(edata3);
+
+    wisp_recursive_rm("test_cache_eviction");
+
     printf("Journal test passed!\n");
     return 0;
 }
