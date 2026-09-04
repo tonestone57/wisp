@@ -596,6 +596,31 @@ static nserror invalidate_element(struct store_state *state, struct store_entry 
 }
 
 /**
+ * Helper to check if an entry element has an active RAM allocation (heap or mmap).
+ */
+static inline bool entry_elem_has_ram_alloc(const struct store_entry_element *elem)
+{
+    return (elem->flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0;
+}
+
+/**
+ * Helper to check if any element in a backing store entry has an active RAM allocation.
+ */
+static inline bool entry_has_ram_allocation(const struct store_entry *bse)
+{
+    return entry_elem_has_ram_alloc(&bse->elem[ENTRY_ELEM_DATA]) ||
+           entry_elem_has_ram_alloc(&bse->elem[ENTRY_ELEM_META]);
+}
+
+/**
+ * Helper to calculate the total combined disc size of an entry (data + metadata).
+ */
+static inline uint64_t entry_total_size(const struct store_entry *bse)
+{
+    return (uint64_t)bse->elem[ENTRY_ELEM_DATA].size + bse->elem[ENTRY_ELEM_META].size;
+}
+
+/**
  * Remove the entry and files associated with an identifier.
  *
  * @param state The store state to use.
@@ -610,8 +635,7 @@ static nserror invalidate_entry(struct store_state *state, struct store_entry *b
     bse->flags |= ENTRY_FLAGS_INVALID;
 
     /* check if the entry has storage already allocated */
-    if (((bse->elem[ENTRY_ELEM_DATA].flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0) ||
-        ((bse->elem[ENTRY_ELEM_META].flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0)) {
+    if (entry_has_ram_allocation(bse)) {
         /*
          * This entry cannot be immediately removed as it has
          * associated allocation so wait for allocation release.
@@ -654,8 +678,8 @@ static int compar(const void *va, const void *vb)
     const struct store_entry *a = *(const struct store_entry **)va;
     const struct store_entry *b = *(const struct store_entry **)vb;
 
-    bool a_data_alloc = (a->elem[ENTRY_ELEM_DATA].flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0;
-    bool b_data_alloc = (b->elem[ENTRY_ELEM_DATA].flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0;
+    bool a_data_alloc = entry_elem_has_ram_alloc(&a->elem[ENTRY_ELEM_DATA]);
+    bool b_data_alloc = entry_elem_has_ram_alloc(&b->elem[ENTRY_ELEM_DATA]);
 
     if (!a_data_alloc && b_data_alloc) {
         return -1;
@@ -663,8 +687,8 @@ static int compar(const void *va, const void *vb)
         return 1;
     }
 
-    bool a_meta_alloc = (a->elem[ENTRY_ELEM_META].flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0;
-    bool b_meta_alloc = (b->elem[ENTRY_ELEM_META].flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0;
+    bool a_meta_alloc = entry_elem_has_ram_alloc(&a->elem[ENTRY_ELEM_META]);
+    bool b_meta_alloc = entry_elem_has_ram_alloc(&b->elem[ENTRY_ELEM_META]);
 
     if (!a_meta_alloc && b_meta_alloc) {
         return -1;
@@ -679,8 +703,8 @@ static int compar(const void *va, const void *vb)
     }
 
     /* Use count is equal - consider total object size (larger evicted first) */
-    uint64_t a_size = (uint64_t)a->elem[ENTRY_ELEM_DATA].size + a->elem[ENTRY_ELEM_META].size;
-    uint64_t b_size = (uint64_t)b->elem[ENTRY_ELEM_DATA].size + b->elem[ENTRY_ELEM_META].size;
+    uint64_t a_size = entry_total_size(a);
+    uint64_t b_size = entry_total_size(b);
 
     if (a_size > b_size) {
         return -1;
@@ -723,8 +747,8 @@ static bool entry_eviction_iterator_cb(void *key, void *value, void *ctx)
  *
  * The approach is to check if the cache limits have been exceeded and
  * if so build and sort list of entries to evict. The list is sorted
- * by use count and then by age, so oldest object with least number of uses
- * get evicted first.
+ * by allocation status, use count, total object size (larger objects
+ * evicted first), and age (older objects evicted first).
  *
  * @param state The store state to use.
  * @return NSERROR_OK on success or error code on failure.
@@ -772,8 +796,7 @@ static nserror store_evict(struct store_state *state)
     for (ent = 0; ent < estate.ent_count; ent++) {
         struct store_entry *bse = estate.elist[ent];
 
-        removed += bse->elem[ENTRY_ELEM_DATA].size;
-        removed += bse->elem[ENTRY_ELEM_META].size;
+        removed += entry_total_size(bse);
 
         ret = invalidate_entry(state, bse);
         if (ret != NSERROR_OK) {
