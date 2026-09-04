@@ -44,6 +44,33 @@ static const struct content_handler dummy_handler2 = {
     .type = dummy_type2,
 };
 
+static nserror dummy_clone_success(const struct content *old, struct content **newc)
+{
+    (void)old;
+    *newc = malloc(sizeof(struct content));
+    if (!*newc) return NSERROR_NOMEM;
+    return NSERROR_OK;
+}
+
+static nserror dummy_clone_failure(const struct content *old, struct content **newc)
+{
+    (void)old;
+    *newc = NULL;
+    return NSERROR_CLONE_FAILED;
+}
+
+static const struct content_handler dummy_clone_handler = {
+    .create = dummy_create,
+    .clone = dummy_clone_success,
+    .type = dummy_type,
+};
+
+static const struct content_handler dummy_clone_fail_handler = {
+    .create = dummy_create,
+    .clone = dummy_clone_failure,
+    .type = dummy_type,
+};
+
 
 START_TEST(test_content_factory_register)
 {
@@ -106,6 +133,23 @@ START_TEST(test_content_factory_register_null)
 }
 END_TEST
 
+START_TEST(test_content_clone)
+{
+    struct content old = {0};
+
+    /* Test successful clone */
+    old.handler = &dummy_clone_handler;
+    struct content *cloned = content_clone(&old);
+    ck_assert_ptr_nonnull(cloned);
+    free(cloned);
+
+    /* Test failed clone */
+    old.handler = &dummy_clone_fail_handler;
+    struct content *failed_clone = content_clone(&old);
+    ck_assert_ptr_null(failed_clone);
+}
+END_TEST
+
 static Suite *content_factory_suite(void)
 {
     Suite *s = suite_create("content_factory");
@@ -113,6 +157,8 @@ static Suite *content_factory_suite(void)
 
     tcase_add_test(tc_core, test_content_factory_register);
     tcase_add_test(tc_core, test_content_factory_register_null);
+
+    tcase_add_test(tc_core, test_content_clone);
     suite_add_tcase(s, tc_core);
 
     return s;
