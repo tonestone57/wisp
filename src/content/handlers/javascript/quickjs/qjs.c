@@ -391,7 +391,15 @@ static char *wisp_sync_fetch(const char *url, size_t *out_len)
             break;
         }
 
-        usleep(delay_ms * 1000);
+        int total_sleep_ms = delay_ms;
+        while (total_sleep_ms > 0) {
+            int slice_ms = total_sleep_ms > 10 ? 10 : total_sleep_ms;
+            usleep(slice_ms * 1000);
+            if (wisp_gui_pump_events_hook) {
+                wisp_gui_pump_events_hook();
+            }
+            total_sleep_ms -= slice_ms;
+        }
         delay_ms *= 2; // Exponential backoff
     }
 

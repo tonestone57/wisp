@@ -7685,6 +7685,45 @@ START_TEST(test_quickjs_temp_file_permissions)
 }
 END_TEST
 
+static int g_sync_fetch_pump_count = 0;
+
+static void test_gui_pump_sync_fetch_cb(void)
+{
+    g_sync_fetch_pump_count++;
+}
+
+START_TEST(test_quickjs_sync_fetch_backoff_event_pump)
+{
+    js_initialise();
+
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    err = js_newthread(heap, (void *)doc, doc, &thread);
+    dom_node_unref((dom_node *)doc);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    g_sync_fetch_pump_count = 0;
+    wisp_gui_pump_events_hook = test_gui_pump_sync_fetch_cb;
+
+    /* Call wisp_module_loader with an invalid HTTP URL that will fail and trigger retries */
+    JSModuleDef *m = wisp_module_loader(thread->ctx, "http://127.0.0.1:59999/invalid_module.js", NULL);
+    ck_assert_ptr_null(m);
+
+    wisp_gui_pump_events_hook = NULL;
+
+    /* Verify that event pumping hook was invoked during retry backoff */
+    ck_assert_int_gt(g_sync_fetch_pump_count, 0);
+
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 Suite *quickjs_suite(void)
 {
     Suite *s;
@@ -7812,6 +7851,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_event_loop, test_quickjs_showpicker_smil_websocket_rtc);
     tcase_add_test(tc_event_loop, test_quickjs_ipc_pump_destroy_thread_safety);
     tcase_add_test(tc_event_loop, test_quickjs_temp_file_permissions);
+    tcase_add_test(tc_event_loop, test_quickjs_sync_fetch_backoff_event_pump);
     suite_add_tcase(s, tc_event_loop);
 
     return s;
