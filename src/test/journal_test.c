@@ -216,6 +216,74 @@ int main(int argc, char **argv)
     wisp_recursive_rm("test_cache_no_journal");
     wisp_recursive_rm("test_cache_unreleased");
 
+    /* Test Eviction Order Strategy */
+    printf("Testing size-aware eviction order strategy...\n");
+    wisp_recursive_rm("test_cache_evict");
+    mkdir("test_cache_evict", 0755);
+
+    /* Limit = 100KB, Hysteresis = 40KB */
+    struct llcache_store_parameters evict_params = {
+        .path = "test_cache_evict",
+        .limit = 100 * 1024,
+        .hysteresis = 40 * 1024
+    };
+
+    ret = guit->llcache->initialise(&evict_params);
+    assert(ret == NSERROR_OK);
+
+    struct nsurl *url_small, *url_large, *url_trigger;
+    nsurl_create("http://evict-small.com", &url_small);
+    nsurl_create("http://evict-large.com", &url_large);
+    nsurl_create("http://evict-trigger.com", &url_trigger);
+
+    size_t len_small = 30 * 1024;  /* 30KB */
+    size_t len_large = 80 * 1024;  /* 80KB */
+    size_t len_trigger = 10 * 1024;/* 10KB */
+
+    uint8_t *data_small = malloc(len_small);
+    uint8_t *data_large = malloc(len_large);
+    uint8_t *data_trigger = malloc(len_trigger);
+    memset(data_small, 'S', len_small);
+    memset(data_large, 'L', len_large);
+    memset(data_trigger, 'T', len_trigger);
+
+    /* Store small (30KB) first, then large (80KB). Total = 110KB > limit (100KB). */
+    ret = guit->llcache->store(url_small, BACKING_STORE_NONE, data_small, len_small);
+    assert(ret == NSERROR_OK);
+    ret = guit->llcache->store(url_large, BACKING_STORE_NONE, data_large, len_large);
+    assert(ret == NSERROR_OK);
+
+    /*
+     * Both url_small and url_large have use_count = 1 and no active RAM allocations.
+     * url_small was stored first (older timestamp).
+     * Under the size-aware eviction policy, url_large (80KB) is prioritized for eviction
+     * over url_small (30KB) because larger items free more space.
+     *
+     * Storing url_trigger invokes store_evict(), which sees total_alloc (110KB) >= limit (100KB).
+     */
+    ret = guit->llcache->store(url_trigger, BACKING_STORE_NONE, data_trigger, len_trigger);
+    assert(ret == NSERROR_OK);
+
+    /* Verify that url_large was evicted while url_small remains intact in the backing store */
+    ret = guit->llcache->fetch(url_large, BACKING_STORE_NONE, &fetched_data, &fetched_len);
+    assert(ret == NSERROR_NOT_FOUND);
+
+    ret = guit->llcache->fetch(url_small, BACKING_STORE_NONE, &fetched_data, &fetched_len);
+    assert(ret == NSERROR_OK);
+    assert(fetched_len == len_small);
+    guit->llcache->release(url_small, BACKING_STORE_NONE);
+
+    guit->llcache->finalise();
+
+    nsurl_unref(url_small);
+    nsurl_unref(url_large);
+    nsurl_unref(url_trigger);
+    free(data_small);
+    free(data_large);
+    free(data_trigger);
+
+    wisp_recursive_rm("test_cache_evict");
+
     printf("Journal test passed!\n");
     return 0;
 }
