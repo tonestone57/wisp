@@ -1215,6 +1215,23 @@ GtkNotebook *nsgtk_scaffolding_notebook(struct nsgtk_scaffolding *g)
     return g->notebook;
 }
 
+/* exported interface documented in gtk/scaffolding.h */
+struct gtk_find *nsgtk_scaffolding_find(struct nsgtk_scaffolding *g)
+{
+    if (g == NULL || g->top_level == NULL) {
+        return NULL;
+    }
+    return nsgtk_window_get_find(g->top_level);
+}
+
+/* exported interface documented in gtk/scaffolding.h */
+void nsgtk_scaffolding_toggle_find_bar_visibility(struct nsgtk_scaffolding *g)
+{
+    if (g != NULL && g->top_level != NULL) {
+        nsgtk_window_find_toggle(g->top_level);
+    }
+}
+
 
 /* exported interface documented in gtk/scaffolding.h */
 GtkMenuBar *nsgtk_scaffolding_menu_bar(struct nsgtk_scaffolding *gs)

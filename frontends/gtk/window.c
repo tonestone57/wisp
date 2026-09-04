@@ -1764,6 +1764,12 @@ nserror nsgtk_window_find_toggle(struct gui_window *gw)
     return nsgtk_find_toggle_visibility(gw->find);
 }
 
+struct gtk_find *nsgtk_window_get_find(struct gui_window *gw)
+{
+    if (gw == NULL) return NULL;
+    return gw->find;
+}
+
 
 
 void nsgtk_window_set_toolbar_sensitivity(struct gui_window *gw, nsgtk_toolbar_button itemid, bool sensitive)
