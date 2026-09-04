@@ -2206,6 +2206,20 @@ JSValue wisp_htmlselectelement_value_set_impl(JSContext *ctx, QJSNodePrivate *pr
         return wisp_element_setAttribute_impl(ctx, priv, "value", value);
     }
 
+    dom_string *attr_value_name = corestring_dom_value;
+    if (attr_value_name) {
+        dom_string_ref(attr_value_name);
+    } else {
+        dom_string_create((const uint8_t *)"value", 5, &attr_value_name);
+    }
+
+    dom_string *attr_selected_name = corestring_dom_selected;
+    if (attr_selected_name) {
+        dom_string_ref(attr_selected_name);
+    } else {
+        dom_string_create((const uint8_t *)"selected", 8, &attr_selected_name);
+    }
+
     dom_node *child = NULL;
     dom_node_get_first_child((dom_node *)priv->node, &child);
     while (child) {
@@ -2216,11 +2230,10 @@ JSValue wisp_htmlselectelement_value_set_impl(JSContext *ctx, QJSNodePrivate *pr
                 dom_string_unref(tag_name);
                 bool match = false;
 
-                dom_string *attr_name = NULL;
                 dom_string *val_dom = NULL;
-                dom_string_create((const uint8_t *)"value", 5, &attr_name);
-                dom_element_get_attribute((dom_element *)child, attr_name, &val_dom);
-                dom_string_unref(attr_name);
+                if (attr_value_name) {
+                    dom_element_get_attribute((dom_element *)child, attr_value_name, &val_dom);
+                }
                 if (val_dom) {
                     if (strcmp((const char *)dom_string_data(val_dom), value) == 0) {
                         match = true;
@@ -2237,13 +2250,13 @@ JSValue wisp_htmlselectelement_value_set_impl(JSContext *ctx, QJSNodePrivate *pr
                     }
                 }
 
-                dom_string_create((const uint8_t *)"selected", 8, &attr_name);
-                if (match) {
-                    dom_element_set_attribute((dom_element *)child, attr_name, attr_name);
-                } else {
-                    dom_element_remove_attribute((dom_element *)child, attr_name);
+                if (attr_selected_name) {
+                    if (match) {
+                        dom_element_set_attribute((dom_element *)child, attr_selected_name, attr_selected_name);
+                    } else {
+                        dom_element_remove_attribute((dom_element *)child, attr_selected_name);
+                    }
                 }
-                dom_string_unref(attr_name);
             } else {
                 dom_string_unref(tag_name);
             }
@@ -2253,6 +2266,14 @@ JSValue wisp_htmlselectelement_value_set_impl(JSContext *ctx, QJSNodePrivate *pr
         dom_node_unref(child);
         child = next;
     }
+
+    if (attr_value_name) {
+        dom_string_unref(attr_value_name);
+    }
+    if (attr_selected_name) {
+        dom_string_unref(attr_selected_name);
+    }
+
     return JS_UNDEFINED;
 }
 
