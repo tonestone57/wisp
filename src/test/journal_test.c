@@ -236,9 +236,9 @@ int main(int argc, char **argv)
     nsurl_create("http://evict-large.com", &url_large);
     nsurl_create("http://evict-trigger.com", &url_trigger);
 
-    size_t len_small = 10 * 1024;  /* 10KB */
+    size_t len_small = 30 * 1024;  /* 30KB */
     size_t len_large = 80 * 1024;  /* 80KB */
-    size_t len_trigger = 20 * 1024;/* 20KB -> Push total above 100KB limit */
+    size_t len_trigger = 10 * 1024;/* 10KB */
 
     uint8_t *data_small = malloc(len_small);
     uint8_t *data_large = malloc(len_large);
@@ -247,7 +247,7 @@ int main(int argc, char **argv)
     memset(data_large, 'L', len_large);
     memset(data_trigger, 'T', len_trigger);
 
-    /* Store small (10KB) first, then large (80KB). Total = 90KB <= limit (100KB). */
+    /* Store small (30KB) first, then large (80KB). Total = 110KB > limit (100KB). */
     ret = guit->llcache->store(url_small, BACKING_STORE_NONE, data_small, len_small);
     assert(ret == NSERROR_OK);
     ret = guit->llcache->store(url_large, BACKING_STORE_NONE, data_large, len_large);
@@ -256,10 +256,10 @@ int main(int argc, char **argv)
     /*
      * Both url_small and url_large have use_count = 1 and no active RAM allocations.
      * url_small was stored first (older timestamp).
-     * Under the new size-aware eviction policy, url_large (80KB) is prioritized for eviction
-     * over url_small (10KB) because larger items free more space.
+     * Under the size-aware eviction policy, url_large (80KB) is prioritized for eviction
+     * over url_small (30KB) because larger items free more space.
      *
-     * Storing url_trigger (20KB) pushes total_alloc to 110KB > limit (100KB), triggering eviction.
+     * Storing url_trigger invokes store_evict(), which sees total_alloc (110KB) >= limit (100KB).
      */
     ret = guit->llcache->store(url_trigger, BACKING_STORE_NONE, data_trigger, len_trigger);
     assert(ret == NSERROR_OK);
