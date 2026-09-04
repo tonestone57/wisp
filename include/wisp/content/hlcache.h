@@ -123,7 +123,7 @@ void hlcache_finalise(void);
  * The quirks field is ignored for child contents whose behaviour is not
  * affected by quirks mode.
  *
- * \todo The above rules should be encoded in the handler_map.
+ * NOTE: The above rules are encoded in the handler_map.
  */
 nserror hlcache_handle_retrieve(nsurl *url, const hlcache_retrieve_options *opts,
     hlcache_handle_callback cb, void *pw, hlcache_handle **result);
