@@ -6436,6 +6436,11 @@ static void layout_position_relative(struct html_content *content, struct box *r
 	int fnx, fny; /* for affsets which apply to flat children of "box" */
 	const css_unit_ctx *unit_len_ctx = &content->unit_len_ctx;
 
+	/* Per CSS 2.1 §9.4.3, relative positioning offsets a box relative to its normal
+	 * position without altering the content width/height or layout of surrounding
+	 * or containing boxes. Bounding box / overflow extensions for scrollable extents
+	 * are calculated in layout_calculate_descendant_bboxes(). */
+
 	assert(root);
 
 	/* Normal children */

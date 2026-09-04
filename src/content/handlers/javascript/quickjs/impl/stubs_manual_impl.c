@@ -1326,6 +1326,7 @@ static JSValue get_element_str_attr(JSContext *ctx, QJSNodePrivate *priv, const 
 {
     JSValue val = wisp_element_getAttribute_impl(ctx, priv, name);
     if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        if (!default_val) return JS_NULL;
         return JS_NewString(ctx, default_val);
     }
     return val;
@@ -5288,23 +5289,12 @@ static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
     JSValue labels_arr = JS_NewArray(ctx);
     uint32_t idx = 0;
 
-    struct jsthread *t = JS_GetContextOpaque(ctx);
-    struct dom_document *doc = t ? qjs_thread_get_document(t) : NULL;
-    struct dom_node *root = (struct dom_node *)doc;
-    JSValue global = JS_UNDEFINED;
-    JSValue doc_val = JS_UNDEFINED;
+    struct jsthread *thread = JS_GetContextOpaque(ctx);
+    struct dom_document *doc = thread ? qjs_thread_get_document(thread) : NULL;
 
-    if (!root) {
-        global = JS_GetGlobalObject(ctx);
-        doc_val = JS_GetPropertyStr(ctx, global, "document");
-        QJSNodePrivate *doc_priv = qjs_get_dom_priv(ctx, doc_val);
-        if (doc_priv) {
-            root = (struct dom_node *)doc_priv->node;
-        }
-    }
+    if (doc) {
+        JSValue matched = qjs_dom_query_selector_internal(ctx, (struct dom_node *)doc, "label", true);
 
-    if (root) {
-        JSValue matched = qjs_dom_query_selector_internal(ctx, root, "label", true);
         if (!JS_IsException(matched) && JS_IsObject(matched)) {
             JSValue len_val = JS_GetPropertyStr(ctx, matched, "length");
             int32_t len = 0;
@@ -5328,15 +5318,17 @@ static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
                             }
                             if (for_str) JS_FreeCString(ctx, for_str);
                         } else {
-                            /* Implicit label association: check if label wraps our control using direct C query */
-                            JSValue inner_ctrl = qjs_dom_query_selector_internal(ctx, (struct dom_node *)lbl_priv->node, "input, select, textarea, button", false);
-                            if (!JS_IsException(inner_ctrl) && JS_IsObject(inner_ctrl)) {
-                                QJSNodePrivate *ctrl_priv = qjs_get_dom_priv(ctx, inner_ctrl);
-                                if (ctrl_priv && ctrl_priv->node == priv->node) {
-                                    is_match = true;
+                            /* Implicit label association: check if label wraps our control */
+                            if (lbl_priv->node) {
+                                JSValue inner_ctrl = qjs_dom_query_selector_internal(ctx, (struct dom_node *)lbl_priv->node, "input, select, textarea, button", false);
+                                if (!JS_IsException(inner_ctrl) && !JS_IsNull(inner_ctrl) && !JS_IsUndefined(inner_ctrl)) {
+                                    QJSNodePrivate *ctrl_priv = qjs_get_dom_priv(ctx, inner_ctrl);
+                                    if (ctrl_priv && ctrl_priv->node == priv->node) {
+                                        is_match = true;
+                                    }
                                 }
+                                JS_FreeValue(ctx, inner_ctrl);
                             }
-                            JS_FreeValue(ctx, inner_ctrl);
                         }
                         JS_FreeValue(ctx, for_val);
 
@@ -5353,9 +5345,6 @@ static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
         }
         JS_FreeValue(ctx, matched);
     }
-
-    if (!JS_IsUndefined(doc_val)) JS_FreeValue(ctx, doc_val);
-    if (!JS_IsUndefined(global)) JS_FreeValue(ctx, global);
 
     return labels_arr;
 }
