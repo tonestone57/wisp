@@ -155,17 +155,14 @@ nserror hlcache_handle_replace_callback(hlcache_handle *handle, hlcache_handle_c
 /**
  * Retrieve a content object from a cache handle
  *
+ * High-level client code should prefer using the content API functions
+ * (e.g. content_get_width, content_get_status) in <wisp/content/content.h>,
+ * which accept a high-level cache handle directly and handle fetching states
+ * safely. This function provides direct content object access for content
+ * handlers and internal subsystems.
+ *
  * \param handle  Cache handle to dereference
  * \return Pointer to content object, or NULL if there is none
- *
- * \todo This may not be correct. Ideally, the client should never need to
- * directly access a content object. It may, therefore, be better to provide a
- * bunch of veneers here that take a hlcache_handle and invoke the
- * corresponding content_ API. If there's no content object associated with the
- * hlcache_handle (e.g. because the source data is still being fetched, so it
- * doesn't exist yet), then these veneers would behave as a NOP. The important
- * thing being that the client need not care about this possibility and can
- * just call the functions with impugnity.
  */
 struct content *hlcache_handle_get_content(const hlcache_handle *handle);
 
