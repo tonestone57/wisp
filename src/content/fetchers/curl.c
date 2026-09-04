@@ -1758,12 +1758,12 @@ static void fetch_curl_done(CURL *curl_handle, CURLcode result)
     bool cert = false;
     bool abort_fetch;
     struct curl_fetch_info *f;
-    char **_hideous_hack = (char **)(void *)&f;
+    char *private_data = NULL;
     CURLcode code;
 
     /* find the structure associated with this fetch */
-    /* For some reason, cURL thinks CURLINFO_PRIVATE should be a string?! */
-    code = curl_easy_getinfo(curl_handle, CURLINFO_PRIVATE, _hideous_hack);
+    code = curl_easy_getinfo(curl_handle, CURLINFO_PRIVATE, &private_data);
+    f = (struct curl_fetch_info *)(void *)private_data;
     assert(code == CURLE_OK);
 
     abort_fetch = f->abort;
