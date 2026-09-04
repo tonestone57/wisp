@@ -59,7 +59,7 @@
 #include "gtk/resources.h"
 #include "gtk/scaffolding.h"
 #include "gtk/schedule.h"
-#include "gtk/search.h"
+#include "gtk/find.h"
 #include "gtk/selection.h"
 #include "gtk/tabs.h"
 #include "gtk/throbber.h"
@@ -115,8 +115,8 @@ struct gui_window {
     /** controls toolbar context */
     struct nsgtk_toolbar *toolbar;
 
-    /** search toolbar context */
-    struct gtk_search *search;
+    /** find toolbar context */
+    struct gtk_find *find;
 
     /** The top level container (tabBox) */
     GtkWidget *container;
@@ -884,9 +884,9 @@ static void window_destroy(GtkWidget *widget, gpointer data)
         gw->icon = NULL;
     }
 
-    if (gw->search != NULL) {
-        free(gw->search);
-        gw->search = NULL;
+    if (gw->find != NULL) {
+        free(gw->find);
+        gw->find = NULL;
     }
 
     free(gw);
@@ -1024,8 +1024,8 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
         return NULL;
     }
 
-    /* local page text search toolbar */
-    res = nsgtk_search_create(tab_builder, g->bw, &g->search);
+    /* local page text find toolbar */
+    res = nsgtk_find_create(tab_builder, g->bw, &g->find);
     if (res != NSERROR_OK) {
         free(g);
         g_object_unref(tab_builder);
@@ -1096,7 +1096,7 @@ gui_window_create(struct browser_window *bw, struct gui_window *existing, gui_wi
     nsgtk_tab_add(g, g->container, open_in_background, messages_get("NewTab"), g->icon);
 
     /* initialy should not be visible */
-    nsgtk_search_toggle_visibility(g->search);
+    nsgtk_find_toggle_visibility(g->find);
 
     /* set toolbar visibility from user option */
     nsgtk_toolbar_show(g->toolbar, get_tool_bar_show());
@@ -1759,9 +1759,15 @@ GtkLayout *nsgtk_window_get_layout(struct gui_window *g)
 }
 
 
-nserror nsgtk_window_search_toggle(struct gui_window *gw)
+nserror nsgtk_window_find_toggle(struct gui_window *gw)
 {
-    return nsgtk_search_toggle_visibility(gw->search);
+    return nsgtk_find_toggle_visibility(gw->find);
+}
+
+struct gtk_find *nsgtk_window_get_find(struct gui_window *gw)
+{
+    if (gw == NULL) return NULL;
+    return gw->find;
 }
 
 
@@ -1792,7 +1798,7 @@ nserror nsgtk_window_update_all(void)
     for (gw = window_list; gw != NULL; gw = gw->next) {
         nsgtk_tab_options_changed(nsgtk_scaffolding_notebook(gw->scaffold));
         nsgtk_toolbar_restyle(gw->toolbar);
-        nsgtk_search_restyle(gw->search);
+        nsgtk_find_restyle(gw->find);
         browser_window_schedule_reformat(gw->bw);
     }
     return NSERROR_OK;
