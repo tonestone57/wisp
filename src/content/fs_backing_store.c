@@ -50,6 +50,7 @@
 #include <share.h>
 #define fsync _commit
 #include <windows.h>
+#include <bcrypt.h>
 
 static int mkstemp_win32(char *tname)
 {
@@ -72,8 +73,12 @@ static int mkstemp_win32(char *tname)
 
         if (_mktemp_s(template_buf, len + 1) != 0) {
             static const char chars[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            unsigned char rand_bytes[6];
+            if (BCryptGenRandom(NULL, rand_bytes, sizeof(rand_bytes), BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0) {
+                return -1;
+            }
             for (int i = 0; i < 6; i++) {
-                template_buf[len - 6 + i] = chars[rand() % (sizeof(chars) - 1)];
+                template_buf[len - 6 + i] = chars[rand_bytes[i] % (sizeof(chars) - 1)];
             }
         }
 
