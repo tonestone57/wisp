@@ -207,6 +207,50 @@ START_TEST(test_search_web_select_provider)
 }
 END_TEST
 
+START_TEST(test_search_web_https_urls)
+{
+    setup_mock_gui();
+
+    nserror res = search_web_init("src/resources/SearchEngines");
+    ck_assert_int_eq(res, NSERROR_OK);
+    pump_scheduled();
+
+    ssize_t iter = -1;
+    const char *name = NULL;
+    int count = 0;
+
+    iter = search_web_iterate_providers(iter, &name);
+    while (iter != -1) {
+        ck_assert_ptr_nonnull(name);
+        count++;
+
+        res = search_web_select_provider(name);
+        ck_assert_int_eq(res, NSERROR_OK);
+
+        nsurl *url = NULL;
+        res = search_web_omni("security_test", SEARCH_WEB_OMNI_SEARCHONLY, &url);
+        ck_assert_int_eq(res, NSERROR_OK);
+        ck_assert_ptr_nonnull(url);
+
+        const char *url_str = nsurl_access(url);
+        ck_assert_ptr_nonnull(url_str);
+        ck_assert_msg(strncmp(url_str, "https://", 8) == 0,
+                      "Provider %s search URL is not HTTPS: %s", name, url_str);
+
+        nsurl_unref(url);
+
+        iter = search_web_iterate_providers(iter, &name);
+    }
+
+    ck_assert_int_gt(count, 0);
+
+    res = search_web_finalise();
+    ck_assert_int_eq(res, NSERROR_OK);
+
+    teardown_mock_gui();
+}
+END_TEST
+
 static Suite *searchweb_suite_create(void)
 {
     Suite *s;
@@ -218,6 +262,7 @@ static Suite *searchweb_suite_create(void)
     tcase_add_test(tc, test_search_web_init_and_iterate);
     tcase_add_test(tc, test_search_web_omni_substitution);
     tcase_add_test(tc, test_search_web_select_provider);
+    tcase_add_test(tc, test_search_web_https_urls);
 
     suite_add_tcase(s, tc);
 
