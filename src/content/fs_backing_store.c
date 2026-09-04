@@ -723,8 +723,8 @@ static bool entry_eviction_iterator_cb(void *key, void *value, void *ctx)
  *
  * The approach is to check if the cache limits have been exceeded and
  * if so build and sort list of entries to evict. The list is sorted
- * by use count and then by age, so oldest object with least number of uses
- * get evicted first.
+ * by allocation status, use count, total object size (larger objects
+ * evicted first), and age (older objects evicted first).
  *
  * @param state The store state to use.
  * @return NSERROR_OK on success or error code on failure.
