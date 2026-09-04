@@ -3987,6 +3987,10 @@ bool urldb_set_cookie(const char *header, nsurl *url, nsurl *referer)
                 goto error;
             }
 
+            /* Check whether the common suffix is a public suffix (TLD).
+             * libpsl acts as the TLD service via psl_is_public_suffix()
+             * to prevent cookie domain matching across TLD boundaries.
+             */
             if (psl_ctx) {
                 if (psl_is_public_suffix(psl_ctx, hptr)) {
                     lwc_string_unref(rhost);
