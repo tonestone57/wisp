@@ -200,11 +200,6 @@ static LRESULT nsw32_corewindow_vscroll(struct nsw32_corewindow *nsw32_cw, HWND 
 
     ScrollWindowEx(hwnd, 0, si.nPos - usi.nPos, NULL, NULL, NULL, NULL, SW_INVALIDATE);
 
-    /**
-     * /todo win32 corewindow vertical scrolling needs us to
-     * compute scroll values and call scrollwindowex()
-     */
-
     return 0;
 }
 
@@ -214,7 +209,7 @@ static LRESULT nsw32_corewindow_hscroll(struct nsw32_corewindow *nsw32_cw, HWND 
     SCROLLINFO si; /* current scroll information */
     SCROLLINFO usi; /* updated scroll infomation for scrollwindowex */
 
-    NSLOG(wisp, INFO, "VSCROLL");
+    NSLOG(wisp, INFO, "HSCROLL");
 
     si.cbSize = sizeof(si);
     si.fMask = SIF_ALL;
