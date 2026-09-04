@@ -155,6 +155,48 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+
+START_TEST(test_quickjs_bench_labels)
+{
+    js_initialise();
+    corestrings_init();
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+
+    ck_assert_int_eq(js_newheap(10, &heap), NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+    ck_assert_ptr_nonnull(doc);
+
+    html_content *htmlc = calloc(1, sizeof(*htmlc));
+    ck_assert_ptr_nonnull(htmlc);
+    htmlc->document = doc;
+
+    ck_assert_int_eq(js_newthread(heap, (void *)doc, htmlc, &thread), NSERROR_OK);
+
+    const char *bench_code = "var inputs = []; for (var i = 0; i < 50; i++) { var lbl = document.createElement(\"label\"); var inp = document.createElement(\"input\"); lbl.appendChild(inp); document.body.appendChild(lbl); inputs.push(inp); } var total_labels = 0; for (var r = 0; r < 50; r++) { for (var i = 0; i < inputs.length; i++) { var l = inputs[i].labels; if (l) total_labels += l.length; } }";
+
+    double total_ms = 0.0;
+    for (int run = 0; run < 5; run++) {
+        struct timespec ts1, ts2;
+        clock_gettime(CLOCK_MONOTONIC, &ts1);
+        bool ok = js_exec(thread, (const uint8_t *)bench_code, strlen(bench_code), "bench.js");
+        clock_gettime(CLOCK_MONOTONIC, &ts2);
+        ck_assert(ok == true);
+        double ms = (ts2.tv_sec - ts1.tv_sec) * 1000.0 + (ts2.tv_nsec - ts1.tv_nsec) / 1000000.0;
+        total_ms += ms;
+    }
+    fprintf(stderr, "\n=== BENCHMARK_RESULT: average %.3f ms per run ===\n\n", total_ms / 5.0);
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    dom_node_unref((dom_node *)doc);
+    free(htmlc);
+    js_destroyheap(heap);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_form_datetime)
 {
     jsheap *heap = NULL;
@@ -7698,6 +7740,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_location);
     tcase_add_test(tc_window, test_quickjs_document);
     tcase_add_test(tc_window, test_quickjs_parsing_doctype);
+    tcase_add_test(tc_window, test_quickjs_bench_labels);
     tcase_add_test(tc_window, test_quickjs_form_datetime);
     tcase_add_test(tc_window, test_quickjs_quirks_mode);
     tcase_add_test(tc_window, test_quickjs_storage);

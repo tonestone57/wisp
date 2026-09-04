@@ -1326,6 +1326,7 @@ static JSValue get_element_str_attr(JSContext *ctx, QJSNodePrivate *priv, const 
 {
     JSValue val = wisp_element_getAttribute_impl(ctx, priv, name);
     if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        if (!default_val) return JS_NULL;
         return JS_NewString(ctx, default_val);
     }
     return val;
@@ -5288,14 +5289,11 @@ static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
     JSValue labels_arr = JS_NewArray(ctx);
     uint32_t idx = 0;
 
-    JSValue global = JS_GetGlobalObject(ctx);
-    JSValue doc_val = JS_GetPropertyStr(ctx, global, "document");
-    JSValue qsa = JS_GetPropertyStr(ctx, doc_val, "querySelectorAll");
+    struct jsthread *thread = JS_GetContextOpaque(ctx);
+    struct dom_document *doc = thread ? qjs_thread_get_document(thread) : NULL;
 
-    if (JS_IsFunction(ctx, qsa)) {
-        JSValue sel_val = JS_NewString(ctx, "label");
-        JSValue matched = JS_Call(ctx, qsa, doc_val, 1, &sel_val);
-        JS_FreeValue(ctx, sel_val);
+    if (doc) {
+        JSValue matched = qjs_dom_query_selector_internal(ctx, (struct dom_node *)doc, "label", true);
 
         if (!JS_IsException(matched) && JS_IsObject(matched)) {
             JSValue len_val = JS_GetPropertyStr(ctx, matched, "length");
@@ -5321,21 +5319,15 @@ static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
                             if (for_str) JS_FreeCString(ctx, for_str);
                         } else {
                             /* Implicit label association: check if label wraps our control */
-                            JSValue qs = JS_GetPropertyStr(ctx, label_item, "querySelector");
-                            if (JS_IsFunction(ctx, qs)) {
-                                JSValue inner_sel = JS_NewString(ctx, "input, select, textarea, button");
-                                JSValue inner_ctrl = JS_Call(ctx, qs, label_item, 1, &inner_sel);
-                                JS_FreeValue(ctx, inner_sel);
-                                JS_FreeValue(ctx, qs);
-                                if (!JS_IsException(inner_ctrl) && JS_IsObject(inner_ctrl)) {
+                            if (lbl_priv->node) {
+                                JSValue inner_ctrl = qjs_dom_query_selector_internal(ctx, (struct dom_node *)lbl_priv->node, "input, select, textarea, button", false);
+                                if (!JS_IsException(inner_ctrl) && !JS_IsNull(inner_ctrl) && !JS_IsUndefined(inner_ctrl)) {
                                     QJSNodePrivate *ctrl_priv = qjs_get_dom_priv(ctx, inner_ctrl);
                                     if (ctrl_priv && ctrl_priv->node == priv->node) {
                                         is_match = true;
                                     }
                                 }
                                 JS_FreeValue(ctx, inner_ctrl);
-                            } else {
-                                JS_FreeValue(ctx, qs);
                             }
                         }
                         JS_FreeValue(ctx, for_val);
@@ -5353,10 +5345,6 @@ static JSValue get_element_labels_impl(JSContext *ctx, QJSNodePrivate *priv) {
         }
         JS_FreeValue(ctx, matched);
     }
-
-    JS_FreeValue(ctx, qsa);
-    JS_FreeValue(ctx, doc_val);
-    JS_FreeValue(ctx, global);
 
     return labels_arr;
 }
