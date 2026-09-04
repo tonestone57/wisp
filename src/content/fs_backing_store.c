@@ -317,12 +317,14 @@ struct store_state {
 };
 
 /**
- * Global storage state.
+ * Backing store static state instance.
  *
- * @todo Investigate if there is a way to have a context rather than
- * use a global.
+ * Investigation Note: The gui_llcache_table abstraction (guit->llcache) uses fixed
+ * callback function signatures across frontends and llcache callers without passing
+ * explicit context parameters. As a result, the backing store operates as a process-wide
+ * singleton, requiring a file-scoped static context pointer rather than per-call context parameter.
  */
-struct store_state *storestate;
+static struct store_state *storestate = NULL;
 static bool entries_writing = false;
 
 /* Entries hashmap parameters
