@@ -74,7 +74,7 @@
 #include "gtk/plotters.h"
 #include "gtk/scaffolding.h"
 #include "gtk/schedule.h"
-#include "gtk/search.h"
+#include "gtk/find.h"
 #include <wisp/utils/task_queue.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -1375,7 +1375,7 @@ int main(int argc, char **argv)
         .download = nsgtk_download_table,
         .fetch = nsgtk_fetch_table,
         .llcache = filesystem_llcache_table,
-        .search = nsgtk_search_table,
+        .search = nsgtk_find_table,
         .search_web = nsgtk_search_web_table,
         .bitmap = nsgtk_bitmap_table,
         .layout = nsgtk_layout_table,

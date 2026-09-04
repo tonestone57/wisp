@@ -569,7 +569,7 @@ static gboolean nsgtk_on_find_activate_menu(GtkMenuItem *widget, gpointer data)
 {
     struct nsgtk_scaffolding *g = (struct nsgtk_scaffolding *)data;
 
-    nsgtk_window_search_toggle(g->top_level);
+    nsgtk_window_find_toggle(g->top_level);
 
     return TRUE;
 }

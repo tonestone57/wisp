@@ -75,11 +75,11 @@ void nsgtk_window_destroy_browser(struct gui_window *gw);
 
 
 /**
- * toggle search visibility
+ * toggle find bar visibility
  *
  * \param gw gui window handle
  */
-nserror nsgtk_window_search_toggle(struct gui_window *gw);
+nserror nsgtk_window_find_toggle(struct gui_window *gw);
 
 /**
  * get gtk layout from gui handle

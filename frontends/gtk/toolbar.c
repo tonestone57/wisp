@@ -62,7 +62,7 @@
 #include "gtk/resources.h"
 #include "gtk/scaffolding.h"
 #include "gtk/schedule.h"
-#include "gtk/search.h"
+#include "gtk/find.h"
 #include "gtk/tabs.h"
 #include "gtk/throbber.h"
 #include "gtk/toolbar.h"

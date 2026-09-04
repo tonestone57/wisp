@@ -18,34 +18,34 @@
 
 /**
  * \file
- * free text page search for gtk interface
+ * free text page find for gtk interface
  */
 
-#ifndef WISP_GTK_SEARCH_H_
-#define WISP_GTK_SEARCH_H_
+#ifndef WISP_GTK_FIND_H_
+#define WISP_GTK_FIND_H_
 
-extern struct gui_search_table *nsgtk_search_table;
+extern struct gui_search_table *nsgtk_find_table;
 
-struct gtk_search;
+struct gtk_find;
 
 /**
- * create text search context
+ * create text find context
  *
- * \param builder the gtk builder containing the search toolbar
+ * \param builder the gtk builder containing the find toolbar
  * \param bw The browsing context to run the find operations against
- * \param search search context result
- * \return NSERROR_OK and search_out updated
+ * \param find_out find context result
+ * \return NSERROR_OK and find_out updated
  */
-nserror nsgtk_search_create(GtkBuilder *builder, struct browser_window *bw, struct gtk_search **search);
+nserror nsgtk_find_create(GtkBuilder *builder, struct browser_window *bw, struct gtk_find **find_out);
 
 /**
- * update search toolbar size and style
+ * update find toolbar size and style
  */
-nserror nsgtk_search_restyle(struct gtk_search *search);
+nserror nsgtk_find_restyle(struct gtk_find *find);
 
 /**
- * toggle search bar visibility
+ * toggle find bar visibility
  */
-nserror nsgtk_search_toggle_visibility(struct gtk_search *search);
+nserror nsgtk_find_toggle_visibility(struct gtk_find *find);
 
 #endif

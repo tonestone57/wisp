@@ -114,7 +114,7 @@ add_executable(wisp-gtk
 	download.c
 	menu.c
 	print.c
-	search.c
+	find.c
 	tabs.c
 	toolbar.c
 	compat.c

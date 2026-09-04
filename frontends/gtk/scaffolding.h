@@ -95,7 +95,7 @@ GtkWindow *nsgtk_scaffolding_window(struct nsgtk_scaffolding *g);
  */
 GtkNotebook *nsgtk_scaffolding_notebook(struct nsgtk_scaffolding *g);
 
-struct gtk_search *nsgtk_scaffolding_search(struct nsgtk_scaffolding *g);
+struct gtk_find *nsgtk_scaffolding_find(struct nsgtk_scaffolding *g);
 
 GtkMenuBar *nsgtk_scaffolding_menu_bar(struct nsgtk_scaffolding *g);
 
@@ -108,7 +108,7 @@ struct gui_window *nsgtk_scaffolding_top_level(struct nsgtk_scaffolding *g);
 struct nsgtk_scaffolding *nsgtk_scaffolding_iterate(struct nsgtk_scaffolding *g);
 
 
-void nsgtk_scaffolding_toggle_search_bar_visibility(struct nsgtk_scaffolding *g);
+void nsgtk_scaffolding_toggle_find_bar_visibility(struct nsgtk_scaffolding *g);
 
 /**
  * Set the current active top level gui window.
