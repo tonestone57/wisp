@@ -914,10 +914,8 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 				max += fixed;
 				min += fixed;
 			}
+			(void)frac; /* Fractional percentage margins and paddings on non-replaced inline boxes cannot be resolved during minmax calculation because containing block width is unknown; resolved in layout_line(). */
 			*line_has_height = true;
-			/* Note: percentage margins and paddings on non-replaced inline boxes
-			 * cannot be resolved during minmax calculation because the containing block
-			 * width is unknown. They are resolved during line layout in layout_line(). */
 		} else if (b->type == BOX_INLINE_END) {
 			fixed = frac = 0;
 			calculate_mbp_width(&content->unit_len_ctx, b->inline_end->style, RIGHT, true, true, true, &fixed, &frac);
@@ -925,6 +923,7 @@ static struct box *layout_minmax_line(struct box *first, int *line_min, int *lin
 				max += fixed;
 				min += fixed;
 			}
+			(void)frac;
 
 			if (b->next) {
 				if (b->space == UNKNOWN_WIDTH) {
