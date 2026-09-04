@@ -754,7 +754,7 @@ int js_module_set_import_meta(JSContext *ctx, JSValueConst func_val,
     if (!module_name)
         return -1;
     if (!strchr(module_name, ':')) {
-        strcpy(buf, "file://");
+        js__pstrcpy(buf, sizeof(buf), "file://");
 #if !defined(_WIN32) && !defined(__wasi__)
         /* realpath() cannot be used with modules compiled with qjsc
            because the corresponding module source code is not
