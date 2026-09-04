@@ -235,24 +235,31 @@ int main(int argc, char **argv)
     nsurl_create("http://evict2.com", &url_e2);
     nsurl_create("http://evict3.com", &url_e3);
 
-    /* Store small item first (400 bytes) */
-    size_t elen1 = 400;
+    /* Store small item first (500 bytes) */
+    size_t elen1 = 500;
     uint8_t *edata1 = malloc(elen1);
     memset(edata1, '1', elen1);
     ret = guit->llcache->store(url_e1, BACKING_STORE_NONE, edata1, elen1);
     assert(ret == NSERROR_OK);
 
-    /* Store larger item second (500 bytes). Both url_e1 and url_e2 have same use_count (1) and last_used time.
-     * Total allocated = 900 <= limit 1000.
-     */
-    size_t elen2 = 500;
+    /* Store larger item second (600 bytes) */
+    size_t elen2 = 600;
     uint8_t *edata2 = malloc(elen2);
     memset(edata2, '2', elen2);
     ret = guit->llcache->store(url_e2, BACKING_STORE_NONE, edata2, elen2);
     assert(ret == NSERROR_OK);
 
-    /* Store third item (300 bytes). Total allocation would become 1200 > limit (1000).
-     * store_evict() will sort entries: url_e2 (size 500) sorted before url_e1 (size 400).
+    /* Fetch both so they share identical use_count (2) and last_used timestamp */
+    ret = guit->llcache->fetch(url_e1, BACKING_STORE_NONE, &fetched_data, &fetched_len);
+    assert(ret == NSERROR_OK);
+    guit->llcache->release(url_e1, BACKING_STORE_NONE);
+
+    ret = guit->llcache->fetch(url_e2, BACKING_STORE_NONE, &fetched_data, &fetched_len);
+    assert(ret == NSERROR_OK);
+    guit->llcache->release(url_e2, BACKING_STORE_NONE);
+
+    /* Store third item (300 bytes). Total allocation exceeds limit (1000).
+     * store_evict() will sort entries: url_e2 (size 600) sorted before url_e1 (size 500).
      * url_e2 gets evicted first.
      */
     size_t elen3 = 300;
