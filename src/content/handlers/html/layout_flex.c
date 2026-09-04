@@ -2180,11 +2180,12 @@ bool layout_flex(struct box *flex, int available_width, html_content *content)
 	 *
 	 * If this flex container was stretched by its parent (HEIGHT_STRETCHED flag),
 	 * preserve the stretched height by not letting layout_find_dimensions overwrite it.
+	 * Only preserve height for horizontal flex (where height is cross-size).
 	 * Clear the flag after checking since we've now handled the stretch.
 	 */
 	bool height_was_stretched = (flex->flags & HEIGHT_STRETCHED) != 0;
 	flex->flags &= ~HEIGHT_STRETCHED; /* Clear flag after reading */
-	int *height_ptr = height_was_stretched ? NULL : &flex->height;
+	int *height_ptr = (height_was_stretched && ctx->horizontal) ? NULL : &flex->height;
 
 	layout_find_dimensions(ctx->unit_len_ctx, available_width, -1, flex, flex->style, NULL, /* width - already set */
 		height_ptr, /* height - NULL if already definite from stretch */
