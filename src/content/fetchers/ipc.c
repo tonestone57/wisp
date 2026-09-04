@@ -456,65 +456,76 @@ static void fetch_ipc_finalise(lwc_string *scheme) {
     }
 
     if (wisp_network_pid > 0) {
-#ifndef _WIN32
-        kill(wisp_network_pid, SIGTERM);
-#endif
-        /* Wait up to 200ms for the network process to exit cleanly */
-        int retries = 20;
         bool exited = false;
-        while (retries-- > 0) {
 #ifdef _WIN32
-            HANDLE hProcess = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, wisp_network_pid);
-            if (hProcess) {
-                DWORD res = WaitForSingleObject(hProcess, 10);
-                CloseHandle(hProcess);
-                if (res == WAIT_OBJECT_0) {
-                    exited = true;
-                    break;
-                }
-            } else {
+        HANDLE hProcess = OpenProcess(SYNCHRONIZE | PROCESS_TERMINATE, FALSE, wisp_network_pid);
+        if (hProcess) {
+            /* Wait up to 200ms in an event-driven manner */
+            DWORD res = WaitForSingleObject(hProcess, 200);
+            CloseHandle(hProcess);
+            if (res == WAIT_OBJECT_0) {
                 exited = true;
-                break;
             }
+        } else {
+            exited = true;
+        }
+
+        /* If the child process didn't exit cleanly on its own, terminate it forcefully */
+        if (!exited) {
+            NSLOG(wisp, WARNING, "wisp-network (PID %d) did not terminate in 200ms, sending forceful termination", wisp_network_pid);
+            HANDLE hProcessKill = OpenProcess(PROCESS_TERMINATE, FALSE, wisp_network_pid);
+            if (hProcessKill) {
+                TerminateProcess(hProcessKill, 0);
+                CloseHandle(hProcessKill);
+            }
+        }
 #else
+        kill(wisp_network_pid, SIGTERM);
+        /* Wait up to 200ms for the network process to exit cleanly using adaptive sub-millisecond backoff */
+        useconds_t sleep_us = 100;
+        useconds_t elapsed_us = 0;
+        const useconds_t max_wait_us = 200000; /* 200ms */
+        while (elapsed_us < max_wait_us) {
             int status;
             pid_t res = waitpid(wisp_network_pid, &status, WNOHANG);
             if (res == wisp_network_pid || (res == -1 && errno == ECHILD)) {
                 exited = true;
                 break;
             }
-            usleep(10000); // 10ms
-#endif
+            usleep(sleep_us);
+            elapsed_us += sleep_us;
+            if (sleep_us < 2000) {
+                sleep_us *= 2;
+            }
         }
 
         /* If the child process didn't exit cleanly on its own, terminate it forcefully */
         if (!exited) {
-            NSLOG(wisp, WARNING, "wisp-network (PID %d) did not terminate in 1000ms, sending forceful termination", wisp_network_pid);
-#ifdef _WIN32
-            HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, wisp_network_pid);
-            if (hProcess) {
-                TerminateProcess(hProcess, 0);
-                CloseHandle(hProcess);
-            }
-#else
+            NSLOG(wisp, WARNING, "wisp-network (PID %d) did not terminate in 200ms, sending forceful termination", wisp_network_pid);
             kill(wisp_network_pid, SIGTERM);
             /* Give it 100ms more to handle SIGTERM, then send SIGKILL if needed */
-            int kill_retries = 10;
-            while (kill_retries-- > 0) {
+            useconds_t kill_sleep_us = 100;
+            useconds_t kill_elapsed_us = 0;
+            const useconds_t kill_max_wait_us = 100000; /* 100ms */
+            while (kill_elapsed_us < kill_max_wait_us) {
                 int status;
                 pid_t res = waitpid(wisp_network_pid, &status, WNOHANG);
                 if (res == wisp_network_pid || (res == -1 && errno == ECHILD)) {
                     exited = true;
                     break;
                 }
-                usleep(10000);
+                usleep(kill_sleep_us);
+                kill_elapsed_us += kill_sleep_us;
+                if (kill_sleep_us < 2000) {
+                    kill_sleep_us *= 2;
+                }
             }
             if (!exited) {
                 kill(wisp_network_pid, SIGKILL);
                 waitpid(wisp_network_pid, NULL, 0);
             }
-#endif
         }
+#endif
         wisp_network_pid = -1;
     }
 
