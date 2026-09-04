@@ -22,8 +22,8 @@
  *
  * file based backing store.
  *
- * \todo Consider improving eviction sorting to include objects size
- *         and remaining lifetime and other cost metrics.
+ * \note Eviction sorting orders candidates by allocation status, access count,
+ *       object size (larger objects evicted first), and last use timestamp.
  *
  * \note Memory-mapped (mmap) retrieval is supported for both journal entries and
  *       standalone cache files (>16KB).
@@ -636,30 +636,34 @@ static nserror invalidate_entry(struct store_state *state, struct store_entry *b
 
 
 /**
- * Quick sort comparison.
+ * Quick sort comparison for backing store entry eviction.
+ *
+ * Sorts entries so that eviction candidates appear first:
+ *  1. Unreferenced/unallocated entries before active RAM allocations.
+ *  2. Entries with lower use count before higher use count.
+ *  3. Entries with larger total size before smaller total size.
+ *  4. Entries with older last_used timestamp before newer timestamp.
  */
 static int compar(const void *va, const void *vb)
 {
     const struct store_entry *a = *(const struct store_entry **)va;
     const struct store_entry *b = *(const struct store_entry **)vb;
 
-    /* consider the allocation flags - if an entry has an
-     * allocation it is considered more valuable as it cannot be
-     * freed.
-     */
-    if ((a->elem[ENTRY_ELEM_DATA].flags == ENTRY_ELEM_FLAG_NONE) &&
-        (b->elem[ENTRY_ELEM_DATA].flags != ENTRY_ELEM_FLAG_NONE)) {
+    bool a_data_alloc = (a->elem[ENTRY_ELEM_DATA].flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0;
+    bool b_data_alloc = (b->elem[ENTRY_ELEM_DATA].flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0;
+
+    if (!a_data_alloc && b_data_alloc) {
         return -1;
-    } else if ((a->elem[ENTRY_ELEM_DATA].flags != ENTRY_ELEM_FLAG_NONE) &&
-        (b->elem[ENTRY_ELEM_DATA].flags == ENTRY_ELEM_FLAG_NONE)) {
+    } else if (a_data_alloc && !b_data_alloc) {
         return 1;
     }
 
-    if ((a->elem[ENTRY_ELEM_META].flags == ENTRY_ELEM_FLAG_NONE) &&
-        (b->elem[ENTRY_ELEM_META].flags != ENTRY_ELEM_FLAG_NONE)) {
+    bool a_meta_alloc = (a->elem[ENTRY_ELEM_META].flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0;
+    bool b_meta_alloc = (b->elem[ENTRY_ELEM_META].flags & (ENTRY_ELEM_FLAG_HEAP | ENTRY_ELEM_FLAG_MMAP)) != 0;
+
+    if (!a_meta_alloc && b_meta_alloc) {
         return -1;
-    } else if ((a->elem[ENTRY_ELEM_META].flags != ENTRY_ELEM_FLAG_NONE) &&
-        (b->elem[ENTRY_ELEM_META].flags == ENTRY_ELEM_FLAG_NONE)) {
+    } else if (a_meta_alloc && !b_meta_alloc) {
         return 1;
     }
 
@@ -668,15 +672,25 @@ static int compar(const void *va, const void *vb)
     } else if (a->use_count > b->use_count) {
         return 1;
     }
-    /* use count is the same - now consider last use time */
 
+    /* Use count is equal - consider total object size (larger evicted first) */
+    uint64_t a_size = (uint64_t)a->elem[ENTRY_ELEM_DATA].size + a->elem[ENTRY_ELEM_META].size;
+    uint64_t b_size = (uint64_t)b->elem[ENTRY_ELEM_DATA].size + b->elem[ENTRY_ELEM_META].size;
+
+    if (a_size > b_size) {
+        return -1;
+    } else if (a_size < b_size) {
+        return 1;
+    }
+
+    /* Size is equal - consider last used time (older evicted first) */
     if (a->last_used < b->last_used) {
         return -1;
     } else if (a->last_used > b->last_used) {
         return 1;
     }
 
-    /* they are the same */
+    /* Entries are identical in priority */
     return 0;
 }
 
