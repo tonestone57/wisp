@@ -158,9 +158,8 @@ static Suite *content_factory_suite(void)
     tcase_add_test(tc_core, test_content_factory_register);
     tcase_add_test(tc_core, test_content_factory_register_null);
 
-    TCase *tc_clone = tcase_create("Clone");
-    tcase_add_test(tc_clone, test_content_clone);
-    suite_add_tcase(s, tc_clone);
+    tcase_add_test(tc_core, test_content_clone);
+    suite_add_tcase(s, tc_core);
 
     return s;
 }
