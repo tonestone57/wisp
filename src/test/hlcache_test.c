@@ -2,33 +2,53 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <wisp/utils/errors.h>
 #include <wisp/utils/nsurl.h>
 #include <wisp/utils/corestrings.h>
 #include <wisp/utils/file.h>
 #include <wisp/content/content.h>
+#include <wisp/content/fetch.h>
 #include <wisp/content/content_protected.h>
 #include "content/content_factory.h"
+#include "content/fetchers.h"
 #include <wisp/content/hlcache.h>
 #include <wisp/content/backing_store.h>
 #include <wisp/misc.h>
 #include <wisp/desktop/gui_internal.h>
+#include <wisp/fetch.h>
 #include <wisp/utils/nsoption.h>
+#include <wisp/content/handlers/html/html.h>
 
-static void (*scheduled_cb)(void *p) = NULL;
-static void *scheduled_p = NULL;
+struct mock_schedule_item {
+    void (*cb)(void *p);
+    void *p;
+    int t;
+};
+
+static struct mock_schedule_item scheduled_queue[128];
+static int scheduled_count = 0;
 
 /* Mock schedule function for guit */
 static nserror mock_schedule(int t, void (*cb)(void *p), void *p)
 {
     if (t >= 0) {
-        scheduled_cb = cb;
-        scheduled_p = p;
+        if (scheduled_count < 128) {
+            scheduled_queue[scheduled_count].cb = cb;
+            scheduled_queue[scheduled_count].p = p;
+            scheduled_queue[scheduled_count].t = t;
+            scheduled_count++;
+        }
     } else {
-        if (scheduled_cb == cb) {
-            scheduled_cb = NULL;
-            scheduled_p = NULL;
+        for (int i = 0; i < scheduled_count; i++) {
+            if (scheduled_queue[i].cb == cb && (p == NULL || scheduled_queue[i].p == p)) {
+                for (int j = i; j < scheduled_count - 1; j++) {
+                    scheduled_queue[j] = scheduled_queue[j + 1];
+                }
+                scheduled_count--;
+                i--;
+            }
         }
     }
     return NSERROR_OK;
@@ -47,15 +67,32 @@ static nserror sync_check_callback(hlcache_handle *handle, const hlcache_event *
 
 static void pump_scheduled(void)
 {
+    int count = scheduled_count;
     int safety = 0;
-    while (scheduled_cb != NULL && safety++ < 10) {
-        void (*cb)(void *p) = scheduled_cb;
-        void *p = scheduled_p;
-        scheduled_cb = NULL;
-        scheduled_p = NULL;
-        cb(p);
+    while (scheduled_count > 0 && count > 0 && safety++ < 100) {
+        struct mock_schedule_item item = scheduled_queue[0];
+        for (int i = 0; i < scheduled_count - 1; i++) {
+            scheduled_queue[i] = scheduled_queue[i + 1];
+        }
+        scheduled_count--;
+        count--;
+        if (item.cb != NULL) {
+            item.cb(item.p);
+        }
     }
 }
+
+static nserror mock_get_resource_data(const char *path, const uint8_t **data, size_t *len)
+{
+    static const uint8_t dummy_css[] = "body { margin: 0; }";
+    *data = dummy_css;
+    *len = sizeof(dummy_css) - 1;
+    return NSERROR_OK;
+}
+
+static struct gui_fetch_table mock_fetch_table = {
+    .get_resource_data = mock_get_resource_data,
+};
 
 static struct gui_misc_table mock_misc = {
     .schedule = mock_schedule,
@@ -63,6 +100,7 @@ static struct gui_misc_table mock_misc = {
 
 static struct wisp_table mock_gui_table = {
     .misc = &mock_misc,
+    .fetch = &mock_fetch_table,
 };
 
 extern struct wisp_table *guit;
@@ -242,6 +280,52 @@ START_TEST(test_hlcache_init_and_buffer_retrieval)
     ck_assert_int_eq(hlcache_handle_release(cloned), NSERROR_OK);
     ck_assert_int_eq(hlcache_handle_release(handle2), NSERROR_OK);
     ck_assert_int_eq(hlcache_handle_release(handle1), NSERROR_OK);
+
+    hlcache_stop();
+    hlcache_finalise();
+}
+END_TEST
+
+START_TEST(test_html_content_clone)
+{
+    guit = &mock_gui_table;
+    guit->llcache = filesystem_llcache_table;
+    guit->file = default_file_table;
+
+    fetch_use_ipc = false;
+    ck_assert_int_eq(fetcher_init(), NSERROR_OK);
+    ck_assert_int_eq(html_init(), NSERROR_OK);
+
+    struct hlcache_parameters params = {
+        .bg_clean_time = 10000,
+        .llcache = {
+            .limit = 1024 * 1024,
+        },
+    };
+
+    nserror error = hlcache_initialise(&params);
+    ck_assert_int_eq(error, NSERROR_OK);
+
+    uint8_t html_data[] = "<html><head><title>HTML Clone Test</title></head><body><p>Test</p></body></html>";
+    hlcache_handle *html_handle = NULL;
+    hlcache_retrieve_options opts = {
+        .accepted_types = CONTENT_HTML
+    };
+    error = hlcache_handle_retrieve_buffer(html_data, strlen((char *)html_data), "text/html", &opts, dummy_callback, NULL, &html_handle);
+    ck_assert_int_eq(error, NSERROR_OK);
+    ck_assert_ptr_nonnull(html_handle);
+
+    pump_scheduled();
+
+    struct content *c_orig = hlcache_handle_get_content(html_handle);
+    ck_assert_ptr_nonnull(c_orig);
+
+    struct content *c_cloned = content_clone(c_orig);
+    ck_assert_ptr_nonnull(c_cloned);
+    ck_assert_int_eq(c_cloned->handler->type(), CONTENT_HTML);
+
+    content_destroy(c_cloned);
+    ck_assert_int_eq(hlcache_handle_release(html_handle), NSERROR_OK);
 
     hlcache_stop();
     hlcache_finalise();
@@ -578,6 +662,7 @@ static Suite *hlcache_suite(void)
     tcase_add_test(tc_core, test_hlcache_finalise_with_pending_retrieval_ctx);
     tcase_add_test(tc_core, test_content_reformat);
     tcase_add_test(tc_core, test_hlcache_clean_stale_and_fresh);
+    tcase_add_test(tc_core, test_html_content_clone);
     suite_add_tcase(s, tc_core);
 
     return s;
