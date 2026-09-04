@@ -522,7 +522,7 @@ nserror local_history_get_url(struct local_history_session *session, int x, int 
 {
     struct history_entry *entry;
 
-    if (session->bw == NULL) {
+    if (session == NULL || session->bw == NULL || url_out == NULL) {
         return NSERROR_BAD_PARAMETER;
     }
 

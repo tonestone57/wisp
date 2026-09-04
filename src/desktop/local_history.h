@@ -23,7 +23,7 @@
 #include <stdint.h>
 
 #include <wisp/mouse.h>
-#include "utils/errors.h"
+#include <wisp/utils/errors.h>
 
 struct redraw_context;
 struct nsurl;

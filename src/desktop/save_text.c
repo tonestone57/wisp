@@ -28,7 +28,7 @@
 
 #include <dom/dom.h>
 
-#include <wisp/content/handlers/html/html_save.h>
+#include <wisp/content/handlers/html/html.h>
 #include <wisp/utils/config.h>
 #include <wisp/utils/log.h>
 #include <wisp/utils/utf8.h>

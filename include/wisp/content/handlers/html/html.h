@@ -29,11 +29,13 @@
 #include <stdbool.h>
 
 #include <wisp/desktop/frame_types.h>
+#include <wisp/desktop/save_text.h>
 #include "wisp/browser_window.h"
 #include "wisp/content_type.h"
 #include "wisp/mouse.h"
 #include "wisp/types.h"
 
+struct dom_document;
 struct fetch_multipart_data;
 struct box;
 struct rect;
@@ -227,5 +229,21 @@ void html_parser_pool_shutdown(void);
 
 
 void html_set_media_type_print(struct content *c);
+
+/**
+ * Get the dom document of an html content from a handle.
+ */
+struct dom_document *html_get_document(struct hlcache_handle *h);
+
+/**
+ * Extract text representation from an html content handle.
+ */
+void html_extract_text(struct hlcache_handle *h, bool *first,
+		save_text_whitespace *before, struct save_text_state *save);
+
+/**
+ * Get the base url of an html content from a handle.
+ */
+struct nsurl *html_get_base_url(struct hlcache_handle *h);
 
 #endif
