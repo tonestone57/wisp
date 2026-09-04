@@ -566,7 +566,7 @@ static svgtiny_code add_debug_gradient_vertices(struct svgtiny_parse_state *stat
         char *text = malloc(20);
         if (!text)
             return svgtiny_OUT_OF_MEMORY;
-        sprintf(text, "%i=%.3f", i, point->r);
+        snprintf(text, 20, "%i=%.3f", i, point->r);
         shape->text = text;
         shape->text_x = state->ctm.a * point->x + state->ctm.c * point->y + state->ctm.e;
         shape->text_y = state->ctm.b * point->x + state->ctm.d * point->y + state->ctm.f;
