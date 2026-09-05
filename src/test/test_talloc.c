@@ -225,6 +225,35 @@ START_TEST(test_talloc_free_self_destructor)
 }
 END_TEST
 
+START_TEST(test_talloc_enable_null_tracking)
+{
+    /* Ensure null tracking is disabled to start with */
+    talloc_disable_null_tracking();
+
+    /* Enabling null tracking should create the null_context */
+    talloc_enable_null_tracking();
+
+    /* Idempotency check: calling enable multiple times should be safe */
+    talloc_enable_null_tracking();
+
+    /* Allocating with NULL context should hang off null_context when enabled */
+    void *p1 = talloc_size(NULL, 100);
+    ck_assert_ptr_ne(p1, NULL);
+
+    /* Total size under NULL context should now be 100 */
+    ck_assert_int_eq(talloc_total_size(NULL), 100);
+
+    talloc_free(p1);
+
+    /* After freeing p1, size under NULL should be 0 (null_context size is 0) */
+    ck_assert_int_eq(talloc_total_size(NULL), 0);
+
+    /* Disabling null tracking frees the null_context */
+    talloc_disable_null_tracking();
+    ck_assert_int_eq(talloc_total_size(NULL), 0);
+}
+END_TEST
+
 static TCase *talloc_case_create(void)
 {
     TCase *tc;
@@ -243,6 +272,7 @@ static TCase *talloc_case_create(void)
     tcase_add_test(tc, test_talloc_free_ref_child);
     tcase_add_test(tc, test_talloc_free_loop_child);
     tcase_add_test(tc, test_talloc_free_self_destructor);
+    tcase_add_test(tc, test_talloc_enable_null_tracking);
     return tc;
 
 }
