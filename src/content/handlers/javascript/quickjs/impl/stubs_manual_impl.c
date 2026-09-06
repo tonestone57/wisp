@@ -7267,6 +7267,10 @@ static WispTextTrackList *get_or_create_media_tracks(void *node) {
     if (!entry) return NULL;
     entry->node = node;
     entry->track_list = calloc(1, sizeof(WispTextTrackList));
+    if (!entry->track_list) {
+        free(entry);
+        return NULL;
+    }
     entry->next = g_media_tracks_head;
     g_media_tracks_head = entry;
     return entry->track_list;
@@ -7303,6 +7307,17 @@ JSValue wisp_htmlmediaelement_addTextTrack_impl(JSContext *ctx, QJSNodePrivate *
     track->id = strdup("");
     track->mode = strdup("showing");
     track->cues = calloc(1, sizeof(WispTextTrackCueList));
+
+    if (!track->kind || !track->label || !track->language || !track->id || !track->mode || !track->cues) {
+        free(track->kind);
+        free(track->label);
+        free(track->language);
+        free(track->id);
+        free(track->mode);
+        free(track->cues);
+        free(track);
+        return JS_NULL;
+    }
 
     if (tl->count >= tl->capacity) {
         uint32_t new_cap = tl->capacity ? tl->capacity * 2 : 4;
@@ -11969,6 +11984,7 @@ JSValue wisp_texttrack_addCue_impl(JSContext *ctx, QJSNodePrivate *priv, void * 
 
     if (!track->cues) {
         track->cues = calloc(1, sizeof(WispTextTrackCueList));
+        if (!track->cues) return JS_UNDEFINED;
     }
     cue->track = track;
 
@@ -12061,6 +12077,7 @@ JSValue wisp_texttrack_cues_get_impl(JSContext *ctx, QJSNodePrivate *priv) {
     if (!track) return JS_NULL;
     if (!track->cues) {
         track->cues = calloc(1, sizeof(WispTextTrackCueList));
+        if (!track->cues) return JS_NULL;
     }
     extern JSValue qjs_new_texttrackcuelist(JSContext *ctx, void *node, bool is_dom_node);
     return qjs_new_texttrackcuelist(ctx, track->cues, false);
