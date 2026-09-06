@@ -227,7 +227,7 @@ static inline void wisp_layout_wait_group_wait(struct wisp_layout_wait_group *wg
 }
 
 static inline void wisp_layout_wait_group_wait_and_pump(struct wisp_layout_wait_group *wg, WispPool *style_pool) {
-    while (__atomic_load_n(&wg->count, __ATOMIC_RELAXED) > 0) {
+    while (__atomic_load_n(&wg->count, __ATOMIC_ACQUIRE) > 0) {
         /* Main thread pops and executes pending style/layout tasks directly */
         js_task_t *task = wisp_pool_pop_task(style_pool);
         if (task) {
