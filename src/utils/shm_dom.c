@@ -663,7 +663,7 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
         }
         shm = wisp_shm_dom;
         if (shm) {
-            shm_dom_lock_read(shm);
+            shm_dom_lock_write(shm);
         }
     } else {
         shm_dom_lock_write(shm);
@@ -671,7 +671,7 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
 
     if (!shm) {
         if (wisp_is_js_process && wisp_shm_dom) {
-            shm_dom_unlock_read(wisp_shm_dom);
+            shm_dom_unlock_write(wisp_shm_dom);
         }
         return;
     }
@@ -748,7 +748,7 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
         m->value = value_ref;
         bbmq_tail = (bbmq_tail + 1) % bbmq_capacity;
         bbmq_size++;
-        shm_dom_unlock_read(wisp_shm_dom);
+        shm_dom_unlock_write(wisp_shm_dom);
         return;
     }
 

@@ -7518,38 +7518,52 @@ void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
         sec_count = SHM_MAX_SECONDARY_CHUNKS;
     }
 
-    bool all_drained = true;
-    for (uint32_t i = 0; i < sec_count; i++) {
-        shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[i];
-        if (desc->shm_name[0] != '\0') {
-            shm_mutation_chunk_t *sec_chunk = shm_mutation_chunk_create(desc->shm_name, false);
-            if (sec_chunk) {
-                uint32_t chead = __atomic_load_n(&desc->head, __ATOMIC_ACQUIRE);
-                uint32_t ctail = __atomic_load_n(&desc->tail, __ATOMIC_ACQUIRE);
-                while (ctail != chead) {
-                    uint32_t c_idx = ctail % desc->capacity;
-                    shm_mutation_t *m = &sec_chunk->queue[c_idx];
-                    apply_shm_mutation(shm, m, doc);
-                    ctail++;
+    while (1) {
+        sec_count = __atomic_load_n(&mq->secondary_chunk_count, __ATOMIC_ACQUIRE);
+        if (sec_count > SHM_MAX_SECONDARY_CHUNKS) {
+            sec_count = SHM_MAX_SECONDARY_CHUNKS;
+        }
+        if (sec_count == 0) {
+            break;
+        }
+
+        bool all_drained = true;
+        for (uint32_t i = 0; i < sec_count; i++) {
+            shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[i];
+            if (desc->shm_name[0] != '\0') {
+                shm_mutation_chunk_t *sec_chunk = shm_mutation_chunk_create(desc->shm_name, false);
+                if (sec_chunk) {
+                    uint32_t chead = __atomic_load_n(&desc->head, __ATOMIC_ACQUIRE);
+                    uint32_t ctail = __atomic_load_n(&desc->tail, __ATOMIC_ACQUIRE);
+                    while (ctail != chead) {
+                        uint32_t c_idx = ctail % desc->capacity;
+                        shm_mutation_t *m = &sec_chunk->queue[c_idx];
+                        apply_shm_mutation(shm, m, doc);
+                        ctail++;
+                    }
+                    __atomic_store_n(&desc->tail, ctail, __ATOMIC_RELEASE);
+                    shm_mutation_chunk_destroy(sec_chunk, desc->shm_name, false);
+                    if (ctail != chead) {
+                        all_drained = false;
+                    }
+                } else {
+                    NSLOG(wisp, ERROR, "[BBMQ] Failed to map secondary chunk %s during drain", desc->shm_name);
+                    __atomic_store_n(&desc->tail, desc->head, __ATOMIC_RELEASE);
                 }
-                __atomic_store_n(&desc->tail, ctail, __ATOMIC_RELEASE);
-                shm_mutation_chunk_destroy(sec_chunk, desc->shm_name, false);
-                if (ctail != chead) {
-                    all_drained = false;
-                }
-            } else {
-                NSLOG(wisp, ERROR, "[BBMQ] Failed to map secondary chunk %s during drain", desc->shm_name);
-                __atomic_store_n(&desc->tail, desc->head, __ATOMIC_RELEASE);
             }
         }
-    }
 
-    if (all_drained && sec_count > 0) {
-        for (uint32_t i = 0; i < sec_count; i++) {
-            mq->secondary_chunks[i].shm_name[0] = '\0';
+        if (all_drained) {
+            for (uint32_t i = 0; i < sec_count; i++) {
+                mq->secondary_chunks[i].shm_name[0] = '\0';
+            }
+            uint32_t expected_sec = sec_count;
+            if (__atomic_compare_exchange_n(&mq->secondary_chunk_count, &expected_sec, 0, false, __ATOMIC_RELEASE, __ATOMIC_RELAXED)) {
+                break;
+            }
+        } else {
+            break;
         }
-        uint32_t expected_sec = sec_count;
-        __atomic_compare_exchange_n(&mq->secondary_chunk_count, &expected_sec, 0, false, __ATOMIC_RELEASE, __ATOMIC_RELAXED);
     }
 
     current_thread_shm = prev_shm;
