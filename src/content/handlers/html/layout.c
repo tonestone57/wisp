@@ -214,9 +214,7 @@ static inline void wisp_layout_wait_group_init(struct wisp_layout_wait_group *wg
 static inline void wisp_layout_wait_group_done(struct wisp_layout_wait_group *wg) {
     pthread_mutex_lock(&wg->mutex);
     wg->count--;
-    if (wg->count <= 0) {
-        pthread_cond_broadcast(&wg->cond);
-    }
+    pthread_cond_broadcast(&wg->cond);
     pthread_mutex_unlock(&wg->mutex);
 }
 
@@ -241,8 +239,18 @@ static inline void wisp_layout_wait_group_wait_and_pump(struct wisp_layout_wait_
             }
             free(task);
         } else {
-            /* Yield execution to allow worker threads to run without introducing fixed sleep latency */
-            sched_yield();
+            pthread_mutex_lock(&wg->mutex);
+            if (wg->count > 0) {
+                struct timespec ts;
+                clock_gettime(CLOCK_REALTIME, &ts);
+                ts.tv_nsec += 1000000; /* 1 ms timeout to prevent lost wakeups and CPU spinning */
+                if (ts.tv_nsec >= 1000000000) {
+                    ts.tv_sec += 1;
+                    ts.tv_nsec -= 1000000000;
+                }
+                pthread_cond_timedwait(&wg->cond, &wg->mutex, &ts);
+            }
+            pthread_mutex_unlock(&wg->mutex);
         }
     }
 }
@@ -311,10 +319,11 @@ static void parallel_layout_worker_cb(void *arg) {
         layout_block_context(box, -1, content);
     }
 
+    /* Reset tls worker local arena before merging and destroying to prevent dangling pointer access during merge/cleanup */
+    wisp_worker_local_arena = NULL;
     /* Merge worker sub-arena allocated memory blocks back to main layout tree arena context */
     arena_merge(content->bctx, worker_arena);
     arena_destroy(worker_arena);
-    wisp_worker_local_arena = NULL;
 
     wisp_layout_wait_group_done(task->wg);
     free(task);

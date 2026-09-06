@@ -252,11 +252,13 @@ static void wisp_worker_flush_to_main_cb(void *p) {
         free(msg);
     }
     __atomic_store_n(&h->main_thread_notified, false, __ATOMIC_RELAXED);
+    wisp_worker_handle_unref(h);
 }
 
 void wisp_worker_notify_main_thread(WispWorkerHandle *h) {
     if (!__atomic_exchange_n(&h->main_thread_notified, true, __ATOMIC_RELAXED)) {
         if (guit && guit->misc && guit->misc->schedule) {
+            wisp_worker_handle_ref(h);
             guit->misc->schedule(0, wisp_worker_flush_to_main_cb, h);
         }
     }
@@ -543,41 +545,13 @@ void* wisp_worker_routine(void *arg) {
 #ifdef _WIN32
             EnterCriticalSection(&pool->lock);
             while (__atomic_load_n(&pool->count, __ATOMIC_RELAXED) == 0 && __atomic_load_n(&worker->running, __ATOMIC_RELAXED) && !pool->stop) {
-                BOOL wait_res = SleepConditionVariableCS(&pool->cond, &pool->lock, 5000);
-                if (!wait_res && GetLastError() == ERROR_TIMEOUT) {
-                    if (__atomic_load_n(&pool->count, __ATOMIC_RELAXED) == 0 && pool->active_workers > 1 && !pool->stop) {
-                        __atomic_store_n(&worker->running, false, __ATOMIC_RELAXED);
-                        pool->active_workers--;
-                        JS_FreeContext(worker->ctx); JS_FreeRuntime(worker->rt);
-                        worker->ctx = NULL; worker->rt = NULL;
-                        HANDLE h = worker->thread; worker->thread = NULL;
-                        LeaveCriticalSection(&pool->lock);
-                        if (h) CloseHandle(h);
-                        return NULL;
-                    }
-                }
+                SleepConditionVariableCS(&pool->cond, &pool->lock, INFINITE);
             }
             LeaveCriticalSection(&pool->lock);
 #else
             pthread_mutex_lock(&pool->lock);
             while (__atomic_load_n(&pool->count, __ATOMIC_RELAXED) == 0 && __atomic_load_n(&worker->running, __ATOMIC_RELAXED) && !pool->stop) {
-                struct timespec ts;
-                clock_gettime(CLOCK_REALTIME, &ts);
-                ts.tv_sec += 5;
-                int wait_res = pthread_cond_timedwait(&pool->cond, &pool->lock, &ts);
-                if (wait_res == ETIMEDOUT) {
-                    if (__atomic_load_n(&pool->count, __ATOMIC_RELAXED) == 0 && pool->active_workers > 1 && !pool->stop) {
-                        __atomic_store_n(&worker->running, false, __ATOMIC_RELAXED);
-                        pool->active_workers--;
-                        JS_FreeContext(worker->ctx); JS_FreeRuntime(worker->rt);
-                        worker->ctx = NULL; worker->rt = NULL;
-                        pthread_t null_thread; memset(&null_thread, 0, sizeof(pthread_t));
-                        worker->thread = null_thread;
-                        pthread_mutex_unlock(&pool->lock);
-                        pthread_detach(pthread_self());
-                        return NULL;
-                    }
-                } else if (wait_res != 0) break;
+                pthread_cond_wait(&pool->cond, &pool->lock);
             }
             pthread_mutex_unlock(&pool->lock);
 #endif

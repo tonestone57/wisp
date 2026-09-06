@@ -33,8 +33,8 @@ static void shm_dom_log_final_peak(void) {
 void shm_dom_lock_read(shm_dom_t *shm) {
     if (!shm) return;
     while (1) {
-        uint32_t val = shm->lock;
-        if (val != 0xFFFFFFFF) {
+        uint32_t val = __atomic_load_n(&shm->lock, __ATOMIC_RELAXED);
+        if ((val & 0x80000000) == 0) {
             if (__atomic_compare_exchange_n(&shm->lock, &val, val + 1, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
                 break;
             }
@@ -59,9 +59,20 @@ void shm_dom_unlock_read(shm_dom_t *shm) {
 void shm_dom_lock_write(shm_dom_t *shm) {
     if (!shm) return;
     while (1) {
-        uint32_t expected = 0;
-        if (__atomic_compare_exchange_n(&shm->lock, &expected, 0xFFFFFFFF, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-            break;
+        uint32_t val = __atomic_load_n(&shm->lock, __ATOMIC_RELAXED);
+        if (val == 0) {
+            if (__atomic_compare_exchange_n(&shm->lock, &val, 0xFFFFFFFF, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+                break;
+            }
+        } else if ((val & 0x80000000) == 0) {
+            /* Set write intent flag to prevent writer starvation */
+            __atomic_fetch_or(&shm->lock, 0x80000000, __ATOMIC_ACQUIRE);
+        } else if (val == 0x80000000) {
+            /* Write intent set and all previous readers finished */
+            uint32_t expected = 0x80000000;
+            if (__atomic_compare_exchange_n(&shm->lock, &expected, 0xFFFFFFFF, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+                break;
+            }
         }
 #ifdef _WIN32
         YieldProcessor();
@@ -656,7 +667,7 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
             shm_dom_lock_read(shm);
         }
     } else {
-        shm_dom_lock_read(shm);
+        shm_dom_lock_write(shm);
     }
 
     if (!shm) {
@@ -746,7 +757,7 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
     uint32_t head = mq->head;
     uint32_t tail = mq->tail;
     if (head - tail >= SHM_MUTATION_QUEUE_SIZE) {
-        shm_dom_unlock_read(shm);
+        shm_dom_unlock_write(shm);
         return;
     }
     uint32_t idx = head % SHM_MUTATION_QUEUE_SIZE;
@@ -764,7 +775,7 @@ void shm_mutation_enqueue(shm_dom_t *shm, uint32_t type, uint64_t target_id, uin
     __sync_synchronize();
 #endif
     mq->head = head + 1;
-    shm_dom_unlock_read(shm);
+    shm_dom_unlock_write(shm);
 }
 
 bool bbmq_has_pending_for_node(uint64_t target_id) {

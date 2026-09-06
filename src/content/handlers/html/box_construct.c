@@ -324,9 +324,7 @@ static inline void wisp_wait_group_init(struct wisp_wait_group *wg, int count) {
 static inline void wisp_wait_group_done(struct wisp_wait_group *wg) {
     pthread_mutex_lock(&wg->mutex);
     wg->count--;
-    if (wg->count <= 0) {
-        pthread_cond_broadcast(&wg->cond);
-    }
+    pthread_cond_broadcast(&wg->cond);
     pthread_mutex_unlock(&wg->mutex);
 }
 
@@ -351,8 +349,18 @@ static inline void wisp_wait_group_wait_and_pump(struct wisp_wait_group *wg, Wis
             }
             free(task);
         } else {
-            /* Fall back to short micro-sleep if queue is empty */
-            usleep(100);
+            pthread_mutex_lock(&wg->mutex);
+            if (wg->count > 0) {
+                struct timespec ts;
+                clock_gettime(CLOCK_REALTIME, &ts);
+                ts.tv_nsec += 1000000; /* 1 ms timeout to prevent lost wakeups and CPU spinning */
+                if (ts.tv_nsec >= 1000000000) {
+                    ts.tv_sec += 1;
+                    ts.tv_nsec -= 1000000000;
+                }
+                pthread_cond_timedwait(&wg->cond, &wg->mutex, &ts);
+            }
+            pthread_mutex_unlock(&wg->mutex);
         }
     }
 }
