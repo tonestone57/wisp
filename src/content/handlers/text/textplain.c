@@ -1336,14 +1336,12 @@ static void textplain_coords_from_range(struct content *c, unsigned start, unsig
     char *utf8_data;
     struct textplain_line *line;
     unsigned lineno = 0;
-    unsigned nlines;
 
     assert(c != NULL);
     assert(start <= end);
     assert(end <= text->utf8_data_size);
 
     utf8_data = text->utf8_data;
-    nlines = text->physical_line_count;
     line = text->physical_line;
 
     /* find start */

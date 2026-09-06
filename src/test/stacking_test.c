@@ -255,7 +255,8 @@ START_TEST(stacking_context_negative_zindex_test)
         }
     }
 
-    /* Verify counts */
+    /* Verify transition index and counts */
+    ck_assert_int_eq(transition_index, 3);
     ck_assert_int_eq(negative_count, 3); /* -100, -5, -1 */
     ck_assert_int_eq(positive_count, 3); /* 0, 5, 10 */
 

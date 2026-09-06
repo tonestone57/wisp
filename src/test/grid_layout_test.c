@@ -123,12 +123,6 @@ bool layout_table(struct box *table, int available_width, html_content *content)
     return true;
 }
 
-/* Helper to log errors */
-static void test_log(const char *fmt, va_list args)
-{
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
-}
 
 /* Define AUTO locally for test since it's an internal macro often */
 #ifndef AUTO

@@ -1008,6 +1008,7 @@ JSValue wisp_canvasrenderingcontext2d_clip_0_impl(JSContext *ctx, QJSNodePrivate
                 JS_FreeCString(ctx, rule);
             }
         }
+        (void)evenodd;
 #ifdef WITH_BLEND2D
         if (evenodd) {
             bl_path_set_fill_rule(&cpriv->current_path, BL_FILL_RULE_EVEN_ODD);
@@ -1031,6 +1032,7 @@ JSValue wisp_canvasrenderingcontext2d_clip_1_impl(JSContext *ctx, QJSNodePrivate
                 JS_FreeCString(ctx, rule);
             }
         }
+        (void)evenodd;
 #ifdef WITH_BLEND2D
         if (evenodd) {
             bl_path_set_fill_rule((BLPathCore *)path, BL_FILL_RULE_EVEN_ODD);

@@ -1234,10 +1234,8 @@ JSValue wisp_htmlinputelement_type_get_impl(JSContext *ctx, QJSNodePrivate *priv
                 "time", "url", "week"
             };
             size_t num_types = sizeof(valid_types) / sizeof(valid_types[0]);
-            bool is_valid = false;
             for (size_t i = 0; i < num_types; i++) {
                 if (strcasecmp(str, valid_types[i]) == 0) {
-                    is_valid = true;
                     JS_FreeCString(ctx, str);
                     JS_FreeValue(ctx, val);
                     return JS_NewString(ctx, valid_types[i]);

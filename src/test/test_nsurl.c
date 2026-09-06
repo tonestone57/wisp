@@ -410,8 +410,8 @@ START_TEST(test_nsurl_refragment)
     nsurl *new_url = NULL;
     lwc_string *frag = NULL;
 
-    err = lwc_intern_string("newfrag", 7, &frag);
-    ck_assert_int_eq(err, lwc_error_ok);
+    lwc_error lwc_err = lwc_intern_string("newfrag", 7, &frag);
+    ck_assert_int_eq(lwc_err, lwc_error_ok);
 
     /* Refragmenting a URL that already has a fragment */
     err = nsurl_create("http://example.com/page.html#oldfrag", &url);
@@ -484,8 +484,8 @@ START_TEST(test_nsurl_replace_scheme)
     lwc_string *file_scheme = NULL;
 
     /* NULL parameters */
-    err = lwc_intern_string("https", 5, &https_scheme);
-    ck_assert_int_eq(err, lwc_error_ok);
+    lwc_error lwc_err2 = lwc_intern_string("https", 5, &https_scheme);
+    ck_assert_int_eq(lwc_err2, lwc_error_ok);
     ck_assert_int_eq(nsurl_replace_scheme(NULL, https_scheme, &new_url), NSERROR_BAD_PARAMETER);
 
     err = nsurl_create("http://example.com/path", &url);
@@ -501,8 +501,8 @@ START_TEST(test_nsurl_replace_scheme)
     nsurl_unref(new_url);
 
     /* Replace with file scheme */
-    err = lwc_intern_string("file", 4, &file_scheme);
-    ck_assert_int_eq(err, lwc_error_ok);
+    lwc_error lwc_err3 = lwc_intern_string("file", 4, &file_scheme);
+    ck_assert_int_eq(lwc_err3, lwc_error_ok);
     err = nsurl_replace_scheme(url, file_scheme, &new_url);
     ck_assert_int_eq(err, NSERROR_OK);
     ck_assert_str_eq(nsurl_access(new_url), "file://example.com/path");

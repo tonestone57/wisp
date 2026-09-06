@@ -522,7 +522,7 @@ static JSValue js_clearTimeout(JSContext *ctx, JSValueConst this_val, int argc, 
     return wisp_timer_clear(ctx, id);
 }
 
-static JSValue js_clearInterval(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
+static __attribute__((unused)) JSValue js_clearInterval(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv)
 {
     return js_clearTimeout(ctx, this_val, argc, argv);
 }

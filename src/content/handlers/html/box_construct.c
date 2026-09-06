@@ -586,7 +586,7 @@ static css_error snap_node_has_class(void *pw, void *node, lwc_string *name, boo
 static css_error snap_node_has_id(void *pw, void *node, lwc_string *name, bool *match) {
     style_snapshot_t *snap = node;
     if (snap->id != NULL) {
-        lwc_string_isequal(snap->id, name, match);
+        *match = (snap->id == name);
     } else {
         *match = false;
     }
@@ -1157,21 +1157,9 @@ static style_snapshot_t *create_style_snapshot(html_content *c, dom_node *node, 
 
     /* 6. Pre-calculate states */
     check_is_link(node, &snap->is_link);
-    if (node_is_visited != NULL) {
-        node_is_visited(select_ctx, node, &snap->is_visited);
-    } else {
-        snap->is_visited = false;
-    }
-    if (node_is_checked != NULL) {
-        node_is_checked(select_ctx, node, &snap->is_checked);
-    } else {
-        snap->is_checked = false;
-    }
-    if (node_is_target != NULL) {
-        node_is_target(select_ctx, node, &snap->is_target);
-    } else {
-        snap->is_target = false;
-    }
+    node_is_visited(select_ctx, node, &snap->is_visited);
+    node_is_checked(select_ctx, node, &snap->is_checked);
+    node_is_target(select_ctx, node, &snap->is_target);
     check_is_empty(node, &snap->is_empty);
 
     /* 7. Pre-fetch presentational hints */
@@ -3331,8 +3319,8 @@ static void convert_xml_to_box(void *p)
 			dom_node_unref(ctx->n);
 			if (ctx->root_box != NULL)
 				box_free(ctx->root_box);
-			free(ctx);
 			NSLOG(wisp, DEBUG, "PROFILER: STOP Box construction slice %p", ctx);
+			free(ctx);
 			return;
 		}
 
@@ -3350,8 +3338,8 @@ static void convert_xml_to_box(void *p)
 				dom_node_unref(next);
 				if (ctx->root_box != NULL)
 					box_free(ctx->root_box);
-				free(ctx);
 				NSLOG(wisp, DEBUG, "PROFILER: STOP Box construction slice %p", ctx);
+				free(ctx);
 				return;
 			}
 
@@ -3366,8 +3354,8 @@ static void convert_xml_to_box(void *p)
 					dom_node_unref(ctx->n);
 					if (ctx->root_box != NULL)
 						box_free(ctx->root_box);
-					free(ctx);
 					NSLOG(wisp, DEBUG, "PROFILER: STOP Box construction slice %p", ctx);
+					free(ctx);
 					return;
 				}
 			}
@@ -3388,8 +3376,8 @@ static void convert_xml_to_box(void *p)
 
 			assert(ctx->n == NULL);
 
-			free(ctx);
 			NSLOG(wisp, DEBUG, "PROFILER: STOP Box construction slice %p", ctx);
+			free(ctx);
 			return;
 		}
 

@@ -1574,7 +1574,6 @@ nserror nsurl_create_from_components_str(
     struct nsurl_components c;
     size_t length;
     nserror e = NSERROR_OK;
-    bool match;
 
     if (url == NULL)
         return NSERROR_BAD_PARAMETER;

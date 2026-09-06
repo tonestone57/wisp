@@ -7098,7 +7098,7 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
     thread_shm_locked = false;
 }
 
-static dom_node *get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_document *doc)
+static __attribute__((unused)) dom_node *get_dom_node_from_id(shm_dom_t *shm, uint64_t id, struct dom_document *doc)
 {
     if (!shm || id == 0 || id == 0xFFFFFFFF)
         return NULL;

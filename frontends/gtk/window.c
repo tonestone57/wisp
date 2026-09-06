@@ -172,7 +172,7 @@ struct nsgtk_tile_task_t {
     float priority;
 };
 
-static int nsgtk_tile_task_compare(const void *a, const void *b)
+static __attribute__((unused)) int nsgtk_tile_task_compare(const void *a, const void *b)
 {
     const struct nsgtk_tile_task_t *ta = (const struct nsgtk_tile_task_t *)a;
     const struct nsgtk_tile_task_t *tb = (const struct nsgtk_tile_task_t *)b;

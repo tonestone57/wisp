@@ -679,12 +679,18 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
                         if (cmd == PLOTTER_PATH_MOVE || cmd == PLOTTER_PATH_LINE) {
                             float xx = diagram->shape[i].path[jj++] * sx; float yy = diagram->shape[i].path[jj++] * sy;
                             if (!initbb) { minx = maxx = xx; miny = maxy = yy; initbb = 1; }
-                            if (xx < minx) minx = xx; if (xx > maxx) maxx = xx; if (yy < miny) miny = yy; if (yy > maxy) maxy = yy;
+                            if (xx < minx) minx = xx;
+                            if (xx > maxx) maxx = xx;
+                            if (yy < miny) miny = yy;
+                            if (yy > maxy) maxy = yy;
                         } else if (cmd == PLOTTER_PATH_BEZIER) {
                             for (int k = 0; k < 3; k++) {
                                 float xx = diagram->shape[i].path[jj++] * sx; float yy = diagram->shape[i].path[jj++] * sy;
                                 if (!initbb) { minx = maxx = xx; miny = maxy = yy; initbb = 1; }
-                                if (xx < minx) minx = xx; if (xx > maxx) maxx = xx; if (yy < miny) miny = yy; if (yy > maxy) maxy = yy;
+                                if (xx < minx) minx = xx;
+                                if (xx > maxx) maxx = xx;
+                                if (yy < miny) miny = yy;
+                                if (yy > maxy) maxy = yy;
                             }
                         }
                     }
