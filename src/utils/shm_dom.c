@@ -160,6 +160,9 @@ shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t old_capacity, uint32_t new
 
     shm_dom_t *new_shm = NULL;
 
+    /* Release write lock before unmapping old shared memory */
+    shm_dom_unlock_write(old_shm);
+
 #ifdef _WIN32
     UnmapViewOfFile(old_shm);
     HANDLE h = find_and_unregister_shm_handle(old_shm);
@@ -187,7 +190,6 @@ shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t old_capacity, uint32_t new
             free(temp_node_strings);
             free(temp_dom_ptrs);
         }
-        shm_dom_unlock_write(old_shm);
         return NULL;
     }
 
@@ -208,7 +210,6 @@ shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t old_capacity, uint32_t new
     int fd = shm_open(name, O_RDWR, 0666);
     if (fd < 0) {
         NSLOG(wisp, ERROR, "[SHM_DOM] shm_dom_remap: failed to shm_open %s", name);
-        shm_dom_unlock_write(old_shm);
         munmap(old_shm, old_size);
         if (!already_remapped) {
             free(temp_nodes);
@@ -223,7 +224,6 @@ shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t old_capacity, uint32_t new
         if (ftruncate(fd, new_size) != 0) {
             NSLOG(wisp, ERROR, "[SHM_DOM] shm_dom_remap: ftruncate failed");
             close(fd);
-            shm_dom_unlock_write(old_shm);
             munmap(old_shm, old_size);
             if (!already_remapped) {
                 free(temp_nodes);
