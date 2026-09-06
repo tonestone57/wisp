@@ -296,7 +296,6 @@ static void hlcache_content_callback(struct content *c, content_msg msg, const u
 static nserror hlcache_find_content(hlcache_retrieval_ctx *ctx, lwc_string *effective_type)
 {
     hlcache_entry *entry;
-    hlcache_event event;
     nserror error = NSERROR_OK;
 
     /* Search list of cached contents for a suitable one */
@@ -1579,9 +1578,6 @@ nserror hlcache_handle_retrieve_buffer(const uint8_t *data, size_t len, const ch
     nsurl *url = NULL;
     char url_buf[64];
 
-    uint32_t flags = opts ? opts->flags : 0;
-    nsurl *referer = opts ? opts->referer : NULL;
-    llcache_post_data *post = opts ? opts->post : NULL;
     hlcache_child_context *child = opts ? opts->child : NULL;
     content_type accepted_types = opts ? opts->accepted_types : CONTENT_ANY;
 

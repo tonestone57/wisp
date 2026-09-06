@@ -1896,9 +1896,19 @@ JSValue wisp_htmlbodyelement_text_set_impl(JSContext *ctx, QJSNodePrivate *priv,
 // HTMLOptionElement Implementation
 // -----------------------------------------------------------------------------
 
-JSValue wisp_htmloptionelement_defaultSelected_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_htmloptionelement_defaultSelected_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_element_hasAttribute_impl(ctx, priv, "selected");
+}
 
-JSValue wisp_htmloptionelement_defaultSelected_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) { return JS_UNDEFINED; }
+JSValue wisp_htmloptionelement_defaultSelected_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    if (value) {
+        return wisp_element_setAttribute_impl(ctx, priv, "selected", "");
+    } else {
+        return wisp_element_removeAttribute_impl(ctx, priv, "selected");
+    }
+}
 
 JSValue wisp_htmloptionelement_disabled_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
@@ -1914,17 +1924,43 @@ JSValue wisp_htmloptionelement_disabled_set_impl(JSContext *ctx, QJSNodePrivate 
     }
 }
 
-JSValue wisp_htmloptionelement_selected_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_htmloptionelement_selected_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_element_hasAttribute_impl(ctx, priv, "selected");
+}
 
-JSValue wisp_htmloptionelement_selected_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value) { return JS_UNDEFINED; }
+JSValue wisp_htmloptionelement_selected_set_impl(JSContext *ctx, QJSNodePrivate *priv, bool value)
+{
+    if (value) {
+        return wisp_element_setAttribute_impl(ctx, priv, "selected", "");
+    } else {
+        return wisp_element_removeAttribute_impl(ctx, priv, "selected");
+    }
+}
 
-JSValue wisp_htmloptionelement_text_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_htmloptionelement_text_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    return wisp_node_textContent_get_impl(ctx, priv);
+}
 
-JSValue wisp_htmloptionelement_text_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
+JSValue wisp_htmloptionelement_text_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_node_textContent_set_impl(ctx, priv, value ? value : "");
+}
 
-JSValue wisp_htmloptionelement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_htmloptionelement_value_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    JSValue val = wisp_element_getAttribute_impl(ctx, priv, "value");
+    if (JS_IsNull(val) || JS_IsUndefined(val)) {
+        return wisp_htmloptionelement_text_get_impl(ctx, priv);
+    }
+    return val;
+}
 
-JSValue wisp_htmloptionelement_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value) { return JS_UNDEFINED; }
+JSValue wisp_htmloptionelement_value_set_impl(JSContext *ctx, QJSNodePrivate *priv, const char * value)
+{
+    return wisp_element_setAttribute_impl(ctx, priv, "value", value ? value : "");
+}
 
 JSValue wisp_htmloptionelement_label_get_impl(JSContext *ctx, QJSNodePrivate *priv)
 {
@@ -2037,6 +2073,103 @@ JSValue wisp_htmloptionelement_form_get_impl(JSContext *ctx, QJSNodePrivate *pri
         }
     }
     return JS_NULL;
+}
+
+static JSValue js_option_defaultSelected_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmloptionelement_defaultSelected_get_impl(ctx, priv);
+}
+static JSValue js_option_defaultSelected_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    bool val = JS_ToBool(ctx, argv[0]);
+    return wisp_htmloptionelement_defaultSelected_set_impl(ctx, priv, val);
+}
+
+static JSValue js_option_selected_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmloptionelement_selected_get_impl(ctx, priv);
+}
+static JSValue js_option_selected_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    bool val = JS_ToBool(ctx, argv[0]);
+    return wisp_htmloptionelement_selected_set_impl(ctx, priv, val);
+}
+
+static JSValue js_option_text_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmloptionelement_text_get_impl(ctx, priv);
+}
+static JSValue js_option_text_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *val = JS_ToCString(ctx, argv[0]);
+    if (!val) return JS_EXCEPTION;
+    JSValue res = wisp_htmloptionelement_text_set_impl(ctx, priv, val);
+    JS_FreeCString(ctx, val);
+    return res;
+}
+
+static JSValue js_option_value_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmloptionelement_value_get_impl(ctx, priv);
+}
+static JSValue js_option_value_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *val = JS_ToCString(ctx, argv[0]);
+    if (!val) return JS_EXCEPTION;
+    JSValue res = wisp_htmloptionelement_value_set_impl(ctx, priv, val);
+    JS_FreeCString(ctx, val);
+    return res;
+}
+
+extern JSClassID qjs_htmloptionelement_class_id;
+int qjs_init_htmloptionelement_gen(JSContext *ctx);
+
+int qjs_init_htmloptionelement(JSContext *ctx)
+{
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_htmloptionelement_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
+    qjs_init_htmloptionelement_gen(ctx);
+
+    JSValue proto = JS_GetClassProto(ctx, qjs_htmloptionelement_class_id);
+    if (JS_IsObject(proto)) {
+        define_anchor_property(ctx, proto, "defaultSelected",
+            JS_NewCFunction(ctx, js_option_defaultSelected_get, "get defaultSelected", 0),
+            JS_NewCFunction(ctx, js_option_defaultSelected_set, "set defaultSelected", 1));
+        define_anchor_property(ctx, proto, "selected",
+            JS_NewCFunction(ctx, js_option_selected_get, "get selected", 0),
+            JS_NewCFunction(ctx, js_option_selected_set, "set selected", 1));
+        define_anchor_property(ctx, proto, "text",
+            JS_NewCFunction(ctx, js_option_text_get, "get text", 0),
+            JS_NewCFunction(ctx, js_option_text_set, "set text", 1));
+        define_anchor_property(ctx, proto, "value",
+            JS_NewCFunction(ctx, js_option_value_get, "get value", 0),
+            JS_NewCFunction(ctx, js_option_value_set, "set value", 1));
+    }
+    JS_FreeValue(ctx, proto);
+
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_htmloptionelement_init", JS_TRUE, 0);
+    JS_FreeValue(ctx, global_obj);
+    return 0;
 }
 
 JSValue wisp_htmloptionelement_Option_impl(JSContext *ctx, const char * text, const char * value, bool defaultSelected, bool selected)
@@ -2399,19 +2532,333 @@ JSValue wisp_htmlselectelement_form_get_impl(JSContext *ctx, QJSNodePrivate *pri
     return wisp_htmloptionelement_form_get_impl(ctx, priv);
 }
 
-JSValue wisp_htmlselectelement_length_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_htmlselectelement_length_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewInt32(ctx, 0);
+    uint32_t count = 0;
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            uint32_t select_id = (uint32_t)(uintptr_t)priv->node;
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
+                if (nodes_arr[i].parent_id == select_id && nodes_arr[i].node_type == 1 &&
+                    wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "option")) {
+                    count++;
+                }
+            }
+        }
+        return JS_NewInt32(ctx, count);
+    }
+    dom_node *child = NULL;
+    dom_node_get_first_child((dom_node *)priv->node, &child);
+    while (child) {
+        dom_string *tag_name = NULL;
+        dom_node_get_node_name(child, &tag_name);
+        if (tag_name) {
+            if (strcasecmp((const char *)dom_string_data(tag_name), "option") == 0) {
+                count++;
+            }
+            dom_string_unref(tag_name);
+        }
+        dom_node *next = NULL;
+        dom_node_get_next_sibling(child, &next);
+        dom_node_unref(child);
+        child = next;
+    }
+    return JS_NewInt32(ctx, count);
+}
 
-JSValue wisp_htmlselectelement_length_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value) { return JS_UNDEFINED; }
+JSValue wisp_htmlselectelement_length_set_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t value)
+{
+    return JS_UNDEFINED;
+}
 
-JSValue wisp_htmlselectelement_selectedIndex_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_htmlselectelement_selectedIndex_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewInt32(ctx, -1);
+    int idx = 0;
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            uint32_t select_id = (uint32_t)(uintptr_t)priv->node;
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
+                if (nodes_arr[i].parent_id == select_id && nodes_arr[i].node_type == 1 &&
+                    wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "option")) {
+                    uint32_t limit = strings_arr[i].attr_count < WISP_SHM_MAX_ATTRIBUTES ? strings_arr[i].attr_count : WISP_SHM_MAX_ATTRIBUTES;
+                    for (uint32_t j = 0; j < limit; j++) {
+                        if (wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].attrs[j].name, "selected")) {
+                            return JS_NewInt32(ctx, idx);
+                        }
+                    }
+                    idx++;
+                }
+            }
+        }
+        return JS_NewInt32(ctx, -1);
+    }
+    dom_string *attr_selected_name = corestring_dom_selected;
+    if (attr_selected_name) dom_string_ref(attr_selected_name);
+    else dom_string_create((const uint8_t *)"selected", 8, &attr_selected_name);
 
-JSValue wisp_htmlselectelement_selectedIndex_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value) { return JS_UNDEFINED; }
+    dom_node *child = NULL;
+    dom_node_get_first_child((dom_node *)priv->node, &child);
+    while (child) {
+        dom_string *tag_name = NULL;
+        dom_node_get_node_name(child, &tag_name);
+        if (tag_name) {
+            if (strcasecmp((const char *)dom_string_data(tag_name), "option") == 0) {
+                dom_string_unref(tag_name);
+                bool has_sel = false;
+                if (attr_selected_name) {
+                    dom_element_has_attribute((dom_element *)child, attr_selected_name, &has_sel);
+                }
+                if (has_sel) {
+                    dom_node_unref(child);
+                    if (attr_selected_name) dom_string_unref(attr_selected_name);
+                    return JS_NewInt32(ctx, idx);
+                }
+                idx++;
+            } else {
+                dom_string_unref(tag_name);
+            }
+        }
+        dom_node *next = NULL;
+        dom_node_get_next_sibling(child, &next);
+        dom_node_unref(child);
+        child = next;
+    }
+    if (attr_selected_name) dom_string_unref(attr_selected_name);
+    return JS_NewInt32(ctx, -1);
+}
 
-JSValue wisp_htmlselectelement_options_get_impl(JSContext *ctx, QJSNodePrivate *priv) { return JS_UNDEFINED; }
+JSValue wisp_htmlselectelement_selectedIndex_set_impl(JSContext *ctx, QJSNodePrivate *priv, int32_t value)
+{
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    int idx = 0;
+    if (wisp_is_js_process) {
+        return JS_UNDEFINED;
+    }
+    dom_string *attr_selected_name = corestring_dom_selected;
+    if (attr_selected_name) dom_string_ref(attr_selected_name);
+    else dom_string_create((const uint8_t *)"selected", 8, &attr_selected_name);
 
-JSValue wisp_htmlselectelement_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index) { return JS_UNDEFINED; }
+    dom_node *child = NULL;
+    dom_node_get_first_child((dom_node *)priv->node, &child);
+    while (child) {
+        dom_string *tag_name = NULL;
+        dom_node_get_node_name(child, &tag_name);
+        if (tag_name) {
+            if (strcasecmp((const char *)dom_string_data(tag_name), "option") == 0) {
+                dom_string_unref(tag_name);
+                if (attr_selected_name) {
+                    if (idx == value) {
+                        dom_element_set_attribute((dom_element *)child, attr_selected_name, attr_selected_name);
+                    } else {
+                        dom_element_remove_attribute((dom_element *)child, attr_selected_name);
+                    }
+                }
+                idx++;
+            } else {
+                dom_string_unref(tag_name);
+            }
+        }
+        dom_node *next = NULL;
+        dom_node_get_next_sibling(child, &next);
+        dom_node_unref(child);
+        child = next;
+    }
+    if (attr_selected_name) dom_string_unref(attr_selected_name);
+    return JS_UNDEFINED;
+}
 
-JSValue wisp_htmlselectelement_namedItem_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name) { return JS_UNDEFINED; }
+JSValue wisp_htmlselectelement_options_get_impl(JSContext *ctx, QJSNodePrivate *priv)
+{
+    if (!priv || !priv->node) return JS_NewArray(ctx);
+    JSValue arr = JS_NewArray(ctx);
+    uint32_t count = 0;
+    if (wisp_is_js_process) {
+        if (wisp_shm_dom) {
+            uint32_t select_id = (uint32_t)(uintptr_t)priv->node;
+            WispCompactNode *nodes_arr = shm_dom_get_nodes(wisp_shm_dom);
+            WispNodeStrings *strings_arr = shm_dom_get_node_strings(wisp_shm_dom);
+            for (uint32_t i = 1; i < wisp_shm_dom->node_count; i++) {
+                if (nodes_arr[i].parent_id == select_id && nodes_arr[i].node_type == 1 &&
+                    wisp_string_ref_caseeq(wisp_shm_dom, strings_arr[i].tag_name, "option")) {
+                    JS_SetPropertyUint32(ctx, arr, count++, qjs_wrap_node(ctx, (struct dom_node *)(uintptr_t)i));
+                }
+            }
+        }
+        return arr;
+    }
+    dom_node *child = NULL;
+    dom_node_get_first_child((dom_node *)priv->node, &child);
+    while (child) {
+        dom_string *tag_name = NULL;
+        dom_node_get_node_name(child, &tag_name);
+        if (tag_name) {
+            if (strcasecmp((const char *)dom_string_data(tag_name), "option") == 0) {
+                JS_SetPropertyUint32(ctx, arr, count++, qjs_wrap_node(ctx, child));
+            }
+            dom_string_unref(tag_name);
+        }
+        dom_node *next = NULL;
+        dom_node_get_next_sibling(child, &next);
+        dom_node_unref(child);
+        child = next;
+    }
+    return arr;
+}
+
+JSValue wisp_htmlselectelement_item_impl(JSContext *ctx, QJSNodePrivate *priv, uint32_t index)
+{
+    JSValue options = wisp_htmlselectelement_options_get_impl(ctx, priv);
+    JSValue res = JS_GetPropertyUint32(ctx, options, index);
+    JS_FreeValue(ctx, options);
+    if (JS_IsUndefined(res)) return JS_NULL;
+    return res;
+}
+
+JSValue wisp_htmlselectelement_namedItem_impl(JSContext *ctx, QJSNodePrivate *priv, const char * name)
+{
+    if (!priv || !priv->node || !name) return JS_NULL;
+    JSValue options = wisp_htmlselectelement_options_get_impl(ctx, priv);
+    JSValue len_val = JS_GetPropertyStr(ctx, options, "length");
+    uint32_t len = 0;
+    JS_ToUint32(ctx, &len, len_val);
+    JS_FreeValue(ctx, len_val);
+    for (uint32_t i = 0; i < len; i++) {
+        JSValue opt = JS_GetPropertyUint32(ctx, options, i);
+        QJSNodePrivate *opt_priv = qjs_get_dom_priv(ctx, opt);
+        if (opt_priv) {
+            JSValue id_val = wisp_element_getAttribute_impl(ctx, opt_priv, "id");
+            if (JS_IsString(id_val)) {
+                const char *id_str = JS_ToCString(ctx, id_val);
+                if (id_str && strcmp(id_str, name) == 0) {
+                    JS_FreeCString(ctx, id_str);
+                    JS_FreeValue(ctx, id_val);
+                    JS_FreeValue(ctx, options);
+                    return opt;
+                }
+                if (id_str) JS_FreeCString(ctx, id_str);
+            }
+            JS_FreeValue(ctx, id_val);
+
+            JSValue name_val = wisp_element_getAttribute_impl(ctx, opt_priv, "name");
+            if (JS_IsString(name_val)) {
+                const char *name_str = JS_ToCString(ctx, name_val);
+                if (name_str && strcmp(name_str, name) == 0) {
+                    JS_FreeCString(ctx, name_str);
+                    JS_FreeValue(ctx, name_val);
+                    JS_FreeValue(ctx, options);
+                    return opt;
+                }
+                if (name_str) JS_FreeCString(ctx, name_str);
+            }
+            JS_FreeValue(ctx, name_val);
+        }
+        JS_FreeValue(ctx, opt);
+    }
+    JS_FreeValue(ctx, options);
+    return JS_NULL;
+}
+
+static JSValue js_select_length_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlselectelement_length_get_impl(ctx, priv);
+}
+static JSValue js_select_selectedIndex_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlselectelement_selectedIndex_get_impl(ctx, priv);
+}
+static JSValue js_select_selectedIndex_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    int32_t val = 0; JS_ToInt32(ctx, &val, argv[0]);
+    return wisp_htmlselectelement_selectedIndex_set_impl(ctx, priv, val);
+}
+static JSValue js_select_options_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlselectelement_options_get_impl(ctx, priv);
+}
+static JSValue js_select_item(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_NULL;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_NULL;
+    uint32_t idx = 0; JS_ToUint32(ctx, &idx, argv[0]);
+    return wisp_htmlselectelement_item_impl(ctx, priv, idx);
+}
+static JSValue js_select_namedItem(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_NULL;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_NULL;
+    const char *name = JS_ToCString(ctx, argv[0]);
+    if (!name) return JS_NULL;
+    JSValue res = wisp_htmlselectelement_namedItem_impl(ctx, priv, name);
+    JS_FreeCString(ctx, name);
+    return res;
+}
+static JSValue js_select_value_get(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    return wisp_htmlselectelement_value_get_impl(ctx, priv);
+}
+static JSValue js_select_value_set(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    if (argc < 1) return JS_UNDEFINED;
+    QJSNodePrivate *priv = qjs_get_dom_priv(ctx, this_val);
+    if (!priv || !priv->node) return JS_UNDEFINED;
+    const char *val = JS_ToCString(ctx, argv[0]);
+    if (!val) return JS_EXCEPTION;
+    JSValue res = wisp_htmlselectelement_value_set_impl(ctx, priv, val);
+    JS_FreeCString(ctx, val);
+    return res;
+}
+
+extern JSClassID qjs_htmlselectelement_class_id;
+int qjs_init_htmlselectelement_gen(JSContext *ctx);
+
+int qjs_init_htmlselectelement(JSContext *ctx)
+{
+    JSValue global_obj = JS_GetGlobalObject(ctx);
+
+    JSValue check = JS_GetPropertyStr(ctx, global_obj, "__wisp_htmlselectelement_init");
+    if (JS_ToBool(ctx, check)) {
+        JS_FreeValue(ctx, check);
+        JS_FreeValue(ctx, global_obj);
+        return 0;
+    }
+    JS_FreeValue(ctx, check);
+
+    qjs_init_htmlselectelement_gen(ctx);
+
+    JSValue proto = JS_GetClassProto(ctx, qjs_htmlselectelement_class_id);
+    if (JS_IsObject(proto)) {
+        define_anchor_property(ctx, proto, "length",
+            JS_NewCFunction(ctx, js_select_length_get, "get length", 0),
+            JS_UNDEFINED);
+        define_anchor_property(ctx, proto, "selectedIndex",
+            JS_NewCFunction(ctx, js_select_selectedIndex_get, "get selectedIndex", 0),
+            JS_NewCFunction(ctx, js_select_selectedIndex_set, "set selectedIndex", 1));
+        define_anchor_property(ctx, proto, "options",
+            JS_NewCFunction(ctx, js_select_options_get, "get options", 0),
+            JS_UNDEFINED);
+        define_anchor_property(ctx, proto, "value",
+            JS_NewCFunction(ctx, js_select_value_get, "get value", 0),
+            JS_NewCFunction(ctx, js_select_value_set, "set value", 1));
+        JS_SetPropertyStr(ctx, proto, "item", JS_NewCFunction(ctx, js_select_item, "item", 1));
+        JS_SetPropertyStr(ctx, proto, "namedItem", JS_NewCFunction(ctx, js_select_namedItem, "namedItem", 1));
+    }
+    JS_FreeValue(ctx, proto);
+
+    JS_DefinePropertyValueStr(ctx, global_obj, "__wisp_htmlselectelement_init", JS_TRUE, 0);
+    JS_FreeValue(ctx, global_obj);
+    return 0;
+}
 
 extern JSValue wisp_node_appendChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * node);
 extern JSValue wisp_node_removeChild_impl(JSContext *ctx, QJSNodePrivate *priv, void * child);

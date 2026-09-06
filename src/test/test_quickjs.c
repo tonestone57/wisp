@@ -155,6 +155,66 @@ START_TEST(test_quickjs_init_finalise)
 }
 END_TEST
 
+START_TEST(test_quickjs_select_option_properties)
+{
+    jsheap *heap = NULL;
+    jsthread *thread = NULL;
+    nserror err;
+
+    js_initialise();
+
+    err = js_newheap(5, &heap);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    dom_document *doc = create_test_document();
+
+    err = js_newthread(heap, (void*)doc, doc, &thread);
+    ck_assert_int_eq(err, NSERROR_OK);
+
+    const char *script =
+        "(() => {\n"
+        "  var opt1 = document.createElement('option');\n"
+        "  opt1.text = 'First Option';\n"
+        "  if (opt1.text !== 'First Option') throw new Error('option text get/set failed');\n"
+        "  if (opt1.value !== 'First Option') throw new Error('option value fallback to text failed');\n"
+        "  opt1.value = 'opt1_val';\n"
+        "  if (opt1.value !== 'opt1_val') throw new Error('option value set failed');\n"
+        "  if (opt1.selected !== false) throw new Error('option default selected should be false');\n"
+        "  opt1.selected = true;\n"
+        "  if (opt1.selected !== true) throw new Error('option selected set true failed: ' + opt1.selected);\n"
+        "  opt1.defaultSelected = true;\n"
+        "  if (opt1.defaultSelected !== true) throw new Error('option defaultSelected getter failed: ' + opt1.defaultSelected);\n"
+        "  opt1.defaultSelected = false;\n"
+        "  if (opt1.defaultSelected !== false) throw new Error('option defaultSelected set false failed');\n"
+        "\n"
+        "  var sel = document.createElement('select');\n"
+        "  var opt2 = new Option('Second Option', 'opt2_val');\n"
+        "  opt2.id = 'opt2_id';\n"
+        "  sel.appendChild(opt1);\n"
+        "  sel.appendChild(opt2);\n"
+        "\n"
+        "  if (sel.length !== 2) throw new Error('select length failed: ' + sel.length);\n"
+        "  if (sel.options.length !== 2) throw new Error('select options length failed');\n"
+        "  if (sel.item(0) !== opt1) throw new Error('select item(0) failed');\n"
+        "  if (sel.item(1) !== opt2) throw new Error('select item(1) failed');\n"
+        "  if (sel.namedItem('opt2_id') !== opt2) throw new Error('select namedItem failed');\n"
+        "  if (sel.selectedIndex !== 0) throw new Error('select selectedIndex failed: ' + sel.selectedIndex);\n"
+        "  sel.selectedIndex = 1;\n"
+        "  if (opt1.selected !== false || opt2.selected !== true) throw new Error('select selectedIndex set failed');\n"
+        "  return true;\n"
+        "})();\n";
+
+    bool result = js_exec(thread, (const uint8_t *)script, strlen(script), "test_select_option_properties");
+    ck_assert_msg(result == true, "HTMLSelectElement and HTMLOptionElement properties test failed");
+
+    js_closethread(thread);
+    js_destroythread(thread);
+    js_destroyheap(heap);
+    if (doc) dom_node_unref((dom_node *)doc);
+    js_finalise();
+}
+END_TEST
+
 START_TEST(test_quickjs_bench_labels)
 {
     js_initialise();
@@ -7795,6 +7855,7 @@ Suite *quickjs_suite(void)
     tcase_add_test(tc_window, test_quickjs_dom_attributes);
     tcase_add_test(tc_window, test_quickjs_node_stubs);
     tcase_add_test(tc_window, test_quickjs_html_options_collection);
+    tcase_add_test(tc_window, test_quickjs_select_option_properties);
     tcase_add_test(tc_window, test_quickjs_webidl_stubs);
     tcase_add_test(tc_window, test_quickjs_css_escape);
     tcase_add_test(tc_window, test_quickjs_css_style_declaration);
