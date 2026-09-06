@@ -87,7 +87,11 @@ nserror macos_schedule(int ival, void (*callback)(void *p), void *p)
             cur_nscb = cur_nscb->next;
         }
         nscb->next = cur_nscb;
-        prev_nscb->next = nscb;
+        if (prev_nscb != NULL) {
+            prev_nscb->next = nscb;
+        } else {
+            schedule_list = nscb;
+        }
     }
 
     return NSERROR_OK;

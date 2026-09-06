@@ -185,22 +185,18 @@ static bool parse_number(const char *data, bool maybe_negative, bool real, css_f
             intpart = (1 << 21) - 1;
             fracpart = (1 << 10) - 1;
         }
+        *value = (intpart << 10) | fracpart;
     } else {
         /* If the negated result is smaller than we can represent
          * then clamp to the minimum value we can store. */
         if (intpart >= (1 << 21)) {
             intpart = -(1 << 21);
             fracpart = 0;
+            *value = (intpart << 10);
         } else {
-            intpart = -intpart;
-            if (fracpart) {
-                fracpart = (1 << 10) - fracpart;
-                intpart--;
-            }
+            *value = -((intpart << 10) | fracpart);
         }
     }
-
-    *value = (intpart << 10) | fracpart;
 
     *consumed = ptr - (const uint8_t *)data;
 

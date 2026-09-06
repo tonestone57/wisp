@@ -144,6 +144,7 @@
     while (iteratorptr != ring)                                                                                        \
         ;                                                                                                              \
     }                                                                                                                  \
-    iteration_end_ring##_##iteratorptr:
+    iteration_end_ring##_##iteratorptr:                                                                                \
+    (void)&&iteration_end_ring##_##iteratorptr;
 
 #endif

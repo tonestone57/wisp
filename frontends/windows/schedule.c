@@ -147,7 +147,11 @@ nserror win32_schedule(int ival, void (*callback)(void *p), void *p)
         }
         /* Insert after prev_nscb */
         nscb->next = cur_nscb;
-        prev_nscb->next = nscb;
+        if (prev_nscb != NULL) {
+            prev_nscb->next = nscb;
+        } else {
+            schedule_list = nscb;
+        }
     }
 
     return NSERROR_OK;

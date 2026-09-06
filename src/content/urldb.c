@@ -656,8 +656,6 @@ static bool urldb__host_is_ip_address(const char *host)
 {
     struct in_addr ipv4;
     size_t host_len = strlen(host);
-    const char *sane_host;
-    const char *slash;
 #ifndef NO_IPV6
     struct in6_addr ipv6;
     char ipv6_addr[64];
