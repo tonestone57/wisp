@@ -34,10 +34,12 @@ void shm_dom_lock_read(shm_dom_t *shm) {
     if (!shm) return;
     while (1) {
         uint32_t val = __atomic_load_n(&shm->lock, __ATOMIC_RELAXED);
-        if ((val & 0x80000000) == 0) {
+        /* Block new readers if write-locked (bit 31) or if any writer is waiting (bits 16..30) */
+        if ((val & 0x80000000) == 0 && (val & 0x7FFF0000) == 0) {
             if (__atomic_compare_exchange_n(&shm->lock, &val, val + 1, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
                 break;
             }
+            continue;
         }
 #ifdef _WIN32
         YieldProcessor();
@@ -53,26 +55,23 @@ void shm_dom_lock_read(shm_dom_t *shm) {
 
 void shm_dom_unlock_read(shm_dom_t *shm) {
     if (!shm) return;
-    __atomic_sub_fetch(&shm->lock, 1, __ATOMIC_RELEASE);
+    __atomic_fetch_sub(&shm->lock, 1, __ATOMIC_RELEASE);
 }
 
 void shm_dom_lock_write(shm_dom_t *shm) {
     if (!shm) return;
+    /* Register as pending writer (increment bits 16..30) */
+    __atomic_fetch_add(&shm->lock, 0x00010000, __ATOMIC_ACQUIRE);
+
     while (1) {
         uint32_t val = __atomic_load_n(&shm->lock, __ATOMIC_RELAXED);
-        if (val == 0) {
-            if (__atomic_compare_exchange_n(&shm->lock, &val, 0xFFFFFFFF, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
+        /* Can acquire write lock if not write-locked (bit 31) and no active readers (bits 0..15) */
+        if ((val & 0x8000FFFF) == 0) {
+            uint32_t desired = (val - 0x00010000) | 0x80000000;
+            if (__atomic_compare_exchange_n(&shm->lock, &val, desired, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
                 break;
             }
-        } else if ((val & 0x80000000) == 0) {
-            /* Set write intent flag to prevent writer starvation */
-            __atomic_fetch_or(&shm->lock, 0x80000000, __ATOMIC_ACQUIRE);
-        } else if (val == 0x80000000) {
-            /* Write intent set and all previous readers finished */
-            uint32_t expected = 0x80000000;
-            if (__atomic_compare_exchange_n(&shm->lock, &expected, 0xFFFFFFFF, false, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)) {
-                break;
-            }
+            continue;
         }
 #ifdef _WIN32
         YieldProcessor();
@@ -88,7 +87,7 @@ void shm_dom_lock_write(shm_dom_t *shm) {
 
 void shm_dom_unlock_write(shm_dom_t *shm) {
     if (!shm) return;
-    __atomic_store_n(&shm->lock, 0, __ATOMIC_RELEASE);
+    __atomic_fetch_and(&shm->lock, ~0x80000000, __ATOMIC_RELEASE);
 }
 
 size_t shm_dom_size(uint32_t capacity) {
@@ -828,16 +827,18 @@ void bbmq_flush(void) {
                 shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[active_idx];
                 uint32_t chead = __atomic_load_n(&desc->head, __ATOMIC_ACQUIRE);
                 uint32_t ctail = __atomic_load_n(&desc->tail, __ATOMIC_ACQUIRE);
-                if (chead - ctail < desc->capacity) {
+                if (chead - ctail < desc->capacity && desc->shm_name[0] != '\0' && producer_sec_chunks[active_idx] != NULL) {
                     sec_chunk = producer_sec_chunks[active_idx];
                 }
             }
 
             if (!sec_chunk) {
-                if (sec_count >= SHM_MAX_SECONDARY_CHUNKS) {
+                uint32_t cur_sec_count = __atomic_load_n(&mq->secondary_chunk_count, __ATOMIC_ACQUIRE);
+                if (cur_sec_count >= SHM_MAX_SECONDARY_CHUNKS) {
                     NSLOG(wisp, ERROR, "[BBMQ] Maximum secondary shared memory chunks (%d) exceeded during flush!", SHM_MAX_SECONDARY_CHUNKS);
                     break;
                 }
+                active_idx = (int)cur_sec_count;
                 char chunk_name[64];
                 uint32_t seq = (uint32_t)__atomic_fetch_add(&bbmq_chunk_seq, 1, __ATOMIC_RELAXED);
                 snprintf(chunk_name, sizeof(chunk_name), "/w_sec_%u_%u", (unsigned int)getpid(), (unsigned int)seq);
@@ -847,17 +848,18 @@ void bbmq_flush(void) {
                     NSLOG(wisp, ERROR, "[BBMQ] Failed to create secondary shared memory chunk %s", chunk_name);
                     break;
                 }
-                active_idx = sec_count;
                 producer_sec_chunks[active_idx] = sec_chunk;
                 strncpy(producer_sec_names[active_idx], chunk_name, sizeof(producer_sec_names[active_idx]) - 1);
                 producer_sec_names[active_idx][sizeof(producer_sec_names[active_idx]) - 1] = '\0';
 
                 shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[active_idx];
-                strncpy(desc->shm_name, chunk_name, sizeof(desc->shm_name) - 1);
-                desc->shm_name[sizeof(desc->shm_name) - 1] = '\0';
+                desc->capacity = SHM_MUTATION_CHUNK_CAPACITY;
                 __atomic_store_n(&desc->head, 0, __ATOMIC_RELEASE);
                 __atomic_store_n(&desc->tail, 0, __ATOMIC_RELEASE);
-                desc->capacity = SHM_MUTATION_CHUNK_CAPACITY;
+                strncpy(desc->shm_name, chunk_name, sizeof(desc->shm_name) - 1);
+                desc->shm_name[sizeof(desc->shm_name) - 1] = '\0';
+                __atomic_thread_fence(__ATOMIC_RELEASE);
+                __atomic_store_n(&mq->secondary_chunk_count, active_idx + 1, __ATOMIC_RELEASE);
             }
 
             shm_mutation_chunk_desc_t *desc = &mq->secondary_chunks[active_idx];
@@ -873,7 +875,8 @@ void bbmq_flush(void) {
 
             // Publish secondary_chunk_count and desc->head ONLY AFTER writing items into sec_chunk->queue
             __atomic_store_n(&desc->head, chead, __ATOMIC_RELEASE);
-            if (active_idx >= (int)sec_count) {
+            uint32_t current_sec = __atomic_load_n(&mq->secondary_chunk_count, __ATOMIC_ACQUIRE);
+            if ((uint32_t)(active_idx + 1) > current_sec) {
                 __atomic_store_n(&mq->secondary_chunk_count, active_idx + 1, __ATOMIC_RELEASE);
             }
         }
