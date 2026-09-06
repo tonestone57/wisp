@@ -83,8 +83,12 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
     uint64_t node_id = (uint64_t)(uintptr_t)node;
     struct jsthread *t = (struct jsthread *)JS_GetContextOpaque(ctx);
     if (wisp_is_js_process && t && node_id > 0 && node_id < SHM_DOM_MAX_NODES) {
-        if (JS_VALUE_GET_TAG(t->node_wrapper_cache[node_id]) != JS_TAG_UNDEFINED) {
-            return JS_DupValue(ctx, t->node_wrapper_cache[node_id]);
+        JSValue cached = t->node_wrapper_cache[node_id];
+        int tag = JS_VALUE_GET_TAG(cached);
+        if (tag == JS_TAG_OBJECT || tag == JS_TAG_MODULE) {
+            return JS_DupValue(ctx, cached);
+        } else if (tag != JS_TAG_UNDEFINED) {
+            t->node_wrapper_cache[node_id] = JS_UNDEFINED;
         }
     }
 
