@@ -432,8 +432,7 @@ static struct directory *filename_create_directory(const char *prefix)
         return NULL;
     }
 
-    strncpy(new_dir->prefix, prefix, 9);
-    new_dir->prefix[9] = '\0';
+    snprintf(new_dir->prefix, sizeof(new_dir->prefix), "%.9s", prefix);
     new_dir->low_used = new_dir->high_used = 0;
     new_dir->numeric_prefix = index;
 

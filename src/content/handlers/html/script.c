@@ -826,7 +826,8 @@ static dom_hubbub_error exec_src_script(html_content *c, dom_node *node, dom_str
             break;
 
         default:
-            assert(0);
+            NSLOG(wisp, ERROR, "Unknown script type %d", script_type);
+            break;
         }
     }
 

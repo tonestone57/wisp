@@ -774,6 +774,21 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	const llcache_header_value *coop_hdr = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CROSS_ORIGIN_OPENER_POLICY);
 	if (coop_hdr != NULL && coop_hdr->count > 0 && coop_hdr->entries[0].raw_value != NULL) {
 		c->coop = strdup(coop_hdr->entries[0].raw_value);
+		if (c->coop == NULL) {
+			dom_hubbub_parser_destroy(c->parser);
+			c->parser = NULL;
+			if (c->document != NULL) {
+				dom_node_unref(c->document);
+				c->document = NULL;
+			}
+			nsurl_unref(c->base_url);
+			c->base_url = NULL;
+			lwc_string_unref(c->universal);
+			c->universal = NULL;
+			lwc_string_unref(c->media.prefers_color_scheme);
+			c->media.prefers_color_scheme = NULL;
+			return NSERROR_NOMEM;
+		}
 	} else {
 		c->coop = NULL;
 	}
@@ -781,6 +796,23 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	const llcache_header_value *coep_hdr = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_CROSS_ORIGIN_EMBEDDER_POLICY);
 	if (coep_hdr != NULL && coep_hdr->count > 0 && coep_hdr->entries[0].raw_value != NULL) {
 		c->coep = strdup(coep_hdr->entries[0].raw_value);
+		if (c->coep == NULL) {
+			free(c->coop);
+			c->coop = NULL;
+			dom_hubbub_parser_destroy(c->parser);
+			c->parser = NULL;
+			if (c->document != NULL) {
+				dom_node_unref(c->document);
+				c->document = NULL;
+			}
+			nsurl_unref(c->base_url);
+			c->base_url = NULL;
+			lwc_string_unref(c->universal);
+			c->universal = NULL;
+			lwc_string_unref(c->media.prefers_color_scheme);
+			c->media.prefers_color_scheme = NULL;
+			return NSERROR_NOMEM;
+		}
 	} else {
 		c->coep = NULL;
 	}
@@ -788,6 +820,25 @@ static nserror html_create_html_data(html_content *c, const http_parameter *para
 	const llcache_header_value *xfo_hdr = llcache_handle_get_header(c->base.llcache, LLCACHE_HEADER_X_FRAME_OPTIONS);
 	if (xfo_hdr != NULL && xfo_hdr->count > 0 && xfo_hdr->entries[0].raw_value != NULL) {
 		c->x_frame_options = strdup(xfo_hdr->entries[0].raw_value);
+		if (c->x_frame_options == NULL) {
+			free(c->coop);
+			c->coop = NULL;
+			free(c->coep);
+			c->coep = NULL;
+			dom_hubbub_parser_destroy(c->parser);
+			c->parser = NULL;
+			if (c->document != NULL) {
+				dom_node_unref(c->document);
+				c->document = NULL;
+			}
+			nsurl_unref(c->base_url);
+			c->base_url = NULL;
+			lwc_string_unref(c->universal);
+			c->universal = NULL;
+			lwc_string_unref(c->media.prefers_color_scheme);
+			c->media.prefers_color_scheme = NULL;
+			return NSERROR_NOMEM;
+		}
 	} else {
 		c->x_frame_options = NULL;
 	}

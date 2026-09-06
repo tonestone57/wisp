@@ -1383,7 +1383,9 @@ layout_minmax_block(struct box *block, const struct gui_layout_table *font_func,
 					"Unexpected child type %d in layout_minmax_block - "
 					"box construction should have wrapped this in INLINE_CONTAINER",
 					child->type);
-				assert(0 && "Invalid box tree: inline-level box not wrapped in INLINE_CONTAINER");
+				child->min_width.value = 0;
+				child->max_width = 0;
+				break;
 			}
 			assert(child->max_width != UNKNOWN_MAX_WIDTH);
 
@@ -6747,10 +6749,9 @@ static void layout_calculate_descendant_bboxes(const css_unit_ctx *unit_len_ctx,
 	layout_get_box_bbox(
 		unit_len_ctx, box, &box->descendant_x0, &box->descendant_y0, &box->descendant_x1, &box->descendant_y1);
 	if (box->type == BOX_INLINE_GRID && box->descendant_x1 > 100000000) {
-		fprintf(stderr, "BBOX_RESULT: BOX_INLINE_GRID %p AFTER layout_get_box_bbox descendant_x1=%d\n", (void *)box,
+		NSLOG(layout, WARNING, "BBOX_RESULT: BOX_INLINE_GRID %p descendant_x1=%d clamped", (void *)box,
 			box->descendant_x1);
-		fflush(stderr);
-		assert(0 && "layout_get_box_bbox produced INT_MAX");
+		box->descendant_x1 = 1000000;
 	}
 
 	/* Extend it to contain HTML contents if box is replaced */

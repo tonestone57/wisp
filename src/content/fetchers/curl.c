@@ -2170,8 +2170,7 @@ static size_t fetch_curl_header(char *data, size_t size, size_t nmemb, void *_f)
                 free(f->realm);
                 f->realm = malloc(end - i + 1);
                 if (f->realm != NULL) {
-                    strncpy(f->realm, data + i, end - i);
-                    f->realm[end - i] = '\0';
+                    snprintf(f->realm, end - i + 1, "%.*s", (int)(end - i), data + i);
                 }
             }
         }

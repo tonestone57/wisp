@@ -438,16 +438,20 @@ void init_wisp_subsystem(int queue_size) {
     int js_workers = (n_cores > 4) ? 4 : (int)n_cores;
     char *env_workers = getenv("WISP_JS_WORKERS");
     if (env_workers != NULL) {
-        int val = atoi(env_workers);
-        if (val > 0) js_workers = val;
+        int val = 0;
+        if (ns_strtoint(env_workers, 10, &val) == NSERROR_OK && val > 0) {
+            js_workers = val;
+        }
     }
     if (js_workers < 1) js_workers = 1;
 
     int style_workers = (n_cores > 4) ? 4 : (int)n_cores;
     char *env_style_workers = getenv("WISP_STYLE_WORKERS");
     if (env_style_workers != NULL) {
-        int val = atoi(env_style_workers);
-        if (val > 0) style_workers = val;
+        int val = 0;
+        if (ns_strtoint(env_style_workers, 10, &val) == NSERROR_OK && val > 0) {
+            style_workers = val;
+        }
     }
     if (style_workers < 1) style_workers = 1;
 
