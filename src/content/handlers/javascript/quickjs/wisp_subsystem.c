@@ -467,12 +467,17 @@ void init_wisp_subsystem(int queue_size) {
 }
 
 void shutdown_wisp_subsystem(void) {
-    shutdown_pool(raster_pool);
-    shutdown_pool(js_pool);
-    shutdown_pool(wisp_style_pool);
+    WispPool *r = raster_pool;
+    WispPool *j = js_pool;
+    WispPool *s = wisp_style_pool;
+
     raster_pool = NULL;
     js_pool = NULL;
     wisp_style_pool = NULL;
+
+    shutdown_pool(j);
+    shutdown_pool(r);
+    shutdown_pool(s);
 }
 
 void* wisp_worker_routine(void *arg) {
@@ -535,11 +540,13 @@ void* wisp_worker_routine(void *arg) {
 
         if (task == NULL && pool == js_pool && raster_pool != NULL) {
             /* 2. Asymmetric crossing over: Background JS workers steal from Raster workers (Tier 3 Viewport tiles) */
-            for (int i = 0; i < raster_pool->worker_count; i++) {
-                task = wisp_deque_steal(&raster_pool->workers[i].deques[3]);
-                if (task != NULL) {
-                    active_tier = 3;
-                    break;
+            if (!__atomic_load_n(&raster_pool->stop, __ATOMIC_RELAXED)) {
+                for (int i = 0; i < raster_pool->worker_count; i++) {
+                    task = wisp_deque_steal(&raster_pool->workers[i].deques[3]);
+                    if (task != NULL) {
+                        active_tier = 3;
+                        break;
+                    }
                 }
             }
         }
