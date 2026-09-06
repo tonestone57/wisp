@@ -375,7 +375,6 @@ static nserror content_textsearch_create(struct content *c, void *gui_data, stru
 {
     struct textsearch_context *context;
     struct list_entry *search_head;
-    content_type type;
 
     if ((c->handler->textsearch_find == NULL) || (c->handler->textsearch_bounds == NULL)) {
         /*
@@ -384,8 +383,6 @@ static nserror content_textsearch_create(struct content *c, void *gui_data, stru
          */
         return NSERROR_NOT_IMPLEMENTED;
     }
-
-    type = c->handler->type();
 
     context = malloc(sizeof(struct textsearch_context));
     if (context == NULL) {

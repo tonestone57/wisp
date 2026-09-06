@@ -163,6 +163,25 @@ static void dump_css_unit(FILE *stream, css_fixed val, css_unit unit)
     case CSS_UNIT_CALC:
         fprintf(stream, "calc()");
         break;
+    case CSS_UNIT_FR:
+        fprintf(stream, "fr");
+        break;
+    case CSS_UNIT_MIN_CONTENT:
+        fprintf(stream, "min-content");
+        break;
+    case CSS_UNIT_MAX_CONTENT:
+        fprintf(stream, "max-content");
+        break;
+    case CSS_UNIT_FIT_CONTENT:
+        fprintf(stream, "fit-content");
+        break;
+    case CSS_UNIT_MINMAX:
+        fprintf(stream, "minmax");
+        break;
+    case CSS_UNIT_NUMBER:
+        break;
+    default:
+        break;
     }
 }
 

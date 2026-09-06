@@ -534,8 +534,8 @@ START_TEST(nsurl_replace_scheme_test)
     err = nsurl_create(tst->test1, &res_url);
     ck_assert_int_eq(err, NSERROR_OK);
 
-    err = lwc_intern_string(tst->test2, strlen(tst->test2), &scheme);
-    ck_assert_int_eq(err, NSERROR_OK);
+    lwc_error lwc_err = lwc_intern_string(tst->test2, strlen(tst->test2), &scheme);
+    ck_assert_int_eq(lwc_err, lwc_error_ok);
 
     err = nsurl_replace_scheme(res_url, scheme, &joined);
     ck_assert_int_eq(err, NSERROR_OK);
@@ -1262,7 +1262,8 @@ START_TEST(nsurl_api_assert_replace_scheme1_test)
     nserror err;
     nsurl *res;
     lwc_string *scheme;
-    err = lwc_intern_string("https", 5, &scheme);
+    lwc_error lwc_err = lwc_intern_string("https", 5, &scheme);
+    ck_assert_int_eq(lwc_err, lwc_error_ok);
     err = nsurl_replace_scheme(NULL, scheme, &res);
     ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
     lwc_string_unref(scheme);
@@ -1287,7 +1288,8 @@ START_TEST(nsurl_api_assert_replace_scheme3_test)
     nsurl *url;
     lwc_string *scheme;
     err = nsurl_create("http://test.com", &url);
-    err = lwc_intern_string("https", 5, &scheme);
+    lwc_error lwc_err = lwc_intern_string("https", 5, &scheme);
+    ck_assert_int_eq(lwc_err, lwc_error_ok);
     err = nsurl_replace_scheme(url, scheme, NULL);
     ck_assert_int_eq(err, NSERROR_BAD_PARAMETER);
     lwc_string_unref(scheme);

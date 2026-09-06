@@ -252,13 +252,6 @@ static int test_resolve_line_logic(int available_main, int main_size)
     return available_main;
 }
 
-static int test_resolve_line_logic_old(int available_main, int main_size)
-{
-    if (available_main == INT_MIN) { /* AUTO */
-        return INT_MAX;
-    }
-    return available_main;
-}
 
 START_TEST(test_flex_auto_width_logic)
 {

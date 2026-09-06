@@ -384,32 +384,6 @@ static nserror svg_buffer_append(char **buf, size_t *len, size_t *cap, const cha
  * Helper to append text to buffer as lowercase.
  * SVG is case-sensitive and libsvgtiny expects lowercase tags.
  */
-static nserror svg_buffer_append_lower(char **buf, size_t *len, size_t *cap, const char *str, size_t str_len)
-{
-    if (*len + str_len + 1 > *cap) {
-        size_t new_cap = (*cap == 0) ? 1024 : *cap * 2;
-        while (new_cap < *len + str_len + 1) {
-            new_cap *= 2;
-        }
-        char *new_buf = realloc(*buf, new_cap);
-        if (new_buf == NULL) {
-            return NSERROR_NOMEM;
-        }
-        *buf = new_buf;
-        *cap = new_cap;
-    }
-    /* Copy with lowercase conversion */
-    for (size_t i = 0; i < str_len; i++) {
-        char c = str[i];
-        if (c >= 'A' && c <= 'Z') {
-            c = c + ('a' - 'A');
-        }
-        (*buf)[*len + i] = c;
-    }
-    *len += str_len;
-    (*buf)[*len] = '\0';
-    return NSERROR_OK;
-}
 
 /**
  * Append a string to the buffer, replacing all occurrences of 'currentColor'

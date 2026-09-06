@@ -158,7 +158,7 @@ static void free_ns_cert_info_contents(struct ns_cert_info *cinfo)
 }
 
 /* free all resources associated with a certificate information structure */
-static nserror free_ns_cert_info(struct ns_cert_info *cinfo)
+static nserror __attribute__((unused)) free_ns_cert_info(struct ns_cert_info *cinfo)
 {
     if (cinfo != NULL) {
         free_ns_cert_info_contents(cinfo);

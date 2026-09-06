@@ -69,12 +69,6 @@ lwc_string *corestring_lwc_close_single_quote = NULL;
 struct nsoption_s nsoptions_storage[1000];
 struct nsoption_s *nsoptions = nsoptions_storage;
 
-/* Helper to log errors */
-static void test_log(const char *fmt, va_list args)
-{
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
-}
 
 /* -------------------------------------------------------------------------- */
 /* MOCKS for box_construct.c */

@@ -130,7 +130,8 @@ static void box_object_arena_destructor(void *vo)
 static struct frame_dimension *box_parse_multi_lengths(const dom_string *ds, unsigned int *count)
 {
 	char *end;
-	unsigned int i, n;
+	int i;
+	unsigned int n;
 	struct frame_dimension *length;
 	const char *s;
 
@@ -190,7 +191,8 @@ static struct frame_dimension *box_parse_multi_lengths(const dom_string *ds, uns
  */
 static bool box_create_frameset(struct content_html_frames *f, dom_node *n, html_content *content)
 {
-	unsigned int row, col, index, i;
+	unsigned int row, col, index;
+	int i;
 	unsigned int rows = 1, cols = 1;
 	dom_string *s;
 	dom_exception err;
@@ -1120,7 +1122,6 @@ static bool srcset_select_url(const char *srcset, int target_w, nsurl *base_url,
 	 * simply split on commas. Instead, we find the descriptor (ends with
 	 * 'w' or 'x') or the next comma that's followed by whitespace/letter. */
 	while (*p) {
-		const char *entry_start;
 		const char *url_start;
 		const char *url_end = NULL;
 		const char *entry_end;
@@ -1133,7 +1134,6 @@ static bool srcset_select_url(const char *srcset, int target_w, nsurl *base_url,
 		if (!*p)
 			break;
 
-		entry_start = p;
 		url_start = p;
 
 		/* Find the end of this entry by looking for:
@@ -1183,7 +1183,7 @@ static bool srcset_select_url(const char *srcset, int target_w, nsurl *base_url,
 
 			/* Find start of number (including possible decimal for 'x' descriptors) */
 			while (num_start > url_start &&
-				(*(num_start - 1) >= '0' && *(num_start - 1) <= '9' || *(num_start - 1) == '.')) {
+				((*(num_start - 1) >= '0' && *(num_start - 1) <= '9') || *(num_start - 1) == '.')) {
 				num_start--;
 			}
 
@@ -2037,9 +2037,9 @@ bool convert_special_elements(dom_node *node, html_content *content, struct box 
 						err = dom_element_get_attribute(c, corestring_dom_type, &type_attr);
 						if (err == DOM_NO_ERR && type_attr != NULL) {
 							lwc_string *itype;
-							lwc_error lerr;
-							lerr = dom_string_intern(type_attr, &itype);
-							if (lerr == lwc_error_ok) {
+							dom_exception derr;
+							derr = dom_string_intern(type_attr, &itype);
+							if (derr == DOM_NO_ERR) {
 								if (content_factory_type_from_mime_type(itype) == CONTENT_NONE) {
 									supported = false;
 								}

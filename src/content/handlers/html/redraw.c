@@ -2307,6 +2307,8 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
                 cls = dom_string_data(class_attr);
             }
         }
+        (void)tag;
+        (void)cls;
         if (class_attr != NULL)
             dom_string_unref(class_attr);
         if (name != NULL)
@@ -3284,6 +3286,8 @@ bool html_redraw_box(const html_content *html, struct box *box, int x_parent, in
                 }
             }
 
+            (void)tag;
+            (void)cls;
             if (class_attr != NULL)
                 dom_string_unref(class_attr);
             if (name != NULL)

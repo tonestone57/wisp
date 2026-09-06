@@ -38,16 +38,11 @@ int qjs_init_worker(JSContext *ctx) {
     if (qjs_worker_class_id == 0) JS_NewClassID(rt, &qjs_worker_class_id);
     if (!JS_IsRegisteredClass(rt, qjs_worker_class_id)) JS_NewClass(rt, qjs_worker_class_id, &wisp_worker_class);
     qjs_init_worker_gen(ctx);
-    JSValue global = JS_GetGlobalObject(ctx);
     JSValue proto = JS_GetClassProto(ctx, qjs_worker_class_id);
     JSValue et_proto = JS_GetClassProto(ctx, qjs_eventtarget_class_id);
     if (JS_IsObject(proto) && JS_IsObject(et_proto)) JS_SetPrototype(ctx, proto, et_proto);
     JS_FreeValue(ctx, et_proto);
-    JSValue ctor = JS_NewCFunction2(ctx, (JSCFunction *)wisp_worker_constructor_impl, "Worker", 1, JS_CFUNC_constructor, 0);
-    JS_SetConstructor(ctx, ctor, proto);
-    JS_SetPropertyStr(ctx, global, "Worker", ctor);
     JS_FreeValue(ctx, proto);
-    JS_FreeValue(ctx, global);
     return 0;
 }
 
