@@ -353,7 +353,7 @@ static struct form_control *parse_input_element(struct form *forms, dom_html_inp
                 goto out;
             }
 
-            control->node_value = dom_string_ref(ds_value);
+            control->node_value = (ds_value != NULL) ? dom_string_ref(ds_value) : NULL;
         }
         /* Force the gadget and DOM to be in sync */
         form_gadget_sync_with_dom(control);

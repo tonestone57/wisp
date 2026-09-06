@@ -22,17 +22,21 @@ static void mutationrecord_finalizer(JSRuntime *rt, JSValue val)
 
 static JSClassDef wisp_mutationrecord_class = { "MutationRecord", .finalizer = mutationrecord_finalizer };
 
+extern bool wisp_is_js_process;
+
 static void free_mutation_record(WispMutationRecord *record)
 {
     if (!record) return;
     free(record->type);
-    if (record->target) dom_node_unref(record->target);
-    for (int i = 0; i < record->numAddedNodes; i++) dom_node_unref(record->addedNodes[i]);
+    if (!wisp_is_js_process) {
+        if (record->target) dom_node_unref(record->target);
+        for (int i = 0; i < record->numAddedNodes; i++) dom_node_unref(record->addedNodes[i]);
+        for (int i = 0; i < record->numRemovedNodes; i++) dom_node_unref(record->removedNodes[i]);
+        if (record->previousSibling) dom_node_unref(record->previousSibling);
+        if (record->nextSibling) dom_node_unref(record->nextSibling);
+    }
     free(record->addedNodes);
-    for (int i = 0; i < record->numRemovedNodes; i++) dom_node_unref(record->removedNodes[i]);
     free(record->removedNodes);
-    if (record->previousSibling) dom_node_unref(record->previousSibling);
-    if (record->nextSibling) dom_node_unref(record->nextSibling);
     free(record->attributeName);
     free(record->attributeNamespace);
     free(record->oldValue);
