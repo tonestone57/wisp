@@ -336,7 +336,8 @@ static inline dom_html_element_type _dom_html_document_get_element_type(dom_html
             DOM_HTML_ELEMENT_TYPE_RUBY) else RETURN_IF_MATCH(upper,
             DOM_HTML_ELEMENT_TYPE_SAMP) else RETURN_IF_MATCH(upper,
             DOM_HTML_ELEMENT_TYPE_BASE) else RETURN_IF_MATCH(upper,
-            DOM_HTML_ELEMENT_TYPE_TIME) else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_NOBR) break;
+            DOM_HTML_ELEMENT_TYPE_TIME) else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_NOBR);
+        break;
     case 5:
         RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_INPUT)
         else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_TABLE) else RETURN_IF_MATCH(
@@ -353,7 +354,8 @@ static inline dom_html_element_type _dom_html_document_get_element_type(dom_html
             DOM_HTML_ELEMENT_TYPE_EMBED) else RETURN_IF_MATCH(upper,
             DOM_HTML_ELEMENT_TYPE_METER) else RETURN_IF_MATCH(upper,
             DOM_HTML_ELEMENT_TYPE_SMALL) else RETURN_IF_MATCH(upper,
-            DOM_HTML_ELEMENT_TYPE_TRACK) else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_VIDEO) break;
+            DOM_HTML_ELEMENT_TYPE_TRACK) else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_VIDEO);
+        break;
     case 6:
         RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_BUTTON)
         else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_OPTION) else RETURN_IF_MATCH(
@@ -386,7 +388,8 @@ static inline dom_html_element_type _dom_html_document_get_element_type(dom_html
             DOM_HTML_ELEMENT_TYPE_SECTION) else RETURN_IF_MATCH(upper,
             DOM_HTML_ELEMENT_TYPE_SUMMARY) else RETURN_IF_MATCH(upper,
             DOM_HTML_ELEMENT_TYPE_ACRONYM) else RETURN_IF_MATCH(upper,
-            DOM_HTML_ELEMENT_TYPE_BGSOUND) else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_MARQUEE) break;
+            DOM_HTML_ELEMENT_TYPE_BGSOUND) else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_MARQUEE);
+        break;
     case 8:
         RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_TEXTAREA)
         else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_OPTGROUP) else RETURN_IF_MATCH(
@@ -398,10 +401,12 @@ static inline dom_html_element_type _dom_html_document_get_element_type(dom_html
             DOM_HTML_ELEMENT_TYPE_MENUITEM) else RETURN_IF_MATCH(upper,
             DOM_HTML_ELEMENT_TYPE_NOSCRIPT) else RETURN_IF_MATCH(upper,
             DOM_HTML_ELEMENT_TYPE_PROGRESS) else RETURN_IF_MATCH(upper,
-            DOM_HTML_ELEMENT_TYPE_TEMPLATE) else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_NOFRAMES) break;
+            DOM_HTML_ELEMENT_TYPE_TEMPLATE) else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_NOFRAMES);
+        break;
     case 10:
         RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_BLOCKQUOTE)
-        else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_FIGCAPTION) break;
+        else RETURN_IF_MATCH(upper, DOM_HTML_ELEMENT_TYPE_FIGCAPTION);
+        break;
     }
 
     return DOM_HTML_ELEMENT_TYPE__UNKNOWN;
