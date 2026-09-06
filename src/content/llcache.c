@@ -1104,8 +1104,6 @@ static nserror llcache_object_fetch(llcache_object *object, uint32_t flags, nsur
  */
 static nserror llcache_object_destroy(llcache_object *object)
 {
-    size_t i;
-
     NSLOG(llcache, DEBUG, "Destroying object %p, %s", object, nsurl_access(object->url));
 
     cert_chain_free(object->chain);
@@ -3174,8 +3172,6 @@ static void llcache_fetch_callback(const fetch_msg *msg, void *p)
     case FETCH_FINISHED:
         /* Finished fetching */
         {
-            uint8_t *temp;
-
             object->fetch.state = LLCACHE_FETCH_COMPLETE;
             object->fetch.fetch = NULL;
 

@@ -926,6 +926,18 @@ START_TEST(nsurl_ref_test)
 END_TEST
 
 
+#ifndef _WIN32
+#if defined(__has_feature)
+#if __has_feature(address_sanitizer)
+#define NSURL_ASAN_ENABLED 1
+#endif
+#endif
+#if defined(__SANITIZE_ADDRESS__)
+#define NSURL_ASAN_ENABLED 1
+#endif
+
+#if !defined(NDEBUG) && !defined(NSURL_ASAN_ENABLED)
+
 /**
  * check creation asserts on NULL parameter
  */
@@ -1171,6 +1183,9 @@ START_TEST(nsurl_api_assert_defragment_test)
     ck_assert(err != NSERROR_OK);
 }
 END_TEST
+
+#endif
+#endif
 
 
 /**
@@ -1454,7 +1469,9 @@ static TCase *nsurl_utf8_case_create(void)
 static Suite *nsurl_suite(void)
 {
     Suite *s;
+#if !defined(_WIN32) && !defined(NDEBUG) && !defined(NSURL_ASAN_ENABLED)
     TCase *tc_api_assert;
+#endif
     TCase *tc_create;
     TCase *tc_access;
     TCase *tc_nice_nostrip;
