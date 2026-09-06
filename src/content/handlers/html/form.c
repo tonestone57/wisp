@@ -2082,7 +2082,7 @@ void form_gadget_sync_with_dom(struct form_control *control)
         if (control->node_value != NULL) {
             dom_string_unref(control->node_value);
         }
-        control->node_value = dom_string_ref(value);
+        control->node_value = (value != NULL) ? dom_string_ref(value) : NULL;
     }
 
 out:
