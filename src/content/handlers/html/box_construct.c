@@ -1497,7 +1497,7 @@ __attribute__((weak)) bool wisp_dispatch_style(const char *script, void (*func)(
 static css_select_results *box_get_style(
 	html_content *c, const css_computed_style *parent_style, const css_computed_style *root_style, dom_node *n)
 {
-	if (c == NULL || c->select_ctx == NULL) {
+	if (c == NULL) {
 		return NULL;
 	}
 
