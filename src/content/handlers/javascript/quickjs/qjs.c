@@ -7554,11 +7554,11 @@ void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
         }
 
         if (all_drained) {
-            for (uint32_t i = 0; i < sec_count; i++) {
-                mq->secondary_chunks[i].shm_name[0] = '\0';
-            }
             uint32_t expected_sec = sec_count;
             if (__atomic_compare_exchange_n(&mq->secondary_chunk_count, &expected_sec, 0, false, __ATOMIC_RELEASE, __ATOMIC_RELAXED)) {
+                for (uint32_t i = 0; i < sec_count; i++) {
+                    mq->secondary_chunks[i].shm_name[0] = '\0';
+                }
                 break;
             }
         } else {

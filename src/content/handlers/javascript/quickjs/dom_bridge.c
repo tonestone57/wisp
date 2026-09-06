@@ -80,23 +80,30 @@ JSValue qjs_wrap_node(JSContext *ctx, struct dom_node *node)
 {
     if (node == NULL) return JS_NULL;
 
+    JSRuntime *rt = JS_GetRuntime(ctx);
+    hashmap_t *map = JS_GetRuntimeOpaque(rt);
+    if (!map) {
+        qjs_init_dom_bridge(ctx);
+        map = JS_GetRuntimeOpaque(rt);
+    }
+
     uint64_t node_id = (uint64_t)(uintptr_t)node;
     struct jsthread *t = (struct jsthread *)JS_GetContextOpaque(ctx);
     if (wisp_is_js_process && t && node_id > 0 && node_id < SHM_DOM_MAX_NODES) {
         JSValue cached = t->node_wrapper_cache[node_id];
         int tag = JS_VALUE_GET_TAG(cached);
         if (tag == JS_TAG_OBJECT || tag == JS_TAG_MODULE) {
-            return JS_DupValue(ctx, cached);
+            if (map) {
+                bridge_key_t key = { ctx, node };
+                JSValue *val = hashmap_lookup(map, &key);
+                if (val && JS_VALUE_GET_PTR(*val) == JS_VALUE_GET_PTR(cached)) {
+                    return JS_DupValue(ctx, cached);
+                }
+            }
+            t->node_wrapper_cache[node_id] = JS_UNDEFINED;
         } else if (tag != JS_TAG_UNDEFINED) {
             t->node_wrapper_cache[node_id] = JS_UNDEFINED;
         }
-    }
-
-    JSRuntime *rt = JS_GetRuntime(ctx);
-    hashmap_t *map = JS_GetRuntimeOpaque(rt);
-    if (!map) {
-        qjs_init_dom_bridge(ctx);
-        map = JS_GetRuntimeOpaque(rt);
     }
 
     if (map) {
