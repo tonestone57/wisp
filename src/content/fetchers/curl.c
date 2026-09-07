@@ -1947,7 +1947,7 @@ static void fetch_curl_poll(lwc_string *scheme_ignored)
 static int fetch_curl_progress(void *clientp, NSCURL_PROGRESS_T dltotal, NSCURL_PROGRESS_T dlnow,
     NSCURL_PROGRESS_T ultotal, NSCURL_PROGRESS_T ulnow)
 {
-    static char fetch_progress_buffer[256]; /**< Progress buffer for cURL */
+    char fetch_progress_buffer[256]; /**< Progress buffer for cURL */
     struct curl_fetch_info *f = (struct curl_fetch_info *)clientp;
     uint64_t time_now_ms;
     fetch_msg msg;

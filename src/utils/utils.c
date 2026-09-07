@@ -317,10 +317,10 @@ nserror snstrjoin(char **str, size_t *size, char sep, size_t nelm, ...)
 /* exported interface documented in utils/string.h */
 char *human_friendly_bytesize(unsigned long long int bsize)
 {
-    static char buffer1[BYTESIZE_BUFFER_SIZE];
-    static char buffer2[BYTESIZE_BUFFER_SIZE];
-    static char buffer3[BYTESIZE_BUFFER_SIZE];
-    static char *curbuffer = buffer3;
+    static __thread char buffer1[BYTESIZE_BUFFER_SIZE];
+    static __thread char buffer2[BYTESIZE_BUFFER_SIZE];
+    static __thread char buffer3[BYTESIZE_BUFFER_SIZE];
+    static __thread char *curbuffer = NULL;
     enum { bytes, kilobytes, megabytes, gibibytes, tebibytes, pebibytes, exbibytes } unit = bytes;
     static const char *const units[] = {"Bytes", "KiBytes", "MiBytes", "GiBytes", "TiBytes", "PiBytes", "EiBytes"};
     double bytesize = (double)bsize;
