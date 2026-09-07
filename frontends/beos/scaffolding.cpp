@@ -1589,6 +1589,8 @@ nsbeos_scaffolding *nsbeos_new_scaffolding(struct gui_window *toplevel)
     g->menu_bar = NULL;
 
     if (replicated && !replicant_view) {
+        free(g);
+        open_windows--;
         return NULL;
     }
 

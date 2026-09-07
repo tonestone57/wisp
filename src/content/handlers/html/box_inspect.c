@@ -719,7 +719,7 @@ void box_dump(FILE *stream, struct box *box, unsigned int depth, bool style)
         break;
 
     case BOX_TABLE:
-        fprintf(stream, "TABLE [columns %i] ", box->columns);
+        fprintf(stream, "TABLE [columns %u] ", box->columns);
         break;
 
     case BOX_TABLE_ROW:
@@ -727,7 +727,7 @@ void box_dump(FILE *stream, struct box *box, unsigned int depth, bool style)
         break;
 
     case BOX_TABLE_CELL:
-        fprintf(stream, "TABLE_CELL [columns %i, start %i, rows %i] ", box->columns, box->start_column, box->rows);
+        fprintf(stream, "TABLE_CELL [columns %u, start %u, rows %u] ", box->columns, box->start_column, box->rows);
         break;
 
     case BOX_TABLE_ROW_GROUP:

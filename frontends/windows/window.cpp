@@ -981,7 +981,6 @@ nsws_window_command(HWND hwnd, struct gui_window *gw, int notification_code, int
             }
             GetWindowRect(desktop, &rdesk);
             GetWindowRect(gw->main, gw->fullscreen);
-            DeleteObject(desktop);
             SetWindowLong(gw->main, GWL_STYLE, 0);
             SetWindowPos(
                 gw->main, HWND_TOPMOST, 0, 0, rdesk.right - rdesk.left, rdesk.bottom - rdesk.top, SWP_SHOWWINDOW);

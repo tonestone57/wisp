@@ -270,7 +270,7 @@ static void fetch_rsrc_poll(lwc_string *scheme)
             char header[64];
 
             fetch_set_http_code(c->parent_fetch, 200);
-            NSLOG(wisp, INFO, "setting rsrc: MIME type to %s, length to %zd", c->mimetype, c->datalen);
+            NSLOG(wisp, INFO, "setting rsrc: MIME type to %s, length to %zu", c->mimetype, c->datalen);
             /* Any callback can result in the fetch being aborted.
              * Therefore, we _must_ check for this after _every_
              * call to fetch_rsrc_send_callback().
@@ -281,7 +281,7 @@ static void fetch_rsrc_poll(lwc_string *scheme)
             msg.data.header_or_data.len = strlen(header);
             fetch_rsrc_send_callback(&msg, c);
 
-            snprintf(header, sizeof header, "Content-Length: %zd", c->datalen);
+            snprintf(header, sizeof header, "Content-Length: %zu", c->datalen);
             msg.type = FETCH_HEADER;
             msg.data.header_or_data.buf = (const uint8_t *)header;
             msg.data.header_or_data.len = strlen(header);
