@@ -212,6 +212,9 @@ static nserror posix_mkdir_all(const char *fname)
     struct stat sb;
 
     dname = strdup(fname);
+    if (dname == NULL) {
+        return NSERROR_NOMEM;
+    }
 
     sep = strrchr(dname, '/');
     if (sep == NULL) {

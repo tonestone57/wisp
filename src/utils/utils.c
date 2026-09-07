@@ -576,6 +576,9 @@ int uname(struct utsname *buf)
 char *realpath(const char *path, char *resolved_path)
 {
     char *ret;
+    if (path == NULL) {
+        return NULL;
+    }
     if (resolved_path == NULL) {
         ret = strdup(path);
     } else {
