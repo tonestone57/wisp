@@ -701,7 +701,7 @@ static bool svg_redraw_internal(svg_content *svg, int x, int y, int width, int h
                         (int)diagram->shape[i].path[0] == PLOTTER_PATH_MOVE && (int)diagram->shape[i].path[3] == PLOTTER_PATH_LINE) {
                         float x1 = diagram->shape[i].path[1] * sx; float y1 = diagram->shape[i].path[2] * sy;
                         float x2 = diagram->shape[i].path[4] * sx; float y2 = diagram->shape[i].path[5] * sy;
-                        static float sd[16];
+                        float sd[16];
                         for (unsigned int d = 0; d < diagram->shape[i].stroke_dasharray_count && d < 16; d++)
                             sd[d] = diagram->shape[i].stroke_dasharray[d] * stroke_scale;
                         svg_plot_dashed_line_as_rects(ctx, current_pstyle.stroke_colour, x1, y1, x2, y2, sw, sd, diagram->shape[i].stroke_dasharray_count, diagram->shape[i].stroke_dashoffset * stroke_scale, transform);

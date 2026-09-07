@@ -54,7 +54,7 @@
 #warning Using libjpeg (libjpeg-turbo is recommended)
 #endif
 
-static char nsjpeg_error_buffer[JMSG_LENGTH_MAX];
+static __thread char nsjpeg_error_buffer[JMSG_LENGTH_MAX];
 
 static unsigned char nsjpeg_eoi[] = {0xff, JPEG_EOI};
 

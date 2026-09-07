@@ -169,18 +169,18 @@ struct knockout_entry {
 };
 
 
-static struct knockout_entry knockout_entries[KNOCKOUT_ENTRIES];
-static struct knockout_box knockout_boxes[KNOCKOUT_BOXES];
-static int knockout_polygons[KNOCKOUT_POLYGONS];
-static int knockout_entry_cur = 0;
-static int knockout_box_cur = 0;
-static int knockout_polygon_cur = 0;
-static struct knockout_box *knockout_list = NULL;
+static __thread struct knockout_entry knockout_entries[KNOCKOUT_ENTRIES];
+static __thread struct knockout_box knockout_boxes[KNOCKOUT_BOXES];
+static __thread int knockout_polygons[KNOCKOUT_POLYGONS];
+static __thread int knockout_entry_cur = 0;
+static __thread int knockout_box_cur = 0;
+static __thread int knockout_polygon_cur = 0;
+static __thread struct knockout_box *knockout_list = NULL;
 
-static struct plotter_table real_plot;
+static __thread struct plotter_table real_plot;
 
-static struct rect clip_cur;
-static int nested_depth = 0;
+static __thread struct rect clip_cur;
+static __thread int nested_depth = 0;
 
 
 /**

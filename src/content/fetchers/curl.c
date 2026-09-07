@@ -338,7 +338,7 @@ static int curl_fetchers_registered = 0;
 static bool curl_with_openssl;
 
 /** Proxy authentication details. */
-static char fetch_proxy_userpwd[100];
+static __thread char fetch_proxy_userpwd[100];
 
 /** Interlock to prevent initiation during callbacks */
 static int inside_curl = 0;
