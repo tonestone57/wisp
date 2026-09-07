@@ -6819,7 +6819,8 @@ JSValue wisp_htmlinputelement_valueAsNumber_set_impl(JSContext *ctx, QJSNodePriv
     const char *type_str = JS_IsString(type_val) ? JS_ToCString(ctx, type_val) : "";
     if (type_str && (strcmp(type_str, "datetime") == 0 || strcmp(type_str, "datetime-local") == 0 || strcmp(type_str, "date") == 0)) {
         time_t sec = (time_t)(value / 1000.0);
-        struct tm *tm = gmtime(&sec);
+        struct tm tm_buf;
+        struct tm *tm = gmtime_r(&sec, &tm_buf);
         char buf[64];
         if (tm) {
             if (strcmp(type_str, "date") == 0) {
@@ -7402,7 +7403,8 @@ JSValue wisp_htmlmediaelement_canPlayType_impl(JSContext *ctx, QJSNodePrivate *p
     codecs_buf[c_idx] = '\0';
 
     // Parse comma-separated codecs
-    char *token = strtok(codecs_buf, ", ");
+    char *saveptr = NULL;
+    char *token = strtok_r(codecs_buf, ", ", &saveptr);
     bool all_codecs_ok = true;
     int codec_count = 0;
 
@@ -7443,7 +7445,7 @@ JSValue wisp_htmlmediaelement_canPlayType_impl(JSContext *ctx, QJSNodePrivate *p
             all_codecs_ok = false;
             break;
         }
-        token = strtok(NULL, ", ");
+        token = strtok_r(NULL, ", ", &saveptr);
     }
 
     if (codec_count > 0 && all_codecs_ok) {

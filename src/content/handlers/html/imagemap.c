@@ -381,7 +381,8 @@ static bool imagemap_addtolist(
     if (new_map->type != IMAGEMAP_DEFAULT) {
         int x, y;
         /* coordinates are a comma-separated list of values */
-        char *val = strtok((char *)dom_string_data(coords), ",");
+        char *saveptr = NULL;
+        char *val = strtok_r((char *)dom_string_data(coords), ",", &saveptr);
         int num = 1;
 
         switch (new_map->type) {
@@ -406,7 +407,7 @@ static bool imagemap_addtolist(
                 }
 
                 num++;
-                val = strtok(NULL, ",");
+                val = strtok_r(NULL, ",", &saveptr);
             }
             break;
         case IMAGEMAP_CIRCLE:
@@ -427,7 +428,7 @@ static bool imagemap_addtolist(
                 }
 
                 num++;
-                val = strtok(NULL, ",");
+                val = strtok_r(NULL, ",", &saveptr);
             }
             break;
         case IMAGEMAP_POLY:
@@ -453,7 +454,7 @@ static bool imagemap_addtolist(
                 while (val != NULL) {
                     if (ns_strtoint(val, 10, &x) != NSERROR_OK) x = 0;
 
-                    val = strtok(NULL, ",");
+                    val = strtok_r(NULL, ",", &saveptr);
                     if (val == NULL)
                         break;
 
@@ -463,7 +464,7 @@ static bool imagemap_addtolist(
                     new_map->bounds.poly.ycoords[num - 1] = (float)y;
 
                     num++;
-                    val = strtok(NULL, ",");
+                    val = strtok_r(NULL, ",", &saveptr);
                 }
 
                 new_map->bounds.poly.num = num - 1;

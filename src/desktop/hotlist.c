@@ -191,7 +191,8 @@ static nserror hotlist_create_treeview_field_visits_data(struct hotlist_entry *e
         const size_t lvsize = 256;
         struct tm *lvtime;
 
-        if ((lvtime = localtime(&data->last_visit)) != NULL) {
+        struct tm tm_buf;
+        if ((lvtime = localtime_r(&data->last_visit, &tm_buf)) != NULL) {
             last_visited = malloc(lvsize);
             if (last_visited != NULL) {
                 len = strftime(last_visited, lvsize, "%a %b %e %H:%M:%S %Y", lvtime);

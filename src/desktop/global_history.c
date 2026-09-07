@@ -260,7 +260,8 @@ static nserror global_history_create_treeview_field_data(struct global_history_e
     e->data[GH_URL].value = nsurl_access(e->url);
     e->data[GH_URL].value_len = nsurl_length(e->url);
 
-    if ((lvtime = localtime(&data->last_visit)) != NULL) {
+    struct tm tm_buf;
+    if ((lvtime = localtime_r(&data->last_visit, &tm_buf)) != NULL) {
         const size_t lvsize = 256;
         last_visited = malloc(lvsize);
         if (last_visited != NULL) {
@@ -563,7 +564,12 @@ static nserror global_history_initialise_time(void)
     }
 
     /* get the time at the start of today */
-    full_time = localtime(&t);
+    struct tm tm_today;
+    full_time = localtime_r(&t, &tm_today);
+    if (!full_time) {
+        NSLOG(wisp, INFO, "localtime_r failed");
+        return NSERROR_UNKNOWN;
+    }
     full_time->tm_sec = 0;
     full_time->tm_min = 0;
     full_time->tm_hour = 0;

@@ -515,7 +515,8 @@ process_dir_ent(struct fetch_file_context *ctx, struct dirent *ent, bool even, c
         /* Get date in output format. a (day of week) and b
          * (month) are both affected by the locale
          */
-        struct tm *tm_info = localtime(&ent_stat.st_mtime);
+        struct tm tm_buf;
+        struct tm *tm_info = localtime_r(&ent_stat.st_mtime, &tm_buf);
         if (tm_info == NULL || strftime((char *)&datebuf, sizeof datebuf, "%a %d %b %Y", tm_info) == 0) {
             datebuf[0] = '-';
             datebuf[1] = 0;

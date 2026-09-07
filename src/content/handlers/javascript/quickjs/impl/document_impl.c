@@ -33,12 +33,12 @@ uint64_t allocate_virtual_shm_node(uint16_t type, const char *name, const char *
 
     shm_dom_lock_write(wisp_shm_dom);
 
-    uint32_t new_id = wisp_shm_dom->node_count++;
+    uint32_t new_id = wisp_shm_dom->node_count;
     extern uint32_t wisp_shm_capacity;
     if (new_id >= wisp_shm_capacity) {
         uint32_t new_cap = wisp_shm_dom->node_capacity * 2;
         shm_dom_t *new_shm = shm_dom_remap(wisp_shm_dom, wisp_shm_capacity, new_cap);
-        if (new_shm) {
+        if (new_shm && new_id < new_cap) {
             new_shm->node_capacity = new_cap;
             wisp_shm_dom = new_shm;
             wisp_shm_capacity = new_cap;
@@ -48,6 +48,7 @@ uint64_t allocate_virtual_shm_node(uint16_t type, const char *name, const char *
             return 0;
         }
     }
+    wisp_shm_dom->node_count++;
 
     WispCompactNode *nodes_array = shm_dom_get_nodes(wisp_shm_dom);
     WispCompactNode *sn = &nodes_array[new_id];
