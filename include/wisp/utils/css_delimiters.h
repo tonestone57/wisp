@@ -63,25 +63,27 @@ struct wisp_delim_riscv_hwprobe {
 
 static inline bool wisp_delim_has_rvv(void) {
     static int cached_rvv = -1;
-    if (cached_rvv != -1) {
-        return (bool)cached_rvv;
+    int cached = __atomic_load_n(&cached_rvv, __ATOMIC_ACQUIRE);
+    if (cached != -1) {
+        return (bool)cached;
     }
+    int res = 0;
     struct wisp_delim_riscv_hwprobe request;
     request.key = RISCV_HWPROBE_KEY_IMA_EXT_0;
     request.value = 0;
     if (syscall(__NR_riscv_hwprobe, &request, 1, 0, NULL, 0) == 0) {
         if (request.value & RISCV_HWPROBE_IMA_V) {
-            cached_rvv = 1;
-            return true;
+            res = 1;
         }
     }
-    unsigned long hwcap = getauxval(AT_HWCAP);
-    if (hwcap & COMPAT_HWCAP_ISA_V) {
-        cached_rvv = 1;
-        return true;
+    if (res == 0) {
+        unsigned long hwcap = getauxval(AT_HWCAP);
+        if (hwcap & COMPAT_HWCAP_ISA_V) {
+            res = 1;
+        }
     }
-    cached_rvv = 0;
-    return false;
+    __atomic_store_n(&cached_rvv, res, __ATOMIC_RELEASE);
+    return (bool)res;
 }
 #else
 static inline bool wisp_delim_has_rvv(void) {

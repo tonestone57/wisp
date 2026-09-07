@@ -15499,7 +15499,7 @@ JSValue wisp_htmlaudioelement_Audio_impl(JSContext *ctx, const char * src) {
     if (wisp_is_js_process) {
         extern JSValue qjs_new_htmlaudioelement(JSContext *ctx, void *node, bool is_dom_node);
         static uint32_t next_dummy_audio_id = 0xf2000000;
-        uint32_t dummy_id = next_dummy_audio_id++;
+        uint32_t dummy_id = __atomic_fetch_add(&next_dummy_audio_id, 1, __ATOMIC_RELAXED);
         JSValue val = qjs_new_htmlaudioelement(ctx, (void*)(uintptr_t)dummy_id, false);
         QJSNodePrivate *priv = JS_GetOpaque(val, qjs_htmlaudioelement_class_id);
         if (priv && src && *src) {
