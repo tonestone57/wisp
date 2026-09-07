@@ -53,8 +53,8 @@ struct directory {
 
 
 static struct directory *root = NULL;
-static char filename_buffer[12];
-static char filename_directory[256];
+static __thread char filename_buffer[12];
+static __thread char filename_directory[256];
 
 static struct directory *filename_create_directory(const char *prefix);
 static bool filename_flush_directory(const char *folder, int depth);

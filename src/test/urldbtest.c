@@ -988,8 +988,9 @@ START_TEST(urldb_overlong_host_test)
 
     /* Construct a hostname longer than 256 chars (e.g., ~300 chars domain) */
     len = snprintf(long_host_url, sizeof(long_host_url), "http://a");
-    for (i = 0; i < 28 && len < sizeof(long_host_url); i++) {
-        len += snprintf(long_host_url + len, sizeof(long_host_url) - len, ".subdomain123");
+    for (i = 0; i < 28 && len < sizeof(long_host_url) - 1; i++) {
+        snprintf(long_host_url + len, sizeof(long_host_url) - len, ".subdomain123");
+        len = strlen(long_host_url);
     }
     snprintf(long_host_url + len, sizeof(long_host_url) - len, ".com/");
 
@@ -1000,8 +1001,9 @@ START_TEST(urldb_overlong_host_test)
 
     /* Construct a hostname near 250 chars that fits in buf */
     len = snprintf(long_host_url, sizeof(long_host_url), "http://a");
-    for (i = 0; i < 18 && len < sizeof(long_host_url); i++) {
-        len += snprintf(long_host_url + len, sizeof(long_host_url) - len, ".subdomain123");
+    for (i = 0; i < 18 && len < sizeof(long_host_url) - 1; i++) {
+        snprintf(long_host_url + len, sizeof(long_host_url) - len, ".subdomain123");
+        len = strlen(long_host_url);
     }
     snprintf(long_host_url + len, sizeof(long_host_url) - len, ".com/");
 

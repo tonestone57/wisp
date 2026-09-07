@@ -539,8 +539,8 @@ static uint32_t bbmq_tail = 0;
 static uint32_t bbmq_size = 0;
 static uint32_t bbmq_capacity = 0;
 
-static shm_mutation_chunk_t *producer_sec_chunks[SHM_MAX_SECONDARY_CHUNKS] = {NULL};
-static char producer_sec_names[SHM_MAX_SECONDARY_CHUNKS][64] = {{0}};
+static __thread shm_mutation_chunk_t *producer_sec_chunks[SHM_MAX_SECONDARY_CHUNKS] = {NULL};
+static __thread char producer_sec_names[SHM_MAX_SECONDARY_CHUNKS][64] = {{0}};
 
 static void bbmq_cleanup_producer_chunks(void) {
     for (int i = 0; i < SHM_MAX_SECONDARY_CHUNKS; i++) {

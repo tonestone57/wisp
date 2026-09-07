@@ -119,21 +119,21 @@ static void
 apply_clip_and_mode(bool selectTextMode, colour fillCol, colour strokeCol, float lineWidth, DashPattern_e dash);
 
 #define PDFW_MAX_GSTATES 4
-static PDFW_GState pdfw_gs[PDFW_MAX_GSTATES];
-static unsigned int pdfw_gs_level;
+static __thread PDFW_GState pdfw_gs[PDFW_MAX_GSTATES];
+static __thread unsigned int pdfw_gs_level;
 
-static HPDF_Doc pdf_doc; /**< Current PDF document.  */
-static HPDF_Page pdf_page; /**< Current page.  */
+static __thread HPDF_Doc pdf_doc; /**< Current PDF document.  */
+static __thread HPDF_Page pdf_page; /**< Current page.  */
 
 /*PDF Page size*/
-static HPDF_REAL page_height, page_width;
+static __thread HPDF_REAL page_height, page_width;
 
-static bool in_text_mode; /**< true if we're currently in text mode or not.  */
-static bool clip_update_needed; /**< true if pdf_plot_clip was invoked for
+static __thread bool in_text_mode; /**< true if we're currently in text mode or not.  */
+static __thread bool clip_update_needed; /**< true if pdf_plot_clip was invoked for
     current page and not yet synced with PDF output.  */
-static int last_clip_x0, last_clip_y0, last_clip_x1, last_clip_y1;
+static __thread int last_clip_x0, last_clip_y0, last_clip_x1, last_clip_y1;
 
-static const struct print_settings *settings;
+static __thread const struct print_settings *settings;
 
 static const struct plotter_table pdf_plotters = {
     .rectangle = pdf_plot_rectangle,

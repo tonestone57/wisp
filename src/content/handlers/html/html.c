@@ -2873,12 +2873,12 @@ void html_extract_text(hlcache_handle *h, bool *first, save_text_whitespace *bef
 static const char *html_encoding(const struct content *c, enum content_encoding_type op)
 {
 	html_content *html = (html_content *)c;
-	static char enc_token[10] = "Encoding0";
 
 	assert(html != NULL);
 
 	if (op == CONTENT_ENCODING_SOURCE) {
-		enc_token[8] = '0' + html->encoding_source;
+		static __thread char enc_token[16];
+		snprintf(enc_token, sizeof(enc_token), "Encoding%u", (unsigned)html->encoding_source);
 		return messages_get(enc_token);
 	}
 
