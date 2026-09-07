@@ -441,6 +441,65 @@ START_TEST(test_shm_node_layout_dirty_flags)
 }
 END_TEST
 
+START_TEST(test_shm_dom_remap_lock_preservation)
+{
+    const char *test_name = "/test_shm_dom_remap_lock_preservation";
+    shm_dom_t *shm = shm_dom_create(test_name, 100, true);
+    ck_assert_ptr_nonnull(shm);
+
+    // 1. Remap on an unlocked SHM DOM: should return an unlocked new_shm
+    ck_assert_int_eq(shm->lock & 0x80000000, 0);
+    shm_dom_t *new_shm = shm_dom_remap(shm, 100, 200);
+    ck_assert_ptr_nonnull(new_shm);
+    ck_assert_int_eq(new_shm->lock & 0x80000000, 0);
+
+    // 2. Remap on a write-locked SHM DOM: should return new_shm write-locked
+    shm_dom_lock_write(new_shm);
+    ck_assert_int_ne(new_shm->lock & 0x80000000, 0);
+
+    shm_dom_t *new_shm2 = shm_dom_remap(new_shm, 200, 400);
+    ck_assert_ptr_nonnull(new_shm2);
+    ck_assert_int_ne(new_shm2->lock & 0x80000000, 0);
+
+    // Unlock new_shm2 cleanly
+    shm_dom_unlock_write(new_shm2);
+    ck_assert_int_eq(new_shm2->lock & 0x80000000, 0);
+
+    shm_dom_destroy(new_shm2, test_name, true);
+}
+END_TEST
+
+START_TEST(test_bbmq_secondary_chunk_concurrent_drain)
+{
+    const char *test_name = "/test_shm_dom_bbmq_sec_concurrent";
+    wisp_shm_dom = shm_dom_create(test_name, 100, true);
+    ck_assert_ptr_nonnull(wisp_shm_dom);
+    wisp_shm_capacity = 100;
+
+    wisp_is_js_process = true;
+
+    // Fill primary queue and 1 secondary chunk
+    for (int i = 0; i < SHM_MUTATION_QUEUE_SIZE + 10; i++) {
+        shm_mutation_enqueue(wisp_shm_dom, 1, i + 1, 0, 0, "attr", "val");
+    }
+    bbmq_flush();
+
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.secondary_chunk_count, 1);
+    shm_mutation_chunk_desc_t *desc = &wisp_shm_dom->mutation_queue.secondary_chunks[0];
+    ck_assert_int_eq(desc->head, 10);
+
+    // Drain secondary chunk
+    drain_mutation_queue(wisp_shm_dom, NULL);
+
+    ck_assert_int_eq(desc->tail, 10);
+    ck_assert_int_eq(wisp_shm_dom->mutation_queue.secondary_chunk_count, 0);
+
+    wisp_is_js_process = false;
+    shm_dom_destroy(wisp_shm_dom, test_name, true);
+    wisp_shm_dom = NULL;
+}
+END_TEST
+
 static Suite *shm_dom_suite(void)
 {
     Suite *s = suite_create("shm_dom");
@@ -461,6 +520,8 @@ static Suite *shm_dom_suite(void)
     tcase_add_test(tc_core, test_shm_alloc_string_oom);
     tcase_add_test(tc_core, test_shm_alloc_string_deduplication_and_linear_probing);
     tcase_add_test(tc_core, test_shm_node_layout_dirty_flags);
+    tcase_add_test(tc_core, test_shm_dom_remap_lock_preservation);
+    tcase_add_test(tc_core, test_bbmq_secondary_chunk_concurrent_drain);
 
     suite_add_tcase(s, tc_core);
 
