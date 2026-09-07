@@ -7543,7 +7543,7 @@ void drain_mutation_queue(shm_dom_t *shm, struct dom_document *doc) {
                     }
                     __atomic_store_n(&desc->tail, ctail, __ATOMIC_RELEASE);
                     shm_mutation_chunk_destroy(sec_chunk, desc->shm_name, false);
-                    if (ctail != chead) {
+                    if (__atomic_load_n(&desc->head, __ATOMIC_ACQUIRE) != ctail) {
                         all_drained = false;
                     }
                 } else {

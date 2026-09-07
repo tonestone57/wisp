@@ -99,6 +99,11 @@ shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t old_capacity, uint32_t new
     uint32_t old_cap = old_capacity;
     size_t old_size = shm_dom_size(old_cap);
 
+    bool was_locked = ((__atomic_load_n(&old_shm->lock, __ATOMIC_RELAXED) & 0x80000000) != 0);
+    if (!was_locked) {
+        shm_dom_lock_write(old_shm);
+    }
+
     if (new_capacity > 10000000) {
         NSLOG(wisp, ERROR, "[SHM_DOM] shm_dom_remap: capacity %u exceeds safety limit", new_capacity);
         shm_dom_unlock_write(old_shm);
@@ -273,6 +278,10 @@ shm_dom_t* shm_dom_remap(shm_dom_t *old_shm, uint32_t old_capacity, uint32_t new
         free(temp_layout_cache);
         free(temp_node_strings);
         free(temp_dom_ptrs);
+    }
+
+    if (was_locked) {
+        shm_dom_lock_write(new_shm);
     }
 
     return new_shm;
