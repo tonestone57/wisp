@@ -48,14 +48,24 @@ JSValue js_css_escape(JSContext *ctx, JSValueConst this_val, int argc, JSValueCo
 
         /* Control characters (0x01 to 0x1F or 0x7F) */
         if ((c >= 0x01 && c <= 0x1F) || c == 0x7F) {
-            out_idx += snprintf(out + out_idx, cap - out_idx, "\\%x ", c);
+            size_t avail = cap > out_idx ? cap - out_idx : 0;
+            int written = snprintf(out + out_idx, avail, "\\%x ", c);
+            if (written > 0) {
+                out_idx += written;
+                if (out_idx >= cap) out_idx = cap - 1;
+            }
             continue;
         }
 
         /* First character handling */
         if (i == 0) {
             if (c >= '0' && c <= '9') {
-                out_idx += snprintf(out + out_idx, cap - out_idx, "\\%x ", c);
+                size_t avail = cap > out_idx ? cap - out_idx : 0;
+                int written = snprintf(out + out_idx, avail, "\\%x ", c);
+                if (written > 0) {
+                    out_idx += written;
+                    if (out_idx >= cap) out_idx = cap - 1;
+                }
                 continue;
             }
             if (c == '-' && len == 1) {
@@ -67,7 +77,12 @@ JSValue js_css_escape(JSContext *ctx, JSValueConst this_val, int argc, JSValueCo
 
         /* Second character is digit preceded by '-' */
         if (i == 1 && (unsigned char)ident[0] == '-' && (c >= '0' && c <= '9')) {
-            out_idx += snprintf(out + out_idx, cap - out_idx, "\\%x ", c);
+            size_t avail = cap > out_idx ? cap - out_idx : 0;
+            int written = snprintf(out + out_idx, avail, "\\%x ", c);
+            if (written > 0) {
+                out_idx += written;
+                if (out_idx >= cap) out_idx = cap - 1;
+            }
             continue;
         }
 
