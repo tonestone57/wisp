@@ -897,58 +897,62 @@ int nsoption_snoptionf(char *string, size_t size, enum nsoption_e option_idx, co
         return -1;
     }
 
-    while ((slen < size) && (fmt[fmtc] != 0)) {
+    while ((slen + 1 < size) && (fmt[fmtc] != 0)) {
         if (fmt[fmtc] == '%') {
             fmtc++;
             switch (fmt[fmtc]) {
             case 'k':
-                slen += snprintf(string + slen, size - slen, "%s", option->key);
+                snprintf(string + slen, size - slen, "%s", option->key);
                 break;
 
             case 'p':
                 if (nsoption_is_set(nsoptions, nsoptions_default, option_idx)) {
-                    slen += snprintf(string + slen, size - slen, "user");
+                    snprintf(string + slen, size - slen, "user");
                 } else {
-                    slen += snprintf(string + slen, size - slen, "default");
+                    snprintf(string + slen, size - slen, "default");
                 }
                 break;
 
             case 't':
                 switch (option->type) {
                 case OPTION_BOOL:
-                    slen += snprintf(string + slen, size - slen, "boolean");
+                    snprintf(string + slen, size - slen, "boolean");
                     break;
 
                 case OPTION_INTEGER:
-                    slen += snprintf(string + slen, size - slen, "integer");
+                    snprintf(string + slen, size - slen, "integer");
                     break;
 
                 case OPTION_UINT:
-                    slen += snprintf(string + slen, size - slen, "unsigned integer");
+                    snprintf(string + slen, size - slen, "unsigned integer");
                     break;
 
                 case OPTION_COLOUR:
-                    slen += snprintf(string + slen, size - slen, "colour");
+                    snprintf(string + slen, size - slen, "colour");
                     break;
 
                 case OPTION_STRING:
-                    slen += snprintf(string + slen, size - slen, "string");
+                    snprintf(string + slen, size - slen, "string");
                     break;
                 }
                 break;
 
 
             case 'V':
-                slen += nsoption_output_value_html(option, size, slen, string);
+                nsoption_output_value_html(option, size, slen, string);
                 break;
             case 'v':
-                slen += nsoption_output_value_text(option, size, slen, string);
+                nsoption_output_value_text(option, size, slen, string);
                 break;
+            }
+            if (string != NULL) {
+                slen = strlen(string);
             }
             fmtc++;
         } else {
             string[slen] = fmt[fmtc];
             slen++;
+            string[slen] = '\0';
             fmtc++;
         }
     }

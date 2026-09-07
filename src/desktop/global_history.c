@@ -254,7 +254,10 @@ static nserror global_history_create_treeview_field_data(struct global_history_e
 
     e->data[GH_TITLE].field = gh_ctx.fields[GH_TITLE].field;
     e->data[GH_TITLE].value = strdup(title);
-    e->data[GH_TITLE].value_len = (e->data[GH_TITLE].value != NULL) ? strlen(title) : 0;
+    if (e->data[GH_TITLE].value == NULL) {
+        return NSERROR_NOMEM;
+    }
+    e->data[GH_TITLE].value_len = strlen(title);
 
     e->data[GH_URL].field = gh_ctx.fields[GH_URL].field;
     e->data[GH_URL].value = nsurl_access(e->url);
@@ -274,13 +277,20 @@ static nserror global_history_create_treeview_field_data(struct global_history_e
     e->data[GH_LAST_VISIT].value_len = len;
 
     len = snprintf(buffer, 16, "%u", data->visits);
-    if (len == 16) {
-        len--;
+    if (len >= 16) {
+        len = 15;
         buffer[len] = '\0';
     }
 
     e->data[GH_VISITS].field = gh_ctx.fields[GH_VISITS].field;
     e->data[GH_VISITS].value = strdup(buffer);
+    if (e->data[GH_VISITS].value == NULL) {
+        free((void *)e->data[GH_TITLE].value);
+        e->data[GH_TITLE].value = NULL;
+        free((void *)e->data[GH_LAST_VISIT].value);
+        e->data[GH_LAST_VISIT].value = NULL;
+        return NSERROR_NOMEM;
+    }
     e->data[GH_VISITS].value_len = len;
 
     return NSERROR_OK;
@@ -352,6 +362,8 @@ static nserror global_history_add_entry_internal(nsurl *url, int slot, const str
 
     err = global_history_create_treeview_field_data(e, data);
     if (err != NSERROR_OK) {
+        nsurl_unref(e->url);
+        free(e);
         return err;
     }
 
