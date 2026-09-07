@@ -242,8 +242,11 @@ void *tile_pool_get_cached(void *owner, int doc_x, int doc_y, int tile_size, boo
                         return raw;
                     } else {
                         return_buffer_locked(raw);
+                        *out_from_cache = false;
                         NSLOG(wisp, ERROR, "Failed to decompress tile (%d,%d)", doc_x, doc_y);
                     }
+                } else {
+                    *out_from_cache = false;
                 }
             }
             break;

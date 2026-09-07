@@ -357,8 +357,23 @@ static JSValue js_crypto_subtle_encrypt(JSContext *ctx, JSValueConst this_val, i
         return make_rejected_promise(ctx, "EncryptInit key/iv failed");
     }
 
+    if (data_len > SIZE_MAX - 32) {
+        EVP_CIPHER_CTX_free(cctx);
+        JS_FreeValue(ctx, raw_key_val);
+        JS_FreeValue(ctx, free_buf);
+        JS_FreeValue(ctx, free_iv_buf);
+        return make_rejected_promise(ctx, "Data size exceeds maximum limit");
+    }
+
     size_t out_alloc = data_len + 32;
     uint8_t *out_buf = malloc(out_alloc);
+    if (!out_buf) {
+        EVP_CIPHER_CTX_free(cctx);
+        JS_FreeValue(ctx, raw_key_val);
+        JS_FreeValue(ctx, free_buf);
+        JS_FreeValue(ctx, free_iv_buf);
+        return make_rejected_promise(ctx, "Memory allocation failed");
+    }
     int out_len1 = 0, out_len2 = 0;
 
     if (EVP_EncryptUpdate(cctx, out_buf, &out_len1, data_ptr, (int)data_len) != 1) {
@@ -495,7 +510,22 @@ static JSValue js_crypto_subtle_decrypt(JSContext *ctx, JSValueConst this_val, i
         EVP_CIPHER_CTX_ctrl(cctx, EVP_CTRL_GCM_SET_TAG, 16, tag);
     }
 
+    if (cipher_bytes_len > SIZE_MAX - 32) {
+        EVP_CIPHER_CTX_free(cctx);
+        JS_FreeValue(ctx, raw_key_val);
+        JS_FreeValue(ctx, free_buf);
+        JS_FreeValue(ctx, free_iv_buf);
+        return make_rejected_promise(ctx, "Data size exceeds maximum limit");
+    }
+
     uint8_t *out_buf = malloc(cipher_bytes_len + 32);
+    if (!out_buf) {
+        EVP_CIPHER_CTX_free(cctx);
+        JS_FreeValue(ctx, raw_key_val);
+        JS_FreeValue(ctx, free_buf);
+        JS_FreeValue(ctx, free_iv_buf);
+        return make_rejected_promise(ctx, "Memory allocation failed");
+    }
     int out_len1 = 0, out_len2 = 0;
 
     if (EVP_DecryptUpdate(cctx, out_buf, &out_len1, data_ptr, (int)cipher_bytes_len) != 1) {

@@ -499,31 +499,11 @@ static void fetch_ipc_finalise(lwc_string *scheme) {
             }
         }
 
-        /* If the child process didn't exit cleanly on its own, terminate it forcefully */
+        /* If the child process didn't exit cleanly on SIGTERM within 200ms, send SIGKILL */
         if (!exited) {
-            NSLOG(wisp, WARNING, "wisp-network (PID %d) did not terminate in 200ms, sending forceful termination", wisp_network_pid);
-            kill(wisp_network_pid, SIGTERM);
-            /* Give it 100ms more to handle SIGTERM, then send SIGKILL if needed */
-            useconds_t kill_sleep_us = 100;
-            useconds_t kill_elapsed_us = 0;
-            const useconds_t kill_max_wait_us = 100000; /* 100ms */
-            while (kill_elapsed_us < kill_max_wait_us) {
-                int status;
-                pid_t res = waitpid(wisp_network_pid, &status, WNOHANG);
-                if (res == wisp_network_pid || (res == -1 && errno == ECHILD)) {
-                    exited = true;
-                    break;
-                }
-                usleep(kill_sleep_us);
-                kill_elapsed_us += kill_sleep_us;
-                if (kill_sleep_us < 2000) {
-                    kill_sleep_us *= 2;
-                }
-            }
-            if (!exited) {
-                kill(wisp_network_pid, SIGKILL);
-                waitpid(wisp_network_pid, NULL, 0);
-            }
+            NSLOG(wisp, WARNING, "wisp-network (PID %d) did not terminate on SIGTERM in 200ms, sending SIGKILL", wisp_network_pid);
+            kill(wisp_network_pid, SIGKILL);
+            waitpid(wisp_network_pid, NULL, 0);
         }
 #endif
         wisp_network_pid = -1;
