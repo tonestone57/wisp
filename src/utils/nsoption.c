@@ -130,6 +130,9 @@ static bool strtooption(const char *value, struct nsoption_s *option)
             option->value.s = NULL;
         } else {
             option->value.s = strdup(value);
+            if (option->value.s == NULL) {
+                ret = false;
+            }
         }
         break;
 

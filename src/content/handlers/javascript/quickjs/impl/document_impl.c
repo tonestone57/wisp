@@ -43,6 +43,9 @@ uint64_t allocate_virtual_shm_node(uint16_t type, const char *name, const char *
             wisp_shm_dom = new_shm;
             wisp_shm_capacity = new_cap;
         } else {
+            if (new_shm) {
+                shm_dom_unlock_write(new_shm);
+            }
             wisp_shm_dom = NULL;
             wisp_shm_capacity = 0;
             return 0;
