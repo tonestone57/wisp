@@ -1680,8 +1680,12 @@ START_TEST(test_quickjs_css_escape)
     dom_document *doc = create_test_document();
     js_newthread(heap, (void*)doc, doc, &thread);
 
-    const char *code = "if (typeof CSS === 'undefined' || typeof CSS.escape !== 'function') throw new Error('no escape');"
-                       "if (CSS.escape('foo') !== 'foo') throw new Error('foo');"
+    const char *code = "if (typeof CSS === 'undefined' || typeof CSS.escape !== 'function') throw new Error('no escape');\n"
+                       "if (CSS.escape('foo') !== 'foo') throw new Error('foo');\n"
+                       "if (CSS.escape('123') !== '\\\\31 23') throw new Error('digits: ' + CSS.escape('123'));\n"
+                       "if (CSS.escape('-123') !== '-\\\\31 23') throw new Error('hyphen digit: ' + CSS.escape('-123'));\n"
+                       "if (CSS.escape('é') !== 'é') throw new Error('non-ascii: ' + CSS.escape('é'));\n"
+                       "if (CSS.escape('foo.bar#baz') !== 'foo\\\\.bar\\\\#baz') throw new Error('symbols: ' + CSS.escape('foo.bar#baz'));\n"
                        "1;";
 
     result = js_exec(thread, (const uint8_t *)code, strlen(code), "test_css_escape");

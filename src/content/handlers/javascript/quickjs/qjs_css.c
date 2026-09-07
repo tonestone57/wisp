@@ -47,6 +47,7 @@ JSValue js_css_escape(JSContext *ctx, JSValueConst this_val, int argc, JSValueCo
         }
 
         /* Control characters (0x01 to 0x1F or 0x7F) */
+        // cppcheck-suppress knownConditionTrueFalse
         if ((c >= 0x01 && c <= 0x1F) || c == 0x7F) {
             size_t avail = cap > out_idx ? cap - out_idx : 0;
             int written = snprintf(out + out_idx, avail, "\\%x ", c);
