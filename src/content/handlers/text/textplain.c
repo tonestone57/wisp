@@ -390,9 +390,10 @@ static void textplain_reformat(struct content *c, int width, int height)
     text->physical_line_count = 0;
 
     if (!line) {
-        text->physical_line = line = malloc(sizeof(struct textplain_line) * (1024 + 3));
-        if (!line)
+        struct textplain_line *new_line = malloc(sizeof(struct textplain_line) * (1024 + 3));
+        if (!new_line)
             goto no_memory;
+        text->physical_line = line = new_line;
     }
 
     line[line_count++].start = line_start = 0;

@@ -207,10 +207,18 @@ static nserror nscss_create_css_data(
     if (ns_error != NSERROR_OK) {
         c->base_url = NULL;
     }
-    if (charset != NULL)
+    if (charset != NULL) {
         c->charset = strdup(charset);
-    else
+        if (c->charset == NULL) {
+            if (c->base_url != NULL) {
+                nsurl_unref(c->base_url);
+                c->base_url = NULL;
+            }
+            return NSERROR_NOMEM;
+        }
+    } else {
         c->charset = NULL;
+    }
 
     params.params_version = CSS_STYLESHEET_PARAMS_VERSION_2;
     params.level = CSS_LEVEL_DEFAULT;

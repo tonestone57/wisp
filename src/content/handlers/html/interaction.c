@@ -801,7 +801,7 @@ gadget_mouse_action(html_content *html, browser_mouse_state mouse, int x, int y,
 
     case GADGET_SUBMIT:
         if (mas->gadget.control->form) {
-            static char status_buffer[200];
+            char status_buffer[200];
 
             snprintf(
                 status_buffer, sizeof status_buffer, messages_get("FormSubmit"), mas->gadget.control->form->action);
@@ -954,7 +954,7 @@ static nserror link_mouse_action(html_content *html, struct browser_window *bw, 
     nserror res;
     char *url_s = NULL;
     size_t url_l = 0;
-    static char status_buffer[200];
+    static __thread char status_buffer[200];
     union content_msg_data msg_data;
 
     if (nsoption_bool(display_decoded_idn) == true) {
