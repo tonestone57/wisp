@@ -695,19 +695,32 @@ int image_cache_snsummaryf(char *string, size_t size, const char *fmt)
 
 #define FMTCHR(chr, fmt, var)                                                                                          \
     case chr:                                                                                                          \
-        slen += snprintf(string + slen, size - slen, "%" fmt, image_cache->var);                                       \
+        if (slen < size) {                                                                                             \
+            int written = snprintf(string + slen, size - slen, "%" fmt, image_cache->var);                             \
+            if (written > 0) {                                                                                         \
+                slen += written;                                                                                       \
+                if (slen >= size) slen = size - 1;                                                                     \
+            }                                                                                                          \
+        }                                                                                                              \
         break
 
 #define FMTPCHR(chr, fmt, var, div)                                                                                    \
     case chr:                                                                                                          \
-        if (pct) {                                                                                                     \
-            if (div > 0) {                                                                                             \
-                slen += snprintf(string + slen, size - slen, "%" PRId64, (uint64_t)((image_cache->var * 100) / div));  \
+        if (slen < size) {                                                                                             \
+            int written;                                                                                               \
+            if (pct) {                                                                                                 \
+                if (div > 0) {                                                                                         \
+                    written = snprintf(string + slen, size - slen, "%" PRId64, (uint64_t)((image_cache->var * 100) / div)); \
+                } else {                                                                                               \
+                    written = snprintf(string + slen, size - slen, "100");                                             \
+                }                                                                                                      \
             } else {                                                                                                   \
-                slen += snprintf(string + slen, size - slen, "100");                                                   \
+                written = snprintf(string + slen, size - slen, "%" fmt, image_cache->var);                             \
             }                                                                                                          \
-        } else {                                                                                                       \
-            slen += snprintf(string + slen, size - slen, "%" fmt, image_cache->var);                                   \
+            if (written > 0) {                                                                                         \
+                slen += written;                                                                                       \
+                if (slen >= size) slen = size - 1;                                                                     \
+            }                                                                                                          \
         }                                                                                                              \
         break
 
@@ -730,7 +743,13 @@ int image_cache_snsummaryf(char *string, size_t size, const char *fmt)
 
 
             case 'j':
-                slen += snprintf(string + slen, size - slen, "%u", (unsigned int)(pct ? 100 : op_count));
+                if (slen < size) {
+                    int written = snprintf(string + slen, size - slen, "%u", (unsigned int)(pct ? 100 : op_count));
+                    if (written > 0) {
+                        slen += written;
+                        if (slen >= size) slen = size - 1;
+                    }
+                }
                 break;
 
                 FMTPCHR('k', "d", hit_count, op_count);
@@ -738,7 +757,13 @@ int image_cache_snsummaryf(char *string, size_t size, const char *fmt)
                 FMTPCHR('m', "d", fail_count, op_count);
 
             case 'n':
-                slen += snprintf(string + slen, size - slen, "%" PRId64, pct ? 100 : op_size);
+                if (slen < size) {
+                    int written = snprintf(string + slen, size - slen, "%" PRId64, pct ? 100 : op_size);
+                    if (written > 0) {
+                        slen += written;
+                        if (slen >= size) slen = size - 1;
+                    }
+                }
                 break;
 
                 FMTPCHR('o', PRId64, hit_size, op_size);
@@ -786,54 +811,110 @@ int image_cache_snentryf(char *string, size_t size, unsigned int entryn, const c
             fmtc++;
             switch (fmt[fmtc]) {
             case 'e':
-                slen += snprintf(string + slen, size - slen, "%u", entryn);
+                if (slen < size) {
+                    int w = snprintf(string + slen, size - slen, "%u", entryn);
+                    if (w > 0) {
+                        slen += w;
+                        if (slen >= size) slen = size - 1;
+                    }
+                }
                 break;
 
             case 'r':
-                slen += snprintf(string + slen, size - slen, "%u", centry->redraw_count);
+                if (slen < size) {
+                    int w = snprintf(string + slen, size - slen, "%u", centry->redraw_count);
+                    if (w > 0) {
+                        slen += w;
+                        if (slen >= size) slen = size - 1;
+                    }
+                }
                 break;
 
             case 'a':
-                slen += snprintf(string + slen, size - slen, "%.2f",
-                    (float)((image_cache->current_age - centry->redraw_age)) / 1000);
+                if (slen < size) {
+                    int w = snprintf(string + slen, size - slen, "%.2f",
+                        (float)((image_cache->current_age - centry->redraw_age)) / 1000);
+                    if (w > 0) {
+                        slen += w;
+                        if (slen >= size) slen = size - 1;
+                    }
+                }
                 break;
 
-
             case 'c':
-                slen += snprintf(string + slen, size - slen, "%d", centry->conversion_count);
+                if (slen < size) {
+                    int w = snprintf(string + slen, size - slen, "%d", centry->conversion_count);
+                    if (w > 0) {
+                        slen += w;
+                        if (slen >= size) slen = size - 1;
+                    }
+                }
                 break;
 
             case 'g':
-                slen += snprintf(string + slen, size - slen, "%.2f",
-                    (float)((image_cache->current_age - centry->bitmap_age)) / 1000);
+                if (slen < size) {
+                    int w = snprintf(string + slen, size - slen, "%.2f",
+                        (float)((image_cache->current_age - centry->bitmap_age)) / 1000);
+                    if (w > 0) {
+                        slen += w;
+                        if (slen >= size) slen = size - 1;
+                    }
+                }
                 break;
 
             case 'k':
-                slen += snprintf(string + slen, size - slen, "%p", centry->content);
+                if (slen < size) {
+                    int w = snprintf(string + slen, size - slen, "%p", centry->content);
+                    if (w > 0) {
+                        slen += w;
+                        if (slen >= size) slen = size - 1;
+                    }
+                }
                 break;
 
             case 'U':
-                slen += snprintf(
-                    string + slen, size - slen, "%s", nsurl_access(llcache_handle_get_url(centry->content->llcache)));
+                if (slen < size) {
+                    int w = snprintf(
+                        string + slen, size - slen, "%s", nsurl_access(llcache_handle_get_url(centry->content->llcache)));
+                    if (w > 0) {
+                        slen += w;
+                        if (slen >= size) slen = size - 1;
+                    }
+                }
                 break;
 
             case 'o':
-                if (nsurl_has_component(llcache_handle_get_url(centry->content->llcache), NSURL_HOST)) {
-                    origin = nsurl_get_component(llcache_handle_get_url(centry->content->llcache), NSURL_HOST);
-
-                    slen += snprintf(string + slen, size - slen, "%s", lwc_string_data(origin));
-
-                    lwc_string_unref(origin);
-                } else {
-                    slen += snprintf(string + slen, size - slen, "%s", "localhost");
+                if (slen < size) {
+                    if (nsurl_has_component(llcache_handle_get_url(centry->content->llcache), NSURL_HOST)) {
+                        origin = nsurl_get_component(llcache_handle_get_url(centry->content->llcache), NSURL_HOST);
+                        int w = snprintf(string + slen, size - slen, "%s", lwc_string_data(origin));
+                        if (w > 0) {
+                            slen += w;
+                            if (slen >= size) slen = size - 1;
+                        }
+                        lwc_string_unref(origin);
+                    } else {
+                        int w = snprintf(string + slen, size - slen, "%s", "localhost");
+                        if (w > 0) {
+                            slen += w;
+                            if (slen >= size) slen = size - 1;
+                        }
+                    }
                 }
                 break;
 
             case 's':
-                if (centry->bitmap != NULL) {
-                    slen += snprintf(string + slen, size - slen, "%" PRIsizet, centry->bitmap_size);
-                } else {
-                    slen += snprintf(string + slen, size - slen, "0");
+                if (slen < size) {
+                    int w = 0;
+                    if (centry->bitmap != NULL) {
+                        w = snprintf(string + slen, size - slen, "%" PRIsizet, centry->bitmap_size);
+                    } else {
+                        w = snprintf(string + slen, size - slen, "0");
+                    }
+                    if (w > 0) {
+                        slen += w;
+                        if (slen >= size) slen = size - 1;
+                    }
                 }
                 break;
             }

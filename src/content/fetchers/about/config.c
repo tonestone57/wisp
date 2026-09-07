@@ -117,7 +117,15 @@ bool fetch_about_config_handler(struct fetch_about_context *ctx)
         }
     } while (elen > 0);
 
-    slen += snprintf(buffer + slen, sizeof buffer - slen, "</table>\n</body>\n</html>\n");
+    if (slen < (int)sizeof(buffer)) {
+        int written = snprintf(buffer + slen, sizeof(buffer) - slen, "</table>\n</body>\n</html>\n");
+        if (written > 0) {
+            slen += written;
+            if (slen >= (int)sizeof(buffer)) {
+                slen = sizeof(buffer) - 1;
+            }
+        }
+    }
 
     res = fetch_about_senddata(ctx, (const uint8_t *)buffer, slen);
     if (res != NSERROR_OK) {
