@@ -135,6 +135,12 @@
 
 #define RING_ITERATE_STOP(ring, iteratorptr) goto iteration_end_ring##_##iteratorptr
 
+#if defined(__GNUC__) || defined(__clang__)
+#define RING_LABEL_UNUSED __attribute__((unused))
+#else
+#define RING_LABEL_UNUSED
+#endif
+
 #define RING_ITERATE_END(ring, iteratorptr)                                                                            \
     }                                                                                                                  \
     while (false)                                                                                                      \
@@ -144,7 +150,6 @@
     while (iteratorptr != ring)                                                                                        \
         ;                                                                                                              \
     }                                                                                                                  \
-    iteration_end_ring##_##iteratorptr:                                                                                \
-    (void)&&iteration_end_ring##_##iteratorptr;
+    iteration_end_ring##_##iteratorptr: RING_LABEL_UNUSED (void)0;
 
 #endif

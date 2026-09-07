@@ -190,9 +190,7 @@ static bool parse_number(const char *data, bool maybe_negative, bool real, css_f
         /* If the negated result is smaller than we can represent
          * then clamp to the minimum value we can store. */
         if (intpart >= (1 << 21)) {
-            intpart = -(1 << 21);
-            fracpart = 0;
-            *value = (intpart << 10);
+            *value = (css_fixed)0x80000000u;
         } else {
             *value = -((intpart << 10) | fracpart);
         }
