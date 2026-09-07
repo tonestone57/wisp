@@ -228,7 +228,8 @@ static inline nserror cookie_manager_field_builder_time(
     fdata->value = NULL;
     fdata->value_len = 0;
 
-    if ((ftime = localtime(value)) != NULL) {
+    struct tm tm_buf;
+    if ((ftime = localtime_r(value, &tm_buf)) != NULL) {
         const size_t vsize = 256;
         char *value = malloc(vsize);
         if (value != NULL) {
@@ -737,7 +738,8 @@ static nserror cookie_manager_tree_node_entry_cb(struct treeview_node_msg msg, v
                 } else {
                     /* Format canonical string for UI consistency */
                     struct tm *ftime;
-                    if ((ftime = localtime(&exp_time)) != NULL) {
+                    struct tm tm_buf2;
+                    if ((ftime = localtime_r(&exp_time, &tm_buf2)) != NULL) {
                         const size_t vsize = 256;
                         char *value = malloc(vsize);
                         if (value != NULL) {

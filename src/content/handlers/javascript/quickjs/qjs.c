@@ -6766,17 +6766,18 @@ static uint32_t assign_node_index(shm_dom_t *shm, struct jsthread *thread, dom_n
             return i;
         }
     }
-    uint32_t idx = shm->node_count++;
+    uint32_t idx = shm->node_count;
     if (idx >= shm->node_capacity) {
         if (thread) {
             shm_dom_ensure_capacity(thread, idx + 1);
             shm = thread->shm_dom;
-            if (!shm)
+            if (!shm || idx >= shm->node_capacity)
                 return 0;
         } else {
             return 0;
         }
     }
+    shm->node_count++;
     shm_dom_get_dom_ptrs(shm)[idx] = (uint64_t)(uintptr_t)node;
     return idx;
 }
@@ -7023,12 +7024,16 @@ void serialize_dom_tree(shm_dom_t *shm, struct jsthread *thread, struct dom_docu
 
     uint32_t doc_idx = assign_node_index(shm, thread, (dom_node *)doc);
     if (thread) {
-        shm = thread->shm_dom;
-        if (!shm) {
+        shm_dom_t *cur_shm = thread->shm_dom;
+        if (!cur_shm) {
+            if (shm) {
+                shm_dom_unlock_write(shm);
+            }
             current_thread_shm = prev_shm;
             thread_shm_locked = false;
             return;
         }
+        shm = cur_shm;
     }
     if (doc_idx != 0) {
         serialize_dom_node(shm, thread, (dom_node *)doc, doc_idx, 0);
