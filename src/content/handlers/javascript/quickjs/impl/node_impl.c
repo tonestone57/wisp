@@ -93,11 +93,23 @@ static uint32_t clone_virtual_node(uint32_t src_id, bool deep) {
     if (type == 1) {
         uint32_t attr_limit = src_sns->attr_count < WISP_SHM_MAX_ATTRIBUTES ? src_sns->attr_count : WISP_SHM_MAX_ATTRIBUTES;
         for (uint32_t i = 0; i < attr_limit; i++) {
+            // Re-fetch pointers using src_id in case previous string allocations triggered a remapping
+            src_strings = shm_dom_get_node_strings(wisp_shm_dom);
+            src_sns = &src_strings[src_id];
             const char *attr_name = wisp_string_ref_data(wisp_shm_dom, src_sns->attrs[i].name);
-            const char *attr_val = wisp_string_ref_data(wisp_shm_dom, src_sns->attrs[i].value);
-            if (attr_name) {
-                new_sns->attrs[new_sns->attr_count].name = wisp_shm_alloc_string(wisp_shm_dom, attr_name);
-                new_sns->attrs[new_sns->attr_count].value = wisp_shm_alloc_string(wisp_shm_dom, attr_val);
+            if (attr_name && attr_name[0] != '\0') {
+                WispStringRef name_ref = wisp_shm_alloc_string(wisp_shm_dom, attr_name);
+                // Re-fetch source pointers in case wisp_shm_alloc_string remapped shared memory
+                src_strings = shm_dom_get_node_strings(wisp_shm_dom);
+                src_sns = &src_strings[src_id];
+                const char *attr_val = wisp_string_ref_data(wisp_shm_dom, src_sns->attrs[i].value);
+                WispStringRef val_ref = wisp_shm_alloc_string(wisp_shm_dom, attr_val);
+
+                // Re-fetch destination pointer after allocating val_ref as well
+                src_strings = shm_dom_get_node_strings(wisp_shm_dom);
+                new_sns = &src_strings[new_id];
+                new_sns->attrs[new_sns->attr_count].name = name_ref;
+                new_sns->attrs[new_sns->attr_count].value = val_ref;
                 new_sns->attr_count++;
             }
         }
