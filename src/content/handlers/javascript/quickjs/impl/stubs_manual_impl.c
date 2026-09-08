@@ -8115,6 +8115,7 @@ struct style_property {
 static char *camel_to_kebab(const char *str) {
     if (!str) return NULL;
     size_t len = strlen(str);
+    if (len > (SIZE_MAX - 1) / 2) return NULL;
     char *res = malloc(len * 2 + 1);
     if (!res) return NULL;
     size_t j = 0;

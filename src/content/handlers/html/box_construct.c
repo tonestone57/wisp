@@ -3479,6 +3479,9 @@ bool box_extract_link(const html_content *content, const dom_string *dsrel, nsur
 	if (rel == NULL)
 		return false;
 
+	if (strlen(rel) > (SIZE_MAX - 1) / 3)
+		return false;
+
 	s1 = s = malloc(3 * strlen(rel) + 1);
 	if (!s)
 		return false;
