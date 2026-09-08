@@ -505,14 +505,15 @@ bool wisp_ipc_find_executable(const char *name, char *out_path, size_t out_len) 
     if (path_env) {
         char *path_copy = strdup(path_env);
         if (path_copy) {
-            char *dir = strtok(path_copy, ":");
+            char *saveptr = NULL;
+            char *dir = strtok_r(path_copy, ":", &saveptr);
             while (dir) {
                 snprintf(out_path, out_len, "%s/%s", dir, name);
                 if (access(out_path, X_OK) == 0) {
                     free(path_copy);
                     return true;
                 }
-                dir = strtok(NULL, ":");
+                dir = strtok_r(NULL, ":", &saveptr);
             }
             free(path_copy);
         }
