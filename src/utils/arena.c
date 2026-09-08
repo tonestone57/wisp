@@ -58,8 +58,11 @@ struct arena *arena_create(size_t chunk_size) {
 static void *arena_alloc_internal(struct arena *a, size_t size) {
     size_t req_size = (size == 0) ? 1 : size;
     size_t alloc_size = ALIGN_UP(req_size, 64);
+    if (alloc_size == (SIZE_MAX & ~(size_t)63)) return NULL;
+
     if (!a->head || ALIGN_UP(a->head->used, 64) + alloc_size > a->head->size) {
         size_t chunk_alloc = alloc_size > a->default_chunk_size ? alloc_size : a->default_chunk_size;
+        if (chunk_alloc > SIZE_MAX - sizeof(arena_chunk) - 64) return NULL;
         arena_chunk *chunk = aligned_alloc(64, ALIGN_UP(sizeof(arena_chunk) + chunk_alloc, 64));
         if (!chunk) return NULL;
         chunk->size = chunk_alloc;
@@ -68,6 +71,7 @@ static void *arena_alloc_internal(struct arena *a, size_t size) {
         a->head = chunk;
     }
     size_t current_used = ALIGN_UP(a->head->used, 64);
+    if (current_used + alloc_size > a->head->size) return NULL;
     void *ptr = a->head->data + current_used;
     a->head->used = current_used + alloc_size;
     memset(ptr, 0, size);
