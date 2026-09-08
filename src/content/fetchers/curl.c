@@ -1222,16 +1222,16 @@ static struct curl_httppost *fetch_curl_postdata_convert(CURL *chandle, const st
              * b) doesn't attempt to open the file ""
              */
             if (control->value[0] == '\0') {
-                /* dummy buffer - needs to be static so
+                /* dummy buffer - needs to be static const so
                  * pointer's still valid when we go out
                  * of scope (not that libcurl should be
                  * attempting to access it, of course).
                  */
-                static char buf;
+                static const char buf = 0;
 
                 code = curl_formadd(&post, &last, CURLFORM_COPYNAME, control->name, CURLFORM_BUFFER, control->value,
                     /* needed, as basename("") == "." */
-                    CURLFORM_FILENAME, "", CURLFORM_BUFFERPTR, &buf, CURLFORM_BUFFERLENGTH, 0, CURLFORM_CONTENTTYPE,
+                    CURLFORM_FILENAME, "", CURLFORM_BUFFERPTR, (void *)&buf, CURLFORM_BUFFERLENGTH, 0, CURLFORM_CONTENTTYPE,
                     "application/octet-stream", CURLFORM_END);
                 if (code != CURL_FORMADD_OK)
                     NSLOG(wisp, INFO, "curl_formadd: %d (%s)", code, control->name);

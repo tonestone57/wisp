@@ -47,6 +47,16 @@ static void wisp_ipc_set_cloexec(int fd) {
 #endif
 }
 
+#ifdef _WIN32
+static INIT_ONCE wsa_init_once = INIT_ONCE_STATIC_INIT;
+static BOOL CALLBACK init_wsa_func(PINIT_ONCE InitOnce, PVOID Parameter, PVOID *Context) {
+    (void)InitOnce; (void)Parameter; (void)Context;
+    WSADATA wsa;
+    WSAStartup(MAKEWORD(2, 2), &wsa);
+    return TRUE;
+}
+#endif
+
 wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     wisp_ipc_handle *h = calloc(1, sizeof(*h));
     if (!h) return NULL;
@@ -60,12 +70,7 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     }
 
 #ifdef _WIN32
-    static bool wsa_init = false;
-    if (!wsa_init) {
-        WSADATA wsa;
-        WSAStartup(MAKEWORD(2, 2), &wsa);
-        wsa_init = true;
-    }
+    InitOnceExecuteOnce(&wsa_init_once, init_wsa_func, NULL, NULL);
     h->fd = (intptr_t)socket(AF_INET, SOCK_STREAM, 0);
     wisp_ipc_set_cloexec(h->fd);
     struct sockaddr_in addr;

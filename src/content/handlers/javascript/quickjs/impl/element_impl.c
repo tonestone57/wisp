@@ -789,7 +789,7 @@ static JSValue js_element_get_layout_property_global(JSContext *ctx, JSValueCons
         return JS_NewInt32(ctx, 0);
     }
 
-    static uint64_t last_layout_pass_us = 0;
+    static __thread uint64_t last_layout_pass_us = 0;
 
     // Maintain dirty layout flags per node in shm_dom_node_t / WispShmLayoutCache.
     // If a node's geometry was not mutated by preceding BBMQ commands, return the
