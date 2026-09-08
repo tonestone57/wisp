@@ -21,6 +21,18 @@
 
 #include <stddef.h>
 
+#ifndef NS_TLS
+#if defined(_MSC_VER)
+#define NS_TLS __declspec(thread)
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define NS_TLS _Thread_local
+#elif defined(__GNUC__) || defined(__clang__)
+#define NS_TLS __thread
+#else
+#define NS_TLS
+#endif
+#endif
+
 #if defined(__NetBSD__)
 #include <sys/param.h>
 #if (defined(__NetBSD_Version__) && __NetBSD_Prereq__(8, 0, 0))
