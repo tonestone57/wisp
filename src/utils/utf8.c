@@ -161,6 +161,9 @@ static struct {
 
 static inline void utf8_clear_cd_cache(void)
 {
+    if (last_cd.cd != 0) {
+        iconv_close(last_cd.cd);
+    }
     last_cd.from[0] = '\0';
     last_cd.to[0] = '\0';
     last_cd.cd = 0;
@@ -193,9 +196,7 @@ static nserror get_cached_cd(const char *enc_from, const char *enc_to, iconv_t *
     }
 
     /* close the last cd - we don't care if this fails */
-    if (last_cd.cd) {
-        iconv_close(last_cd.cd);
-    }
+    utf8_clear_cd_cache();
 
     /* and safely copy the to/from/cd data into last_cd */
     snprintf(last_cd.from, sizeof(last_cd.from), "%s", enc_from);
@@ -208,10 +209,6 @@ static nserror get_cached_cd(const char *enc_from, const char *enc_to, iconv_t *
 /* exported interface documented in utils/utf8.h */
 nserror utf8_finalise(void)
 {
-    if (last_cd.cd != 0)
-        iconv_close(last_cd.cd);
-
-    /* paranoia follows */
     utf8_clear_cd_cache();
 
     return NSERROR_OK;
@@ -290,8 +287,6 @@ static nserror utf8_convert(
             char *new_temp = realloc(temp, new_size);
             if (!new_temp) {
                 free(temp);
-                if (last_cd.cd)
-                    iconv_close(last_cd.cd);
                 utf8_clear_cd_cache();
                 return NSERROR_NOMEM;
             }
@@ -302,8 +297,6 @@ static nserror utf8_convert(
             nserror err = (errno == EILSEQ || errno == EINVAL) ? NSERROR_BAD_ENCODING : NSERROR_NOMEM;
             free(temp);
             /* clear the cached conversion descriptor as it's invalid */
-            if (last_cd.cd)
-                iconv_close(last_cd.cd);
             utf8_clear_cd_cache();
             return err;
         }
@@ -315,6 +308,7 @@ static nserror utf8_convert(
     result = realloc(temp, result_len + 4);
     if (result == NULL) {
         free(temp);
+        utf8_clear_cd_cache();
         return NSERROR_NOMEM;
     }
 
@@ -401,7 +395,6 @@ nserror utf8_to_html(const char *string, const char *encname, size_t len, char *
     origoutlen = outlen = len * 10 * 4 + 4;
     origout = out = malloc(outlen);
     if (out == NULL) {
-        iconv_close(cd);
         utf8_clear_cd_cache();
         return NSERROR_NOMEM;
     }
@@ -418,7 +411,6 @@ nserror utf8_to_html(const char *string, const char *encname, size_t len, char *
                 ret = utf8_convert_html_chunk(cd, in, inlen, &out, &outlen);
                 if (ret != NSERROR_OK) {
                     free(origout);
-                    iconv_close(cd);
                     utf8_clear_cd_cache();
                     return ret;
                 }
@@ -430,7 +422,6 @@ nserror utf8_to_html(const char *string, const char *encname, size_t len, char *
             ret = utf8_convert_html_chunk(cd, pescape, esclen, &out, &outlen);
             if (ret != NSERROR_OK) {
                 free(origout);
-                iconv_close(cd);
                 utf8_clear_cd_cache();
                 return ret;
             }
@@ -448,7 +439,6 @@ nserror utf8_to_html(const char *string, const char *encname, size_t len, char *
         ret = utf8_convert_html_chunk(cd, in, inlen, &out, &outlen);
         if (ret != NSERROR_OK) {
             free(origout);
-            iconv_close(cd);
             utf8_clear_cd_cache();
             return ret;
         }
@@ -462,8 +452,6 @@ nserror utf8_to_html(const char *string, const char *encname, size_t len, char *
     result = realloc(origout, origoutlen - outlen);
     if (result == NULL) {
         free(origout);
-        if (last_cd.cd)
-            iconv_close(last_cd.cd);
         utf8_clear_cd_cache();
         return NSERROR_NOMEM;
     }
