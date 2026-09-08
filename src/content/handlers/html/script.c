@@ -890,6 +890,26 @@ static dom_hubbub_error exec_inline_script(html_content *c, dom_node *node, dom_
         return DOM_HUBBUB_OK; /* no contents, skip */
     }
 
+    content_type ctype = CONTENT_NONE;
+    const char *mime_cstr = mimetype ? (const char *)dom_string_data(mimetype) : NULL;
+    if (is_javascript_mime_type(mime_cstr)) {
+        ctype = CONTENT_JS;
+    } else {
+        /* ensure script handler for content type */
+        exc = dom_string_intern(mimetype, &lwcmimetype);
+        if (exc != DOM_NO_ERR) {
+            NSLOG(wisp, WARNING, "exec_inline_script: dom_string_intern failed");
+            dom_string_unref(script);
+            return DOM_HUBBUB_DOM;
+        }
+
+        ctype = content_factory_type_from_mime_type(lwcmimetype);
+        lwc_string_unref(lwcmimetype);
+        /* Re-retrieve mime_cstr since dom_string_intern might free the old memory block
+         * and reallocate / intern it, rendering the previous pointer invalid. */
+        mime_cstr = mimetype ? (const char *)dom_string_data(mimetype) : NULL;
+    }
+
     nscript = html_process_new_script(c, mimetype, HTML_SCRIPT_INLINE);
     if (nscript == NULL) {
         dom_string_unref(script);
@@ -900,25 +920,6 @@ static dom_hubbub_error exec_inline_script(html_content *c, dom_node *node, dom_
 
     nscript->data.string = script;
     nscript->already_started = true;
-
-    content_type ctype = CONTENT_NONE;
-    const char *mime_cstr = mimetype ? (const char *)dom_string_data(mimetype) : NULL;
-    if (is_javascript_mime_type(mime_cstr)) {
-        ctype = CONTENT_JS;
-    } else {
-        /* ensure script handler for content type */
-        exc = dom_string_intern(mimetype, &lwcmimetype);
-        if (exc != DOM_NO_ERR) {
-            NSLOG(wisp, WARNING, "exec_inline_script: dom_string_intern failed");
-            return DOM_HUBBUB_DOM;
-        }
-
-        ctype = content_factory_type_from_mime_type(lwcmimetype);
-        lwc_string_unref(lwcmimetype);
-        /* Re-retrieve mime_cstr since dom_string_intern might free the old memory block
-         * and reallocate / intern it, rendering the previous pointer invalid. */
-        mime_cstr = mimetype ? (const char *)dom_string_data(mimetype) : NULL;
-    }
 
     NSLOG(wisp, INFO, "exec_inline_script: mimetype_cstr='%s' -> content_type=%d (CONTENT_JS=%d)",
         mime_cstr ? mime_cstr : "", ctype, CONTENT_JS);

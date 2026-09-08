@@ -1323,13 +1323,38 @@ JSValue wisp_element_getElementsByClassName_impl(JSContext *ctx, QJSNodePrivate 
 {
     if (!priv || !priv->node || !classNames) return JS_NewArray(ctx);
     size_t len = strlen(classNames);
-    char *selector = malloc(len + 2);
+    if (len == 0) return JS_NewArray(ctx);
+
+    /* Allocate buffer for selector: each token gets a '.' prefix */
+    char *selector = malloc(len * 2 + 2);
     if (!selector) return JS_ThrowOutOfMemory(ctx);
-    selector[0] = '.';
-    for (size_t i = 0; i < len; i++) {
-        selector[i + 1] = (classNames[i] == ' ') ? '.' : classNames[i];
+
+    size_t sel_len = 0;
+    size_t i = 0;
+    while (i < len) {
+        while (i < len && isspace((unsigned char)classNames[i])) {
+            i++;
+        }
+        if (i >= len) break;
+
+        size_t start = i;
+        while (i < len && !isspace((unsigned char)classNames[i])) {
+            i++;
+        }
+        size_t token_len = i - start;
+        if (token_len > 0) {
+            selector[sel_len++] = '.';
+            memcpy(selector + sel_len, classNames + start, token_len);
+            sel_len += token_len;
+        }
     }
-    selector[len + 1] = '\0';
+    selector[sel_len] = '\0';
+
+    if (sel_len == 0) {
+        free(selector);
+        return JS_NewArray(ctx);
+    }
+
     JSValue res = qjs_dom_query_selector_internal(ctx, (dom_node *)priv->node, selector, true);
     free(selector);
     return res;
