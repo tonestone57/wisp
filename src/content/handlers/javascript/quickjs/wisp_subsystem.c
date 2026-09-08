@@ -244,14 +244,31 @@ extern void wisp_dispatch_message_to_worker_object(WispWorkerHandle *h, WispMess
 static void wisp_worker_flush_to_main_cb(void *p) {
     WispWorkerHandle *h = p;
     WispMessage *msg;
-    while ((msg = wisp_message_queue_pop(&h->from_worker, 0)) != NULL) {
-        wisp_dispatch_message_to_worker_object(h, msg);
-        free(msg->data);
-        free(msg->error_message);
-        free(msg->filename);
-        free(msg);
+    while (1) {
+        while ((msg = wisp_message_queue_pop(&h->from_worker, 0)) != NULL) {
+            wisp_dispatch_message_to_worker_object(h, msg);
+            free(msg->data);
+            free(msg->error_message);
+            free(msg->filename);
+            free(msg);
+        }
+        __atomic_store_n(&h->main_thread_notified, false, __ATOMIC_RELEASE);
+#ifdef _WIN32
+        EnterCriticalSection(&h->from_worker.lock);
+        bool empty = (h->from_worker.head == NULL);
+        LeaveCriticalSection(&h->from_worker.lock);
+#else
+        pthread_mutex_lock(&h->from_worker.lock);
+        bool empty = (h->from_worker.head == NULL);
+        pthread_mutex_unlock(&h->from_worker.lock);
+#endif
+        if (empty) {
+            break;
+        }
+        if (__atomic_exchange_n(&h->main_thread_notified, true, __ATOMIC_ACQUIRE)) {
+            break;
+        }
     }
-    __atomic_store_n(&h->main_thread_notified, false, __ATOMIC_RELAXED);
     wisp_worker_handle_unref(h);
 }
 
@@ -282,11 +299,30 @@ static void start_worker(WispPool *pool, int i) {
 
     pool->workers[i].worker_id = i;
     pool->workers[i].rt = JS_NewRuntime();
-    if (pool->workers[i].rt != NULL) {
-        JS_SetMaxStackSize(pool->workers[i].rt, 8192 * 1024);
-        JS_SetModuleLoaderFunc(pool->workers[i].rt, wisp_module_normalize, wisp_module_loader, NULL);
+    if (pool->workers[i].rt == NULL) {
+        pool->workers[i].running = false;
+#ifdef _WIN32
+        LeaveCriticalSection(&pool->lock);
+#else
+        pthread_mutex_unlock(&pool->lock);
+#endif
+        return;
     }
+    JS_SetMaxStackSize(pool->workers[i].rt, 8192 * 1024);
+    JS_SetModuleLoaderFunc(pool->workers[i].rt, wisp_module_normalize, wisp_module_loader, NULL);
+
     pool->workers[i].ctx = JS_NewContext(pool->workers[i].rt);
+    if (pool->workers[i].ctx == NULL) {
+        JS_FreeRuntime(pool->workers[i].rt);
+        pool->workers[i].rt = NULL;
+        pool->workers[i].running = false;
+#ifdef _WIN32
+        LeaveCriticalSection(&pool->lock);
+#else
+        pthread_mutex_unlock(&pool->lock);
+#endif
+        return;
+    }
     pool->workers[i].pool = pool;
 
 #ifdef _WIN32
@@ -803,10 +839,13 @@ void* wisp_web_worker_routine(void *arg) {
     req.url = h->script_url;
     pthread_mutex_init(&req.mutex, NULL);
     pthread_cond_init(&req.cond, NULL);
-    guit->misc->schedule(0, wisp_worker_fetch_cb, &req);
-    pthread_mutex_lock(&req.mutex);
-    while (!req.completed) pthread_cond_wait(&req.cond, &req.mutex);
-    pthread_mutex_unlock(&req.mutex);
+    if (guit && guit->misc && guit->misc->schedule && guit->misc->schedule(0, wisp_worker_fetch_cb, &req) == NSERROR_OK) {
+        pthread_mutex_lock(&req.mutex);
+        while (!req.completed) pthread_cond_wait(&req.cond, &req.mutex);
+        pthread_mutex_unlock(&req.mutex);
+    } else {
+        req.success = false;
+    }
 
     if (req.success && req.out_buffer) {
         JSValue res = js_eval_with_aot_cache(t->ctx, req.out_buffer, req.out_len, h->script_url, JS_EVAL_TYPE_GLOBAL);
