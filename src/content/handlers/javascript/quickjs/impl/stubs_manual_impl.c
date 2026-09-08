@@ -11850,6 +11850,12 @@ JSValue wisp_vttcue_constructor_impl(JSContext *ctx, double startTime, double en
     cue->endTime = endTime;
     cue->text = strdup(text ? text : "");
     cue->id = strdup("");
+    if (!cue->text || !cue->id) {
+        free(cue->text);
+        free(cue->id);
+        free(cue);
+        return JS_ThrowOutOfMemory(ctx);
+    }
     cue->pauseOnExit = false;
     cue->track = NULL;
 
@@ -17372,29 +17378,36 @@ extern JSValue qjs_new_websocket(JSContext *ctx, void *node, bool is_dom_node);
 
 JSValue wisp_websocket_constructor_impl(JSContext *ctx, const char * url, JSValue protocols) {
     WispWebSocketPrivate *wsp = calloc(1, sizeof(WispWebSocketPrivate));
-    if (wsp) {
-        if (url) wsp->url = strdup(url);
-        wsp->binaryType = strdup("blob");
-        wsp->readyState = 0; // CONNECTING
-        wsp->extensions = strdup("permessage-deflate; client_max_window_bits");
-        if (JS_IsString(protocols)) {
-            const char *p = JS_ToCString(ctx, protocols);
+    if (!wsp) return JS_ThrowOutOfMemory(ctx);
+    if (url) wsp->url = strdup(url);
+    wsp->binaryType = strdup("blob");
+    wsp->readyState = 0; // CONNECTING
+    wsp->extensions = strdup("permessage-deflate; client_max_window_bits");
+    if (JS_IsString(protocols)) {
+        const char *p = JS_ToCString(ctx, protocols);
+        if (p) {
+            wsp->protocol = strdup(p);
+            JS_FreeCString(ctx, p);
+        }
+    } else if (JS_IsObject(protocols)) {
+        JSValue first = JS_GetPropertyUint32(ctx, protocols, 0);
+        if (JS_IsString(first)) {
+            const char *p = JS_ToCString(ctx, first);
             if (p) {
                 wsp->protocol = strdup(p);
                 JS_FreeCString(ctx, p);
             }
-        } else if (JS_IsObject(protocols)) {
-            JSValue first = JS_GetPropertyUint32(ctx, protocols, 0);
-            if (JS_IsString(first)) {
-                const char *p = JS_ToCString(ctx, first);
-                if (p) {
-                    wsp->protocol = strdup(p);
-                    JS_FreeCString(ctx, p);
-                }
-            }
-            JS_FreeValue(ctx, first);
         }
-        if (!wsp->protocol) wsp->protocol = strdup("");
+        JS_FreeValue(ctx, first);
+    }
+    if (!wsp->protocol) wsp->protocol = strdup("");
+    if ((url && !wsp->url) || !wsp->binaryType || !wsp->extensions || !wsp->protocol) {
+        free(wsp->url);
+        free(wsp->binaryType);
+        free(wsp->extensions);
+        free(wsp->protocol);
+        free(wsp);
+        return JS_ThrowOutOfMemory(ctx);
     }
     return qjs_new_websocket(ctx, wsp, false);
 }

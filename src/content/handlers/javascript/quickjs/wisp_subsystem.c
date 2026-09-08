@@ -276,7 +276,12 @@ void wisp_worker_notify_main_thread(WispWorkerHandle *h) {
     if (!__atomic_exchange_n(&h->main_thread_notified, true, __ATOMIC_RELAXED)) {
         if (guit && guit->misc && guit->misc->schedule) {
             wisp_worker_handle_ref(h);
-            guit->misc->schedule(0, wisp_worker_flush_to_main_cb, h);
+            if (guit->misc->schedule(0, wisp_worker_flush_to_main_cb, h) != NSERROR_OK) {
+                __atomic_store_n(&h->main_thread_notified, false, __ATOMIC_RELEASE);
+                wisp_worker_handle_unref(h);
+            }
+        } else {
+            __atomic_store_n(&h->main_thread_notified, false, __ATOMIC_RELEASE);
         }
     }
 }

@@ -234,8 +234,14 @@ extern void (*wisp_gui_pump_events_hook)(void);
 
 static size_t wisp_curl_write_callback(void *contents, size_t size, size_t nmemb, void *userp)
 {
+    if (size > 0 && nmemb > (SIZE_MAX - 1) / size) {
+        return 0; /* overflow */
+    }
     size_t realsize = size * nmemb;
     struct wisp_curl_buffer *mem = (struct wisp_curl_buffer *)userp;
+    if (!mem || realsize > SIZE_MAX - mem->size - 1) {
+        return 0; /* overflow */
+    }
 
     char *ptr = realloc(mem->data, mem->size + realsize + 1);
     if (!ptr) {
@@ -438,7 +444,7 @@ static char *wisp_read_local_file(const char *filename, size_t *out_len)
     fseek(f, 0, SEEK_END);
     long sz = ftell(f);
     fseek(f, 0, SEEK_SET);
-    if (sz < 0) {
+    if (sz < 0 || (size_t)sz >= SIZE_MAX - 1) {
         fclose(f);
         return NULL;
     }
@@ -920,6 +926,11 @@ void wisp_queue_precompile(const uint8_t *txt, size_t txtlen, const char *name, 
     memcpy(pa->txt, txt, txtlen);
     pa->txtlen = txtlen;
     pa->name = name ? strdup(name) : NULL;
+    if (name && !pa->name) {
+        free(pa->txt);
+        free(pa);
+        return;
+    }
     pa->is_module = is_module;
 
     if (!wisp_dispatch_js(NULL, do_precompile, pa, 0.5f)) {
@@ -8432,6 +8443,7 @@ bool qjs_execute_pending_all(void)
         struct jsthread *t = heap->threads;
         while (t && thread_count < MAX_THREADS_SNAPSHOT) {
             if (t->ctx && !t->closed) {
+                js_thread_enter(t);
                 threads[thread_count++] = t;
             }
             t = t->next_in_heap;
@@ -8443,7 +8455,6 @@ bool qjs_execute_pending_all(void)
     for (int i = 0; i < thread_count; i++) {
         jsthread *t = threads[i];
         if (t && t->ctx && !t->closed) {
-            js_thread_enter(t);
             JSRuntime *rt = JS_GetRuntime(t->ctx);
             JSContext *ctx1;
             int job_ret;
@@ -8458,8 +8469,8 @@ bool qjs_execute_pending_all(void)
                 }
             }
             qjs_execute_timers(t->ctx);
-            js_thread_leave(t);
         }
+        js_thread_leave(t);
     }
     return true;
 }
