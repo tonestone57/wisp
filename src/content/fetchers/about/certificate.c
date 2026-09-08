@@ -480,6 +480,7 @@ static char *bindup(unsigned char *bin, unsigned int binlen)
     if (binlen == 0) return strdup("");
 
     /* allow space for XY to expand to XX:YY: */
+    if (binlen > (SIZE_MAX - 1) / 3) return NULL;
     dst = malloc(binlen * 3 + 1);
 
     if (dst != NULL) {

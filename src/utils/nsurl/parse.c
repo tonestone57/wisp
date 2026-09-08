@@ -1504,6 +1504,8 @@ nserror nsurl_create(const char *const url_s, nsurl **url)
     length = nsurl__get_longest_section(&m);
 
     /* Allocate enough memory to url escape the longest section */
+    if (length > (SIZE_MAX - 1) / 3)
+        return NSERROR_NOMEM;
     buff = malloc(length * 3 + 1);
     if (buff == NULL)
         return NSERROR_NOMEM;

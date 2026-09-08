@@ -146,7 +146,7 @@ static nserror idna__ace_to_ucs4(const char *ace_label, size_t ace_len, int32_t 
         return NSERROR_BAD_SIZE;
     }
 
-    ucs4 = malloc(output_length * 4);
+    ucs4 = malloc(output_length * sizeof(int32_t));
     if (ucs4 == NULL) {
         return NSERROR_NOMEM;
     }
@@ -398,7 +398,7 @@ static nserror idna__utf8_to_ucs4(const char *utf8_label, size_t len, int32_t **
         return NSERROR_BAD_SIZE;
     }
 
-    nfc_label = malloc(len * 4);
+    nfc_label = malloc(len * sizeof(int32_t));
     if (nfc_label == NULL) {
         return NSERROR_NOMEM;
     }
@@ -443,7 +443,7 @@ static nserror idna__ucs4_to_utf8(const int32_t *ucs4_label, size_t ucs4_len, ch
         return NSERROR_BAD_SIZE;
     }
 
-    nfc_label = malloc(1 + ucs4_len * 4);
+    nfc_label = malloc(sizeof(int32_t) + ucs4_len * sizeof(int32_t));
     if (nfc_label == NULL) {
         return NSERROR_NOMEM;
     }

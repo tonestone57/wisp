@@ -164,8 +164,8 @@ static inline void doc_rwlock_rdlock(doc_rwlock_t *lock) {
 
     /* 2. Unified wait loop to prevent writer races and handle full slot conditions */
     while (true) {
-        /* Wait while there is an active writer (unless the writer is ourselves) */
-        while (lock->has_writer && !pthread_equal(lock->writer_thread, self)) {
+        /* Wait while there is an active writer (unless the writer is ourselves) or pending writers exist */
+        while ((lock->has_writer || lock->pending_writers > 0) && !pthread_equal(lock->writer_thread, self)) {
             pthread_cond_wait(&lock->cond, &lock->mutex);
         }
 

@@ -212,7 +212,9 @@ WispMessage* wisp_message_queue_pop(WispMessageQueue *q, int timeout_ms) {
     pthread_mutex_lock(&q->lock);
     if (!q->head && timeout_ms != 0) {
         if (timeout_ms < 0) {
-            pthread_cond_wait(&q->cond, &q->lock);
+            while (!q->head) {
+                pthread_cond_wait(&q->cond, &q->lock);
+            }
         } else {
             struct timespec ts;
             clock_gettime(CLOCK_REALTIME, &ts);

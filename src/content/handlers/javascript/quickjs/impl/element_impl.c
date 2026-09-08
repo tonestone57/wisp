@@ -1326,6 +1326,7 @@ JSValue wisp_element_getElementsByClassName_impl(JSContext *ctx, QJSNodePrivate 
     if (len == 0) return JS_NewArray(ctx);
 
     /* Allocate buffer for selector: each token gets a '.' prefix */
+    if (len > (SIZE_MAX - 2) / 2) return JS_ThrowOutOfMemory(ctx);
     char *selector = malloc(len * 2 + 2);
     if (!selector) return JS_ThrowOutOfMemory(ctx);
 
