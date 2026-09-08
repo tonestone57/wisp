@@ -3535,12 +3535,17 @@ void *wisp_get_default_quotes_ptr(void) {
     static lwc_string *default_quotes[5];
     static bool init_quotes = false;
     if (!__atomic_load_n(&init_quotes, __ATOMIC_ACQUIRE)) {
-        default_quotes[0] = corestring_lwc_open_double_quote;
-        default_quotes[1] = corestring_lwc_close_double_quote;
-        default_quotes[2] = corestring_lwc_open_single_quote;
-        default_quotes[3] = corestring_lwc_close_single_quote;
-        default_quotes[4] = NULL;
-        __atomic_store_n(&init_quotes, true, __ATOMIC_RELEASE);
+        static pthread_mutex_t quotes_lock = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_lock(&quotes_lock);
+        if (!init_quotes) {
+            default_quotes[0] = corestring_lwc_open_double_quote;
+            default_quotes[1] = corestring_lwc_close_double_quote;
+            default_quotes[2] = corestring_lwc_open_single_quote;
+            default_quotes[3] = corestring_lwc_close_single_quote;
+            default_quotes[4] = NULL;
+            __atomic_store_n(&init_quotes, true, __ATOMIC_RELEASE);
+        }
+        pthread_mutex_unlock(&quotes_lock);
     }
     return default_quotes;
 }
@@ -3549,8 +3554,13 @@ void *wisp_get_default_voice_family_ptr(void) {
     static lwc_string *default_voice_family[1];
     static bool init_voice_family = false;
     if (!__atomic_load_n(&init_voice_family, __ATOMIC_ACQUIRE)) {
-        default_voice_family[0] = NULL;
-        __atomic_store_n(&init_voice_family, true, __ATOMIC_RELEASE);
+        static pthread_mutex_t voice_lock = PTHREAD_MUTEX_INITIALIZER;
+        pthread_mutex_lock(&voice_lock);
+        if (!init_voice_family) {
+            default_voice_family[0] = NULL;
+            __atomic_store_n(&init_voice_family, true, __ATOMIC_RELEASE);
+        }
+        pthread_mutex_unlock(&voice_lock);
     }
     return default_voice_family;
 }

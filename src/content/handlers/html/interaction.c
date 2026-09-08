@@ -1155,7 +1155,7 @@ mouse_action_drag_none(html_content *html, struct browser_window *bw, browser_mo
      *
      * not on heap to avoid allocation or stack because it is large
      */
-    static struct mouse_action_state mas;
+    static __thread struct mouse_action_state mas;
 
     res = get_mouse_action_node(html, x, y, &mas);
     if (res != NSERROR_OK) {

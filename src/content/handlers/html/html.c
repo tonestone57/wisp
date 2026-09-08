@@ -1653,7 +1653,7 @@ static void html_reformat(struct content *c, int width, int height)
 	NSLOG(wisp, DEBUG, "PROFILER: START HTML layout %p", c);
 
 	htmlc->reflowing = true;
-	static int reformat_count = 0;
+	static __thread int reformat_count = 0;
 	reformat_count++;
 	PERF("html_reformat #%d START (active=%d)", reformat_count, c->active);
 
