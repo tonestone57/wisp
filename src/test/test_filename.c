@@ -63,7 +63,8 @@ START_TEST(filename_request_rollover_test)
     for (int i = 0; i < 64; i++) {
         const char *req = filename_request();
         ck_assert_ptr_nonnull(req);
-        strncpy(first_dir_files[i], req, sizeof(first_dir_files[i]));
+        strncpy(first_dir_files[i], req, sizeof(first_dir_files[i]) - 1);
+        first_dir_files[i][sizeof(first_dir_files[i]) - 1] = '\0';
 
         /* Verify all 64 files share the exact same 9-char directory prefix */
         ck_assert_int_eq(strncmp(first_dir_files[i], first_dir_files[0], 9), 0);
@@ -73,7 +74,8 @@ START_TEST(filename_request_rollover_test)
     const char *req65 = filename_request();
     ck_assert_ptr_nonnull(req65);
     char file65[32];
-    strncpy(file65, req65, sizeof(file65));
+    strncpy(file65, req65, sizeof(file65) - 1);
+    file65[sizeof(file65) - 1] = '\0';
 
     /* Verify file65 prefix is different from first directory */
     ck_assert_str_ne(file65, first_dir_files[0]);
@@ -145,12 +147,14 @@ START_TEST(filename_request_test)
     const char *name1 = filename_request();
     ck_assert_ptr_nonnull(name1);
     char buf1[256];
-    strncpy(buf1, name1, sizeof(buf1));
+    strncpy(buf1, name1, sizeof(buf1) - 1);
+    buf1[sizeof(buf1) - 1] = '\0';
 
     const char *name2 = filename_request();
     ck_assert_ptr_nonnull(name2);
     char buf2[256];
-    strncpy(buf2, name2, sizeof(buf2));
+    strncpy(buf2, name2, sizeof(buf2) - 1);
+    buf2[sizeof(buf2) - 1] = '\0';
 
     ck_assert_str_ne(buf1, buf2);
 

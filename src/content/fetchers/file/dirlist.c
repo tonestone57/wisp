@@ -282,7 +282,7 @@ bool dirlist_generate_row(bool even, bool directory, nsurl *url, char *name, con
 
     if (size < 0) {
         unit = "";
-        strncpy(size_string, "", sizeof size_string);
+        size_string[0] = '\0';
     } else {
         unit = messages_get(dirlist_filesize_unit((unsigned long)size));
         if (!unit) unit = "";
