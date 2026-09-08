@@ -440,7 +440,7 @@ static LRESULT nsws_drawable_char(struct gui_window *gw, HWND hwnd, WPARAM wpara
     const uint32_t utf16_lo_surrogate_start = 0xDC00;
     const uint32_t utf16_surrogate_end = 0xDFFF;
 
-    static uint32_t highSurrogate = 0;
+    static NS_TLS uint32_t highSurrogate = 0;
 
     if ((nskey >= utf16_hi_surrogate_start) && (nskey < utf16_lo_surrogate_start)) {
         highSurrogate = nskey;

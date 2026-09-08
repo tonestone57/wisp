@@ -38,6 +38,9 @@
 /** flag to enable verbose logging */
 bool verbose_log = false;
 
+/** Start time of process logging */
+static struct timeval log_start_tv;
+
 /** The stream to which logging is sent */
 static FILE *logfile;
 
@@ -258,17 +261,15 @@ static int timeval_subtract(struct timeval *result, struct timeval *x, struct ti
  */
 static const char *nslog_gettime(char *buff, size_t buff_size)
 {
-    static struct timeval start_tv;
-
     struct timeval tv;
     struct timeval now_tv;
 
-    if (!timerisset(&start_tv)) {
-        gettimeofday(&start_tv, NULL);
+    if (!timerisset(&log_start_tv)) {
+        gettimeofday(&log_start_tv, NULL);
     }
     gettimeofday(&now_tv, NULL);
 
-    timeval_subtract(&tv, &now_tv, &start_tv);
+    timeval_subtract(&tv, &now_tv, &log_start_tv);
 
     snprintf(buff, buff_size, "(%ld.%06ld)", (long)tv.tv_sec, (long)tv.tv_usec);
 
@@ -431,6 +432,10 @@ nserror nslog_set_filter(const char *filter)
 nserror nslog_init(nslog_ensure_t *ensure, int *pargc, char **argv)
 {
     struct utsname utsname;
+
+    if (!timerisset(&log_start_tv)) {
+        gettimeofday(&log_start_tv, NULL);
+    }
     nserror ret = NSERROR_OK;
     int i;
 
