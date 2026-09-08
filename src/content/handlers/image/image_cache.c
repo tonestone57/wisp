@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <wisp/utils/config.h>
 #include <wisp/bitmap.h>
 #include <wisp/content/content_protected.h>
 #include <wisp/content/llcache.h>
@@ -319,12 +320,15 @@ static void image_cache__free_entry(struct image_cache_entry_s *centry)
 static void image_cache__clean(struct image_cache_s *icache)
 {
     struct image_cache_entry_s *centry = icache->entries;
+    static NS_TLS unsigned int rand_seed = 12345;
 
     while (centry != NULL) {
         if ((icache->current_age - centry->redraw_age) > icache->params.bg_clean_time) {
             /* only consider older entries, avoids active entries */
+            rand_seed = rand_seed * 1103515245 + 12345;
+            int prng_val = (int)((rand_seed / 65536) % 32768);
             if ((icache->total_bitmap_size > (icache->params.limit - icache->params.hysteresis)) &&
-                (rand() > (RAND_MAX / 2))) {
+                (prng_val > (32768 / 2))) {
                 pthread_mutex_lock(&centry->lock);
                 if (!centry->decoding) {
                     image_cache__free_bitmap(centry);
