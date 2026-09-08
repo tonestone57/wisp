@@ -156,8 +156,15 @@ static void nsc_gmtime_fallback(time_t t, int *year, int *month, int *day, int *
 const char *rfc1123_date(time_t t)
 {
     static __thread char ret[64];
+    struct tm tm_buf;
+    struct tm *tm;
 
-    struct tm *tm = gmtime(&t);
+#ifdef _WIN32
+    tm = (gmtime_s(&tm_buf, &t) == 0) ? &tm_buf : NULL;
+#else
+    tm = gmtime_r(&t, &tm_buf);
+#endif
+
     if (tm != NULL) {
         snprintf(ret, sizeof ret, "%s, %02d %s %d %02d:%02d:%02d GMT", weekdays_short[tm->tm_wday], tm->tm_mday,
             months[tm->tm_mon], tm->tm_year + 1900, tm->tm_hour, tm->tm_min, tm->tm_sec);
@@ -182,9 +189,15 @@ int nsc_sntimet(char *str, size_t size, time_t *timep)
 
     return snprintf(str, size, "%lld", val);
 #else
+    struct tm ltm_buf;
     struct tm *ltm;
 
-    ltm = localtime(timep);
+#ifdef _WIN32
+    ltm = (localtime_s(&ltm_buf, timep) == 0) ? &ltm_buf : NULL;
+#else
+    ltm = localtime_r(timep, &ltm_buf);
+#endif
+
     if (ltm == NULL) {
         return -1;
     }

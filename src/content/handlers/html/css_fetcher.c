@@ -292,7 +292,7 @@ nserror html_css_fetcher_add_item(dom_string *data, nsurl *base_url, uint32_t *k
         return NSERROR_NOMEM;
     }
 
-    *key = item->key = current_key++;
+    *key = item->key = __atomic_fetch_add(&current_key, 1, __ATOMIC_RELAXED);
     item->data = dom_string_ref(data);
     item->base_url = nsurl_ref(base_url);
 
