@@ -4588,6 +4588,15 @@ void urldb_load_cookies(const char *filename)
         c->domain = strdup(domain);
         c->path_from_set = path_specified;
         c->path = strdup(path);
+        if (!c->name || !c->value || !c->domain || !c->path) {
+            free(c->name);
+            free(c->value);
+            free(c->comment);
+            free(c->domain);
+            free(c->path);
+            free(c);
+            break;
+        }
         if (c->path) {
             c->path_len = strlen(c->path);
         }

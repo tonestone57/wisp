@@ -142,7 +142,6 @@ nserror url_escape(const char *unescaped, bool sptoplus, const char *escexceptio
     if (len > (SIZE_MAX - 1) / 3) {
         return NSERROR_BAD_SIZE;
     }
-
     escaped = malloc(len * 3 + 1);
     if (escaped == NULL) {
         return NSERROR_NOMEM;

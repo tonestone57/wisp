@@ -2501,6 +2501,10 @@ static nserror initialise(const struct llcache_store_parameters *parameters)
     }
 
     newstate->path = strdup(parameters->path);
+    if (newstate->path == NULL) {
+        free(newstate);
+        return NSERROR_NOMEM;
+    }
     newstate->limit = parameters->limit;
     newstate->hysteresis = parameters->hysteresis;
     newstate->journal_fd = -1;
