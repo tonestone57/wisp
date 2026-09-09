@@ -242,16 +242,20 @@ static void mark_font_loaded_locked(const struct font_variant_id *id)
     entry = malloc(sizeof(struct loaded_font));
     if (entry != NULL) {
         entry->variant.family_name = strdup(id->family_name);
-        entry->variant.weight = id->weight;
-        entry->variant.style = id->style;
-        entry->last_used = ++font_use_counter;
-        entry->next = loaded_fonts;
-        loaded_fonts = entry;
-        loaded_font_count++;
+        if (entry->variant.family_name == NULL) {
+            free(entry);
+        } else {
+            entry->variant.weight = id->weight;
+            entry->variant.style = id->style;
+            entry->last_used = ++font_use_counter;
+            entry->next = loaded_fonts;
+            loaded_fonts = entry;
+            loaded_font_count++;
 
-        NSLOG(wisp, INFO, "Marked font '%s' (weight=%d style=%d) as loaded", id->family_name, id->weight, id->style);
+            NSLOG(wisp, INFO, "Marked font '%s' (weight=%d style=%d) as loaded", id->family_name, id->weight, id->style);
 
-        evict_lru_font_if_needed();
+            evict_lru_font_if_needed();
+        }
     }
 }
 

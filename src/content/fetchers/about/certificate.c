@@ -449,6 +449,7 @@ static char *hexdup(const char *hex)
     int cn = 0;
 
     hexlen = strlen(hex);
+    if (hexlen > (SIZE_MAX - 2) / 3) return NULL;
     /* allow space for XXYY to XX:YY: */
     dst = malloc(((hexlen * 3) + 2) / 2);
 

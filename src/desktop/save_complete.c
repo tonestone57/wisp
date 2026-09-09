@@ -227,6 +227,9 @@ static uint8_t *save_complete_rewrite_stylesheet_urls(
         }
     }
 
+    if (imports > (SIZE_MAX - size) / 20) {
+        return NULL;
+    }
     rewritten = malloc(size + imports * 20);
     if (rewritten == NULL)
         return NULL;
