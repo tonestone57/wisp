@@ -9,10 +9,9 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#ifdef DOM_DEBUG_PENDING_NODES
+#define DOM_DEBUG_PENDING_NODES 1
 #include <stddef.h>
 #include <stdio.h>
-#endif
 
 #include <dom/core/attr.h>
 #include <dom/core/document.h>
