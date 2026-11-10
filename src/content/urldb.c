@@ -2149,8 +2149,10 @@ static struct host_part *urldb_add_host(const char *host)
         return d;
     }
 
-    /* Copy host string, so we can corrupt it */
+    /* Copy host string into fixed-size buffer, safely truncating overlong hostnames
+     * (>255 bytes) without buffer overflow per urldb_overlong_host_test */
     snprintf(buf, sizeof(buf), "%s", host);
+    buf[sizeof(buf) - 1] = '\0';
 
     /* Process FQDN segments backwards */
     do {

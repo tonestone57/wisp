@@ -4124,6 +4124,7 @@ JSValue qjs_new_htmlcollection_with_type(JSContext *ctx, void *node, bool is_dom
         QJSHTMLCollectionPrivate *priv = (QJSHTMLCollectionPrivate *)JS_GetOpaque(obj, qjs_htmlcollection_class_id);
         if (priv && type) {
             strncpy(priv->type_name, type, sizeof(priv->type_name) - 1);
+            priv->type_name[sizeof(priv->type_name) - 1] = '\0';
         }
     }
     return obj;

@@ -1581,6 +1581,10 @@ static void fetch_curl_cache_handle(CURL *handle, lwc_string *host)
     /* The table isn't full yet, so make a shiny new handle to add to the
      * ring */
     h = (struct cache_handle *)malloc(sizeof(struct cache_handle));
+    if (h == NULL) {
+        curl_easy_cleanup(handle);
+        return;
+    }
     h->handle = handle;
     h->host = lwc_string_ref(host);
     RING_INSERT(curl_handle_ring, h);
