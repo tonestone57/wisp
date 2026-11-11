@@ -768,7 +768,7 @@ js_task_t *wisp_pool_pop_task(WispPool *pool) {
     return NULL;
 }
 
-static int js_worker_interrupt_handler(JSRuntime *rt, void *opaque) {
+static int js_worker_interrupt_handler(JSContext *ctx, void *opaque) {
     WispWorkerHandle *h = opaque;
     if (h->terminated) return 1;
     return 0;

@@ -10,9 +10,13 @@
 
 JSClassID qjs_imagedata_class_id;
 
-static void imagedata_free_buffer(JSRuntime *rt, void *opaque, void *ptr)
+static void *imagedata_free_buffer(JSRuntime *rt, void *opaque, void *ptr, size_t size)
 {
-    free(ptr);
+    if (size == 0) {
+        free(ptr);
+        return NULL;
+    }
+    return realloc(ptr, size);
 }
 
 static void imagedata_finalizer(JSRuntime *rt, JSValue val)
@@ -107,7 +111,7 @@ JSValue wisp_imagedata_constructor_0_impl(JSContext *ctx, uint32_t sw, uint32_t 
     uint8_t *buf = calloc(1, size);
     if (!buf) return JS_ThrowOutOfMemory(ctx);
 
-    JSValue array_buf = JS_NewArrayBuffer(ctx, buf, size, imagedata_free_buffer, NULL, false);
+    JSValue array_buf = JS_NewArrayBuffer(ctx, buf, size, 0, imagedata_free_buffer, NULL, false);
     if (JS_IsException(array_buf)) {
         free(buf);
         return array_buf;
