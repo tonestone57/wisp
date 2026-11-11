@@ -272,6 +272,11 @@ static nserror global_history_create_treeview_field_data(struct global_history_e
         }
     }
 
+    if (last_visited == NULL) {
+        last_visited = strdup("-");
+        len = 1;
+    }
+
     e->data[GH_LAST_VISIT].field = gh_ctx.fields[GH_LAST_VISIT].field;
     e->data[GH_LAST_VISIT].value = last_visited;
     e->data[GH_LAST_VISIT].value_len = len;

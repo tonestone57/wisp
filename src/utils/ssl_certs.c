@@ -238,8 +238,12 @@ nserror cert_chain_to_query(struct cert_chain *chain, struct nsurl **url_out)
 
     allocsize = 20;
     for (depth = 0; depth < chain->depth; depth++) {
+        size_t encoded_len = 4 * ((chain->certs[depth].der_length + 2) / 3);
+        if (encoded_len > SIZE_MAX - 7 - 20 || allocsize > SIZE_MAX - 7 - 20 - encoded_len) {
+            return NSERROR_BAD_SIZE;
+        }
         allocsize += 7; /* allow for &cert= */
-        allocsize += 4 * ((chain->certs[depth].der_length + 2) / 3);
+        allocsize += encoded_len;
         if (chain->certs[depth].err != SSL_CERT_ERR_OK) {
             allocsize += 20; /* allow for &certerr=4000000000 */
         }

@@ -310,7 +310,7 @@ void js_process_handle_ipc_msg(const wisp_ipc_msg *msg) {
             memcpy(&eval_flags, msg->data + 4, 4);
             memcpy(&name_len, msg->data + 8, 4);
 
-            if (name_len > msg->length - 12) {
+            if (name_len > msg->length - 12 || name_len > 65536) {
                 wisp_ipc_msg response;
                 memset(&response, 0, sizeof(response));
                 response.type = WISP_IPC_MSG_JS_EXEC;

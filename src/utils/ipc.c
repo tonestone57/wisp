@@ -107,6 +107,7 @@ wisp_ipc_handle* wisp_ipc_create_server(const char *name) {
     unlink(name);
     if (bind(h->fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         close(h->fd);
+        unlink(name);
         free(h->name);
         free(h);
         return NULL;
@@ -305,7 +306,19 @@ nserror wisp_ipc_recv(wisp_ipc_handle *handle, wisp_ipc_msg *msg) {
     }
     if (msg->length > 0) {
         msg->data = malloc(msg->length);
-        if (!msg->data) return NSERROR_NOMEM;
+        if (!msg->data) {
+            /* Drain unallocated payload to keep IPC stream frame-aligned */
+            uint8_t discard[1024];
+            size_t remaining = msg->length;
+            while (remaining > 0) {
+                size_t chunk = remaining > sizeof(discard) ? sizeof(discard) : remaining;
+                if (read_all(handle->fd, discard, chunk, false) != (ssize_t)chunk) {
+                    return NSERROR_INVALID;
+                }
+                remaining -= chunk;
+            }
+            return NSERROR_NOMEM;
+        }
         if (read_all(handle->fd, msg->data, msg->length, false) != (ssize_t)msg->length) {
             free(msg->data);
             msg->data = NULL;

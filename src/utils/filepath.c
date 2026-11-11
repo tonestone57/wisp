@@ -207,8 +207,12 @@ char **filepath_generate(char *const *pathv, const char *const *langv)
         if ((stat(pathv[pathc], &dstat) == 0) && S_ISDIR(dstat.st_mode)) {
             /* path element exists and is a directory */
             langc = 0;
-            while (langv[langc] != NULL) {
+            while (langv && langv[langc] != NULL) {
                 tmppathlen = snprintf(NULL, 0, "%s/%s", pathv[pathc], langv[langc]);
+                if (tmppathlen < 0 || tmppathlen >= PATH_MAX) {
+                    langc++;
+                    continue;
+                }
                 tmppath = malloc(tmppathlen + 1);
                 if (tmppath == NULL) {
                     break;
@@ -225,7 +229,10 @@ char **filepath_generate(char *const *pathv, const char *const *langv)
 
                 langc++;
             }
-            respath[respathc++] = strdup(pathv[pathc]);
+            char *dup_path = strdup(pathv[pathc]);
+            if (dup_path) {
+                respath[respathc++] = dup_path;
+            }
         }
         pathc++;
     }
