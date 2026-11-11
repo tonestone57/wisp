@@ -1275,7 +1275,7 @@ void js_initialise(void)
 
 void (*wisp_gui_pump_events_hook)(void) = NULL;
 
-static int qjs_interrupt_handler(JSRuntime *rt, void *opaque)
+static int qjs_interrupt_handler(JSContext *ctx, void *opaque)
 {
     struct jsheap *heap = opaque;
     uint64_t now;

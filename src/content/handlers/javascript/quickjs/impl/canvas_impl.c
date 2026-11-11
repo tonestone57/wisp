@@ -24,7 +24,14 @@
 #include <wisp/layout.h>
 #include "utils/libdom.h"
 
-static void canvas_free_buffer(JSRuntime *rt, void *opaque, void *ptr) { free(ptr); }
+static void *canvas_free_buffer(JSRuntime *rt, void *opaque, void *ptr, size_t size)
+{
+    if (size == 0) {
+        free(ptr);
+        return NULL;
+    }
+    return realloc(ptr, size);
+}
 
 /* Forward declarations for generated headers */
 #include "JSHTMLCanvasElement.gen.h"
@@ -1061,7 +1068,7 @@ JSValue wisp_canvasrenderingcontext2d_createImageData_0_impl(JSContext *ctx, QJS
     uint8_t *data = calloc(1, size);
     if (!data) return JS_ThrowOutOfMemory(ctx);
 
-    JSValue buffer = JS_NewArrayBuffer(ctx, data, size, canvas_free_buffer, NULL, false);
+    JSValue buffer = JS_NewArrayBuffer(ctx, data, size, 0, canvas_free_buffer, NULL, false);
     if (JS_IsException(buffer)) {
         free(data);
         return buffer;
@@ -1141,7 +1148,7 @@ JSValue wisp_canvasrenderingcontext2d_getImageData_impl(JSContext *ctx, QJSNodeP
         memset(data, 255, size);
     }
 
-    JSValue array_buffer = JS_NewArrayBuffer(ctx, data, size, canvas_free_buffer, NULL, false);
+    JSValue array_buffer = JS_NewArrayBuffer(ctx, data, size, 0, canvas_free_buffer, NULL, false);
     if (JS_IsException(array_buffer)) {
         free(data);
         return array_buffer;
