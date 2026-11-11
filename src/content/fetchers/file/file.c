@@ -430,8 +430,13 @@ static char *gen_nice_title(char *path)
     char *title;
     int title_length;
 
+    size_t path_len = strlen(path);
+    if (path_len > (SIZE_MAX - 1) / SLEN("&amp;")) {
+        return NULL;
+    }
+
     /* Convert path for display */
-    nice_path = malloc(strlen(path) * SLEN("&amp;") + 1);
+    nice_path = malloc(path_len * SLEN("&amp;") + 1);
     if (nice_path == NULL) {
         return NULL;
     }

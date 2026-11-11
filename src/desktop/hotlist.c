@@ -198,7 +198,9 @@ static nserror hotlist_create_treeview_field_visits_data(struct hotlist_entry *e
                 len = strftime(last_visited, lvsize, "%a %b %e %H:%M:%S %Y", lvtime);
             }
         }
-    } else {
+    }
+
+    if (last_visited == NULL) {
         last_visited = strdup("-");
         len = 1;
     }

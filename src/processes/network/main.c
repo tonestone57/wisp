@@ -311,7 +311,7 @@ static void network_process_ipc_msg(const wisp_ipc_msg *msg) {
                     uint16_t num_headers = 0;
                     if (msg->length >= 8 + url_len + 2 + 2) {
                         memcpy(&num_headers, msg->data + 8 + url_len + 2, 2);
-                        if (num_headers > 0) {
+                        if (num_headers > 0 && num_headers <= 10000) {
                             hdr_list = calloc(num_headers + 1, sizeof(char *));
                             size_t hdr_offset = 8 + url_len + 4;
                             for (uint16_t i = 0; i < num_headers && hdr_list != NULL; i++) {

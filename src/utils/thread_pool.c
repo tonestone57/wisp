@@ -73,8 +73,14 @@ thread_pool_t *thread_pool_create(int num_threads) {
         return NULL;
     }
 
-    if (pthread_mutex_init(&(pool->lock), NULL) != 0 ||
-        pthread_cond_init(&(pool->notify), NULL) != 0) {
+    if (pthread_mutex_init(&(pool->lock), NULL) != 0) {
+        free(pool->threads);
+        free(pool);
+        return NULL;
+    }
+
+    if (pthread_cond_init(&(pool->notify), NULL) != 0) {
+        pthread_mutex_destroy(&(pool->lock));
         free(pool->threads);
         free(pool);
         return NULL;
